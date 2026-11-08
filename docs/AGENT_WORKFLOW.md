@@ -32,6 +32,16 @@ and `product` still need write access to their own docs.
 - Use cheaper models for repetitive work (string extraction, simple test scaffolds, doc formatting).
 - Report the model actually used. If a model is unavailable, pick the closest available one and record the substitution.
 
+### Resource budget rules (adopted 2026-11-08 at the client's request)
+
+1. **Default to Sonnet.** Use Opus only for new security design (RLS model, auth architecture) and brand strategy; fixes to already-designed modules use Sonnet. Haiku for docs formatting and simple test scaffolds.
+2. **Small, well-specified changes are done by the orchestrator directly**, without spawning an agent.
+3. **One verification pass per change.** The implementing agent runs only the suites it affected; the orchestrator runs the full suite once before the final commit of a workstream. QA runs once per phase, not after every fix.
+4. **Batch findings.** Collect review findings and fix them in one round, not one agent per finding.
+5. **Fewer parallel agents.** Parallelize only when the work is large and the file sets are fully disjoint.
+6. **Short prompts and reports.** Point agents at specific doc sections instead of whole documents; reports ≤ 250 words.
+7. Commit once per finished workstream (WIP commits only when the stop hook requires them).
+
 ## 3. Invoking agents
 
 **Discovery:** Claude Code loads `.claude/agents/` when a session starts. Agents added during a session are
