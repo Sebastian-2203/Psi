@@ -1,8 +1,10 @@
-# Brand Guidelines — Daniela Ortega · Psicóloga
+# Brand Guidelines — Psico D.O.H. / Daniela Ortega · Psicóloga
 
-> Status: **Phase 0 — PROVISIONAL.** No visual evidence of the existing brand could be collected.
-> Every color, font and visual rule in this document is a **proposal awaiting validation** by Daniela Ortega,
-> unless explicitly labeled otherwise. Nothing here should be treated as the final brand.
+> Status: **Phase 0 — evidence-based draft (v2).** The provisional sage palette of v1 is **withdrawn** and
+> replaced by a direction built on two client-supplied inputs (2026-11-08): the logo file (**OBSERVED**) and the
+> client's own analysis of Daniela's Instagram publications (**REPORTED (client analysis)**).
+> HEX values and font names from the client analysis are **approximations / recommendations**, not verified
+> original assets. No brand manual or original font files are known to exist.
 >
 > Owner: Designer agent (Brand / Creative Direction) · Technology partner: SyV Solutions
 > Last updated: 2026-11-08 · Companion document: [`DESIGN_SYSTEM.md`](./DESIGN_SYSTEM.md)
@@ -13,319 +15,327 @@
 
 | Label | Meaning |
 |---|---|
-| **OBSERVED** | Seen directly in a primary source controlled by the brand owner (cited). |
-| **REPORTED** | Stated in text/metadata from a source (cited), not visually verified. |
-| **PROVISIONAL** | A designer proposal. Not evidence. Must be validated or replaced once assets arrive. |
-| **UNATTRIBUTED** | Found publicly, but **not** clearly linked to `@psicologadanielaortega`; deliberately *not* used. |
+| **OBSERVED** | Seen directly in a primary source controlled or supplied by the brand owner/client (cited). |
+| **REPORTED** | Stated in text from a source (cited), not visually verified by the designer. `REPORTED (client analysis)` = the client's own visual analysis of Daniela's Instagram. |
+| **PROVISIONAL** | A designer proposal. Not evidence. Must be validated by the client. |
+| **UNATTRIBUTED / UNCONFIRMED** | Found publicly or inferred, but **not** confirmed as belonging to this brand; deliberately not used as fact. |
 
-Rule: several professionals share the name "Daniela Ortega". Only evidence clearly linked to the handle
-`psicologadanielaortega` (or supplied by Daniela herself) may be attributed to this brand.
+Rule: several professionals share the name "Daniela Ortega". Only evidence linked to `@psicologadanielaortega`
+or supplied by the client may be attributed to this brand.
 
 ---
 
 ## 1. Research log
 
-Date of research: 2026-11-08. Methods restricted to: one direct fetch of the official URL and standard web
-searches. No third-party scraping/mirror/analytics services were used, and no attempt was made to bypass
-Instagram's login wall.
+| # | Date | Method | Source | Result | Label |
+|---|---|---|---|---|---|
+| 1 | 2026-11-08 | WebFetch (single attempt) | `https://www.instagram.com/psicologadanielaortega/` | **Failed — HTTP 429.** No content read; login wall not circumvented. | — |
+| 2 | 2026-11-08 | Web search | `psicologadanielaortega` | No result referencing the handle. | — |
+| 3 | 2026-11-08 | Web search | `"Daniela Ortega" psicóloga` | One exact-name match: Doctoralia listing "Daniela Ortega Higuita" (#5). Others were different people. | — |
+| 4 | 2026-11-08 | Web search | handle + linktr.ee / website | No link page or website found. | — |
+| 5 | 2026-11-08 | WebFetch | `doctoralia.co/perfil/daniela-ortega-higuita` | Psychologist, Bogotá, adults and children. Does **not** mention the handle. | UNATTRIBUTED |
+| 6 | 2026-11-08 | Web search | `Psicóloga Daniela Ortega terapia infantil adultos consulta` | No further match. | — |
+| 7 | 2026-11-08 | **Client-provided file**, viewed by designer | `docs/assets/brand/psico-doh-logo-provided-lowres.png` (624×620 raster, upscaled, low resolution) | Logo: single-line outline tree with the Greek letter **ψ** in the canopy, a grounding line under the trunk, serif wordmark **"Psico D.O.H."**, deep red on white. Orchestrator pixel sampling of darkest ink: ~`#A73C37` / `#AE312B` / `#9F3C3C`; anti-aliased edges ~`#DC9C9A`. Values approximate (low resolution, compression). | **OBSERVED** (client-provided file) |
+| 8 | 2026-11-08 | **Client analysis** of Daniela's Instagram (supplied in writing) | Client brief | Personality, 6-colour palette, 3 Google font recommendations, hierarchy, visual style, audience modes, Daniela-vs-SyV separation (summarised in §2–§12). | **REPORTED (client analysis)** — HEX/fonts are approximations |
 
-| # | Method | URL / query | Result |
-|---|---|---|---|
-| 1 | WebFetch (official URL, single attempt) | `https://www.instagram.com/psicologadanielaortega/` | **Failed — HTTP 429 Too Many Requests.** No body returned. No bio, posts, avatar, link or colors could be read. Instagram typically also gates content behind login; this was not circumvented. |
-| 2 | Web search | `psicologadanielaortega` | No result referencing the handle. Results were unrelated people (other Ortegas, academics). |
-| 3 | Web search | `"Daniela Ortega" psicóloga` | One exact-name match: a Doctoralia Colombia listing for "Daniela Ortega Higuita" (see #5). All other results were different people. No personal website found. |
-| 4 | Web search | `"psicologadanielaortega" instagram OR linktr.ee OR sitio web` | No link page (Linktree or similar), no website, no directory listing referencing the handle. |
-| 5 | WebFetch (directory listing) | `https://www.doctoralia.co/perfil/daniela-ortega-higuita` | Page exists (psychologist, Bogotá, lists adults and children). **It does not mention the Instagram handle nor any personal/social link.** Classified **UNATTRIBUTED** — not used for any brand conclusion. |
-| 6 | Web search | `Psicóloga Daniela Ortega terapia infantil adultos consulta` | No exact match beyond #5; only other professionals with similar names. |
+### 1.1 What changed with #7 and #8
 
-### 1.1 Conclusion of research
-
-- **No OBSERVED visual evidence** (logo, colors, typography, photography, post templates) was obtained.
-- **REPORTED evidence clearly linked to the handle: only the handle and brand name themselves**, as given in the
-  project brief: "Daniela Ortega — Psicóloga", `instagram.com/psicologadanielaortega`.
-- The project brief (not a public source) states the product serves **adult and child patients**.
-  This is labeled **REPORTED (project brief)** and is the only audience information used.
-- The Doctoralia listing (#5) may or may not be the same person. It must **not** be cited as brand evidence
-  until Daniela confirms it.
-
-### 1.2 Next research step
-
-Request the assets in §14 directly from Daniela. Screenshots supplied by the owner are the preferred, compliant
-route for Instagram content.
+- We now have **OBSERVED** logo evidence and a **REPORTED** palette/type direction. The v1 sage/clay palette,
+  Inter/Fraunces fonts and text-wordmark placeholder are **retired**.
+- **Name discrepancy (open):** the project brief says "Daniela Ortega — Psicóloga"; the logo wordmark reads
+  **"Psico D.O.H."**. "D.O.H." *plausibly* stands for "Daniela Ortega Higuita", which would link the Doctoralia
+  listing (#5) to this brand — but this is **UNCONFIRMED**. Nothing in this document assumes it.
+  → Client must confirm (§16): practice name/wordmark to use in the product, and whether listing #5 is hers.
+- The logo raster is **not production-ready** (low-res, upscaled). It may be used only in internal mock-ups
+  until a vector master arrives. **Do not trace, redraw or "clean up" the logo** without the client's approval.
 
 ---
 
-## 2. Brand analysis (evidenced items only)
+## 2. Brand identity & personality
 
 | Item | Finding | Label | Source |
 |---|---|---|---|
-| Brand name | "Daniela Ortega — Psicóloga" | REPORTED | Project brief; handle matches |
-| Primary channel | Instagram, `@psicologadanielaortega` | REPORTED | Project brief (URL); content not accessible |
-| Handle language | Spanish ("psicóloga") → Spanish-speaking audience likely | REPORTED (inference from handle) | Handle text |
-| Practice type | Personal clinical brand (named individual, not an institution) | REPORTED (inference from name) | Handle/name |
-| Audience | Adults and children | REPORTED | Project brief |
-| Logo | Unknown | — | Not accessible |
-| Palette | Unknown | — | Not accessible |
-| Typography | Unknown | — | Not accessible |
-| Photography | Unknown | — | Not accessible |
-| Tone of voice | Unknown | — | Not accessible |
-| Location / country | Unknown (not attributed) | — | Doctoralia Bogotá listing is UNATTRIBUTED |
+| Practice wordmark | "Psico D.O.H." | OBSERVED | Logo file (#7) |
+| Professional | Daniela Ortega — Psicóloga | REPORTED | Project brief |
+| Meaning of "D.O.H." | Possibly "Daniela Ortega Higuita" | UNCONFIRMED | Inference only |
+| Primary channel | Instagram `@psicologadanielaortega` | REPORTED | Project brief |
+| Audience | Adults, children and adolescents | REPORTED | Project brief + client analysis |
+| Personality | Warm, approachable, calm, trustworthy, human, educational, professional, empathetic | REPORTED (client analysis) | #8 |
+| Positioning of the product | "A welcoming digital practice, not hospital software" | REPORTED (client analysis) | #8 |
+| Instagram visual style | Soft warm backgrounds, hand-drawn illustrations, red/coral line art, pastel combinations, educational infographics, real-life photography, friendly storytelling, wellness themes | REPORTED (client analysis) | #8 |
 
-Strategic implication: the brand is a **person-led** practice. Trust is built on the professional herself,
-so the digital product should feel like an extension of her consultation room — not of a hospital or a SaaS tool.
+**Brand idea (PROVISIONAL synthesis):** *growth with roots* — the logo's tree (growth, shelter), ψ (psychology)
+and grounding line (stability) suggest care that is both warm and grounded. The digital product should feel like
+an extension of her consultation room: warm paper, a single confident red line, calm type.
 
----
-
-## 3. Visual identity assessment
-
-**Existing identity (evidence):** None could be assessed. No logo, color, type or imagery was observed.
-
-**Assessment approach once assets arrive (PROVISIONAL checklist):**
-1. Extract HEX values from the original logo vector (not from compressed Instagram JPEGs).
-2. Sample recurring colors across 15–20 posts; note frequency, not one-offs.
-3. Identify type families from source files or Daniela's design tool (Canva templates, etc.).
-4. Note recurring graphic devices (frames, shapes, illustration style, photo treatment).
-5. Assess legibility and WCAG contrast of existing combinations; flag any that fail.
-6. Classify each element: *keep as-is* / *refine for digital* / *replace*.
-
-Until then, all sections below use a neutral, warm **PROVISIONAL** direction designed to be easily re-skinned
-through the token system in `DESIGN_SYSTEM.md`.
+| Is | Is not |
+|---|---|
+| Cálida, cercana (warm, approachable) | Infantil in adult spaces |
+| Serena (calm) | Fría / hospitalaria |
+| Profesional y confiable | Corporativa / "software de clínica" |
+| Educativa (explains, guides) | Condescendiente |
+| Humana, empática | Eufórica, exagerada, alarmista |
 
 ---
 
-## 4. Color palette
+## 3. Existing identity vs refinements vs new applications
 
-### Existing identity (evidence)
-None. No brand color has been observed.
-
-### Recommended refinements
-Not possible yet. Once real colors arrive: keep the brand hue, adjust lightness/saturation only as needed to
-reach WCAG 2.2 AA for text (4.5:1) and UI components (3:1).
-
-### New digital applications — PROVISIONAL palette
-Direction: **warm, calm, trustworthy, human, accessible.** Warm off-whites instead of clinical white; a muted
-sage-teal for calm and growth; clay/terracotta accents for warmth. No saturated "medical blue", no heavy gradients.
-
-| Role | HEX | Use | Label |
+| Element | Existing identity (evidence) | Recommended refinement (PROVISIONAL) | New digital application (PROVISIONAL) |
 |---|---|---|---|
-| Background | `#FBF8F4` | App canvas (warm paper) | PROVISIONAL |
-| Surface / card | `#FFFFFF` | Cards, dialogs | PROVISIONAL |
-| Foreground | `#2E2A27` | Body text (warm charcoal, not pure black) | PROVISIONAL |
-| Muted text | `#6B625A` | Secondary text, captions | PROVISIONAL |
-| Primary — sage teal | `#3D6B5E` | Primary buttons, links, focus | PROVISIONAL |
-| Secondary — sand | `#EFE6DB` | Secondary buttons, chips | PROVISIONAL |
-| Accent — clay (soft) | `#F7E4D8` with text `#7A3E26` | Highlights, selected states | PROVISIONAL |
-| Muted surface | `#F2EDE7` | Section fills, table stripes | PROVISIONAL |
-| Divider | `#E3DBD1` | Decorative dividers only | PROVISIONAL |
-| Input border | `#8C8178` | Form field outlines (≥3:1) | PROVISIONAL |
-| Destructive | `#B3261E` | Delete, errors | PROVISIONAL |
-| Success | `#2F6B45` | Confirmations | PROVISIONAL |
-| Warning | `#FFF2D6` with text `#7A4E00` | Caution banners | PROVISIONAL |
-| Info | `#2D5B8A` | Informational | PROVISIONAL |
-
-**Child mode accents (same brand, more playful) — PROVISIONAL:** sun `#F4C25B`, coral `#F2A285`,
-sky `#BFDDF2`, primary slightly brighter `#2F7466`. Always paired with dark text (see contrast table in
-`DESIGN_SYSTEM.md` §3.4).
-
-**Color rules (PROVISIONAL):**
-- Color is never the only carrier of meaning (pair with icon + text).
-- Max one primary-filled button per view.
-- Clinical risk/alert states use destructive/warning tokens sparingly — avoid alarming red screens.
+| Logo | Tree + ψ outline, serif "Psico D.O.H.", deep red (OBSERVED, low-res) | Vector master; monochrome + reversed variants; simplified small-size mark | Favicon/app icon, portal header, login, PDF header, email header |
+| Logo red | ~`#A73C37` ink (OBSERVED, approx.) | Adopt as accessible functional red (`coral-700`) | Primary buttons, links, focus ring |
+| Palette | 6 colours (REPORTED, approx.) | Keep as brand reference; add accessible shades + tints | Semantic tokens per context (adult / child / professional) |
+| Type | Playfair Display, Caveat, Nunito Sans (REPORTED as recommendation; original fonts not verified) | Strict roles; Caveat restricted | Fluid type scale, next/font loading |
+| Illustration | Hand-drawn, red/coral line art (REPORTED) | Single-weight line echoing the logo stroke | Empty states, onboarding, child-mode activities |
+| Photography | Real-life photography (REPORTED) | Warm natural light, rights-cleared | Portal/marketing only, never clinical areas |
+| Templates | Unknown (likely Canva — unverified) | Obtain originals | Instagram ↔ portal continuity |
 
 ---
 
-## 5. Typography
+## 4. Logo
 
-### Existing identity (evidence)
-None observed.
+### 4.1 Observed description (OBSERVED — client file #7)
+- **Symbol:** a tree drawn as one continuous outline (cloud-like canopy of rounded lobes, trunk flaring into roots);
+  the Greek letter **ψ** sits centred in the canopy, its stem continuing visually into the trunk.
+- **Ground line:** a slightly curved horizontal line under the trunk.
+- **Wordmark:** "Psico D.O.H." in a classic serif (regular weight, upper/lower case, full stops after each initial),
+  centred below the symbol. Typeface **not identified** (do not assume it is Playfair Display).
+- **Layout:** stacked (symbol above wordmark). **Colour:** single deep red on white. **Stroke:** thin, uniform,
+  monoline; ψ appears slightly heavier with tapered serifs.
 
-### Recommended refinements
-Once the brand's fonts are known: if they are licensed display fonts, use them only for headings/marketing and
-keep an open-source, highly legible family for UI and clinical text.
+### 4.2 Usage rules (PROVISIONAL — to confirm with vector master)
+- **Clear space:** minimum = height of the capital "P" of the wordmark (call it *x*) on all sides; 2*x* in
+  marketing compositions.
+- **Minimum size:** stacked lockup ≥ **96 px wide** on screen / ≥ 25 mm in print. Symbol-only ≥ **32 px**.
+  Below 32 px (favicon 16–24 px) the thin outline and ψ will fill in → a **simplified mark** is needed (e.g. ψ only,
+  or tree with heavier stroke) — to be designed and approved, not improvised.
+- **Colour:** logo red (`coral-700` ≈ `#A73C37`) on white or cream; charcoal `#292522` monochrome;
+  white reversed on `coral-700` or charcoal.
 
-### New digital applications — PROVISIONAL
-| Use | Family | Why |
+| Do | Don't |
+|---|---|
+| Use the supplied master files only | Trace or redraw from the low-res PNG |
+| Place on white, cream `#FFF9D9` or other flat light surfaces | Place on busy photos, pink/peach patterns or gradients |
+| Keep proportions and stacked layout (until a horizontal lockup is approved) | Stretch, rotate, outline, add shadows/glows |
+| Use monochrome charcoal for fax/print/stamps on reports | Recolour in coral `#D94A43`, pink, peach or blue gray |
+| Use reversed white on `coral-700` or charcoal | Reverse on coral `#D94A43` (insufficient line contrast at small sizes) |
+
+### 4.3 Variants required (assets still needed)
+Full colour (red) · monochrome charcoal · monochrome black · reversed (white) · symbol-only · simplified small mark
+(favicon 16/32, app icon 180/512) · horizontal lockup (symbol left of wordmark) for headers — **all PROVISIONAL
+until produced from a vector master (SVG).**
+
+### 4.4 In the product
+- Practice/patient surfaces (portal, login, emails, PDFs): this logo (or the tenant's logo in white-label).
+- Platform-admin and "powered by" areas: **SyV Solutions** identity only (§12).
+
+---
+
+## 5. Colour palette
+
+### 5.1 Brand reference colours (REPORTED (client analysis) — approximations)
+
+| Name | HEX | Role defined by client | Weight |
+|---|---|---|---|
+| Cream Yellow | `#FFF9D9` | Dominant brand background, large surfaces | Dominant |
+| Coral Red | `#D94A43` | Primary brand colour: buttons, links, highlights, important actions | Accent |
+| Pastel Pink | `#F5B9B4` | Secondary cards, decorative, soft highlights — **sparingly** | Minor |
+| Peach | `#F8D9A7` | Complementary backgrounds, warm accents — **sparingly** | Minor |
+| Blue Gray | `#AAB7C7` | Informational, secondary; balances warmth | Minor |
+| Charcoal | `#292522` | Text, headings, icons | Structural |
+
+Plus the **logo ink** (OBSERVED, approx.): `#A73C37` (range `#9F3C3C`–`#AE312B`).
+
+### 5.2 Accessibility findings (computed 2026-11-08 — full table in `DESIGN_SYSTEM.md` §3.3)
+- Coral `#D94A43`: white text on it **4.19:1**, as text on cream **3.95:1**, on white **4.19:1** → **fails AA for
+  normal text**; passes for large text (≥24 px or ≥18.66 px bold) and non-text UI (≥3:1).
+- Logo ink `#A73C37`: white on it **6.28:1**, on cream **5.92:1** → **passes AA**. 
+- Pink, peach, blue gray, cream: **surfaces only**, always with charcoal text (9.03 / 11.20 / 7.46 / 14.33:1).
+  Never as text or as the only boundary of a control (blue gray on white 2.04:1).
+
+### 5.3 Recommended refinement (PROVISIONAL)
+Keep the client's HEX as **brand reference colours** (illustration, marketing, large display). Use a
+**functional accessible red** for anything that must be read or operated:
+
+| Functional shade | HEX | Derived from | Use |
+|---|---|---|---|
+| `coral-700` (**primary**) | `#A73C37` | Logo ink (OBSERVED) | Button fills, link text, focus ring, active nav |
+| `coral-800` | `#8A302C` | darker step | Hover/pressed |
+| `coral-600` | `#C0403A` | between brand coral and ink | Large text, icons, child-mode accents (5.20:1 on white, 4.91:1 on cream) |
+| `coral-500` (brand) | `#D94A43` | client | Line art, illustrations, large display, decorative highlights |
+
+This ties the UI directly to the logo: the red people click is the red of the logo.
+
+### 5.4 Usage weighting (PROVISIONAL — colours must not have equal weight)
+
+| Share | Patient portal (adult / child) | Professional dashboard |
 |---|---|---|
-| UI + body | **Inter** (Google Fonts, OFL) | Excellent screen legibility, full Spanish diacritics (á é í ó ú ñ ü ¿ ¡), tabular numbers for dates/tables. |
-| Headings (adult + marketing) | **Fraunces** (Google Fonts, OFL), soft optical settings | Warm, human serif; signals care and craft without looking corporate. |
-| Child mode headings | **Nunito** (Google Fonts, OFL) | Rounded terminals feel friendly and playful while remaining very readable. |
+| ~60% | Cream `#FFF9D9` canvas + white cards | White / near-white work areas (cream ≤10%: sidebar, canvas edges) |
+| ~30% | Charcoal type + soft tints (pink, peach, blue-gray tints — each small) | Charcoal type, neutral greys, blue-gray for info |
+| ~10% | Red (`coral-700` actions, `coral-500` line art) | Red ≤5%: one primary action per view, active nav, focus |
 
-All three are PROVISIONAL and swappable through tokens. Minimum body size 16px; clinical notes 16–17px with
-1.6 line-height.
+Child mode may raise tints (pink/peach/blue gray) to ~20% of the 30%, never the red.
 
----
-
-## 6. Logo usage
-
-### Existing identity (evidence)
-Logo not observed. **Do not recreate, trace or approximate the logo from memory or low-resolution images.**
-
-### Recommended refinements
-On receipt of the logo: verify clear-space, minimum size, and that it works in one color (for favicons,
-PDFs and stamps on reports).
-
-### New digital applications — PROVISIONAL rules
-- Until the real logo is supplied, use a **text wordmark placeholder**: "Daniela Ortega" (heading font) +
-  "Psicóloga" (UI font, muted). Labeled as placeholder in the codebase.
-- Required variants: full color, single color dark, single color light (reverse), square/avatar mark, favicon (32/180/512px).
-- Clear-space: at least the height of the wordmark's capital letter on all sides.
-- Minimum width: 120px (horizontal), 32px (mark).
-- Never: stretch, recolor outside the palette, add shadows/gradients, place on busy photos.
-- In white-label tenants, each organization's logo replaces this one through `organization_branding`.
+### 5.5 Colour rules
+- Colour never carries meaning alone (icon + text always).
+- One filled primary button per view.
+- Errors must not look like brand emphasis: see error treatment in `DESIGN_SYSTEM.md` §3.5 (distinct crimson-wine
+  hue, icon, label, tinted container, outline-style destructive buttons).
+- No oversaturation, no hospital blue, no heavy gradients, heavy shadows or glassmorphism (REPORTED, client).
 
 ---
 
-## 7. Iconography
+## 6. Typography
 
-### Existing identity (evidence)
-None observed.
+### 6.1 Families (REPORTED (client analysis) as recommendations — originals unverified; all Google Fonts, OFL)
 
-### Recommended refinements
-If Instagram posts use a recognizable illustration/icon style, mirror its stroke weight and corner style.
+| Family | Weights | Role |
+|---|---|---|
+| **Playfair Display** | 400, 500, 600, 700 | H1/H2, marketing, section titles, editorial statements |
+| **Caveat** | 400, 500, 600 | Decorative short phrases only |
+| **Nunito Sans** | 400, 500, 600, 700 | Body, navigation, buttons, forms, patient records, clinical docs, dashboard, labels |
 
-### New digital applications — PROVISIONAL
-- Library: **Lucide** (ships with shadcn/ui; ISC license). Outline, 1.5–2px stroke, rounded joins.
-- Sizes: 16 (inline), 20 (buttons/nav), 24 (headers). Child mode: 24–32 with optional filled soft background circle.
-- Avoid medical clichés (stethoscopes, crosses, pills, brains with gears). Prefer neutral metaphors:
-  calendar, notebook, leaf/sprout, hands, chat bubble.
-- Icons always have an accessible label (visible text or `aria-label`).
+### 6.2 Hierarchy (REPORTED, client)
+H1 Playfair 600 · H2 Playfair 500/600 · H3 Nunito Sans 700 · Body Nunito Sans 400 · Buttons Nunito Sans 700 ·
+Labels Nunito Sans 600 · Decorative Caveat 500. Sizes/line-heights: `DESIGN_SYSTEM.md` §4.
 
----
+### 6.3 Caveat restrictions (mandatory)
+**Never** for paragraphs, forms, labels, navigation, buttons, tables, clinical documents, notes, error messages,
+legal text or any long content. Allowed: ≤ ~8 words, ≥ 20 px, decorative/emotional accents ("¡Lo lograste!",
+"Un paso a la vez"). The same meaning must never depend on reading the Caveat text alone. Not in the
+professional dashboard except possibly the empty-state flourish (PROVISIONAL, optional).
 
-## 8. Imagery & photography
-
-### Existing identity (evidence)
-None observed. Whether Daniela uses portraits, stock or illustration is unknown.
-
-### Recommended refinements
-Use her own professional portraits (with usage rights) as the primary trust signal on public/portal surfaces.
-
-### New digital applications — PROVISIONAL
-- Natural light, warm tones, real spaces; no staged "doctor in white coat" stock.
-- **Never** show identifiable patients. No images of distress used as decoration.
-- Child mode: simple flat illustrations (soft shapes, limited palette) rather than photos of children.
-- Inside the clinical app, imagery is minimal: empty states and onboarding only.
-- All images need alt text; decorative images use empty alt.
+### 6.4 Additional rules (PROVISIONAL)
+- Playfair Display only ≥ 24 px (high stroke contrast degrades at small sizes); never in tables or forms.
+- Nunito Sans body min 16 px; clinical reading 17 px / 1.7.
+- Spanish diacritics (á é í ó ú ñ ü ¿ ¡) are covered by all three; load `latin` + `latin-ext` for names.
 
 ---
 
-## 9. Graphic elements
+## 7. Illustration & line art (PROVISIONAL, based on REPORTED style + OBSERVED logo)
+- **Single-weight line art** in `coral-500` `#D94A43` (or `coral-700` on cream for stronger presence), echoing the
+  logo's monoline tree: rounded caps and joins, no fills or only flat pastel fills (pink/peach/blue gray) behind
+  the line, slightly imperfect hand-drawn feel.
+- Motifs: trees, leaves, roots, hands, paths, sun, home, conversation bubbles. Avoid medical clichés and
+  "brain" imagery; avoid images of distress as decoration.
+- Adult portal: sparse — empty states, onboarding, a single hero line drawing. No childish characters.
+- Child/adolescent mode: more illustrations, friendly characters allowed in activities and celebrations;
+  still within line art + pastel fills. Not on every surface.
+- Professional dashboard: line art only in empty states and onboarding, small and muted.
+- Educational infographics (REPORTED): use charcoal text, line icons, one pastel fill per block.
 
-### Existing identity (evidence)
-None observed.
+## 8. Photography (PROVISIONAL, based on REPORTED "real-life photography")
+- Real, warm, natural-light photos; Daniela's own professional portraits as the primary trust signal
+  (written usage rights required).
+- **Never** identifiable patients; no stock "doctor in white coat"; no images of crisis.
+- Photos only in portal welcome/marketing surfaces, never inside clinical areas. Alt text always.
 
-### Recommended refinements
-Pending posts review.
-
-### New digital applications — PROVISIONAL
-- Soft organic blob or rounded-rectangle shapes in muted/secondary tones as subtle backgrounds (≤10% of a view).
-- Generous radius (see design system), hairline dividers, plenty of whitespace.
-- **No heavy gradients**; at most a very subtle two-tone wash on marketing hero areas.
-- Child mode: allowed small decorative stickers/stars in activity completion, never in clinical areas.
+## 9. Iconography (PROVISIONAL)
+- **Lucide** (ships with shadcn/ui). Outline only, **stroke 1.75 px** at 20–24 px to harmonise with the thin logo
+  line (2 px at 16 px for legibility). Rounded caps/joins.
+- Colour: charcoal by default; `coral-700` for active/primary; blue gray `#46586E` (`bluegray-700`) for info.
+- Sizes 16 / 20 / 24; child mode 24–32 in a soft tinted circle (pink/peach/blue-gray-100).
+- Every icon has a visible label or `aria-label`. No medical clichés.
 
 ---
 
-## 10. Design principles (PROVISIONAL)
+## 10. Tone of voice (Spanish-first, bilingual)
+REPORTED (client analysis): warm, educational, empathetic, professional. Captions were not read by the designer.
+PROVISIONAL microcopy rules:
+- Spanish (es) primary; English (en) natural, not literal.
+- Default **"tú"** in the patient portal; neutral impersonal forms in professional UI. *Pending: tú vs usted.*
+- Short, clear, kind, explanatory (educational). No jargon to patients. Never blaming.
 
-1. **Calma primero (calm first).** Low visual noise; one clear task per screen.
-2. **Humano, no hospitalario.** Warm neutrals, human language, no clinical sterility.
-3. **Confianza visible.** Clear privacy cues (locked notes, who can see what), consistent patterns.
-4. **Accesible por defecto.** WCAG 2.2 AA minimum, keyboard and screen-reader ready, reduced motion respected.
-5. **Mismo ADN, dos voces.** Adult = mature and sober; child = more playful, same palette family and tokens.
-6. **Marca del profesional.** The organization's brand leads; the product (SyV) stays in the background.
-
----
-
-## 11. Tone of voice (Spanish-first, bilingual)
-
-### Existing identity (evidence)
-No captions or bio were accessible. Tone unknown.
-
-### Recommended refinements
-Collect 5–10 captions Daniela considers representative; align microcopy with her real voice (tú vs usted, emoji use).
-
-### New digital applications — PROVISIONAL
-- Spanish (es) is the primary language; English (en) is secondary and must be a faithful, natural translation, not literal.
-- Default address: **"tú"** in the patient portal (warm), neutral impersonal forms in clinical staff UI. *Pending decision: "tú" vs "usted" — region-dependent.*
-- Short, clear, kind. No jargon to patients; correct clinical terminology for professionals.
-- Never blaming: "No pudimos guardar los cambios. Inténtalo de nuevo." rather than "Error: entrada inválida".
-
-| Context | Español (primario) | English |
+| Context | Español | English |
 |---|---|---|
 | Portal greeting (adult) | "Hola, Ana. Qué bueno verte de nuevo." | "Hi Ana, good to see you again." |
 | Portal greeting (child) | "¡Hola, Leo! ¿Listo para tu actividad?" | "Hi Leo! Ready for your activity?" |
 | Empty state | "Aún no tienes actividades asignadas." | "You don't have any activities yet." |
 | Locked note | "Nota finalizada. Puedes agregar una adenda." | "Note finalized. You can add an addendum." |
 | Error | "Algo no salió bien. Tus datos están a salvo; inténtalo de nuevo." | "Something went wrong. Your data is safe; please try again." |
+| Caveat accent (child) | "¡Lo lograste!" (+ text equivalent in body font) | "You did it!" |
 
 ---
 
-## 12. Brand personality (PROVISIONAL)
+## 11. Audience modes (REPORTED direction, PROVISIONAL specifics)
 
-| Is | Is not |
+| Mode | Direction (REPORTED, client) | Application (PROVISIONAL) |
+|---|---|---|
+| **Adult portal** (`portal-adult`) | Minimal, calm, sophisticated, no childish illustration | Cream canvas, white cards, Playfair page titles, sparse line art, red only for actions |
+| **Child / adolescent portal** (`portal-child`) | More illustrations, friendly interactive elements — but not a children's game everywhere | Larger targets, pastel tints, line-art characters in activities/celebrations, Caveat accents; navigation and forms stay plain |
+| **Professional dashboard** (`professional`) | Professional, readable, efficient; brand colours used subtly; clinical usability first | White work areas, cream only as subtle frame, red ≤5%, dense-but-airy tables, no Caveat |
+
+Open: whether adolescents (≈12–17) use `portal-child` or `portal-adult` (§16).
+
+---
+
+## 12. Daniela vs SyV Solutions — brand separation (REPORTED, client)
+
+| Surface | Identity |
 |---|---|
-| Cálida (warm) | Infantil in adult spaces |
-| Serena (calm) | Fría / clínica |
-| Profesional y confiable | Corporativa |
-| Cercana (approachable) | Informal en temas clínicos |
-| Esperanzadora (hopeful) | Eufórica / exagerada |
+| Login, patient portal, activity player, emails to patients, PDFs, professional dashboard | **Practice brand** (Psico D.O.H. / Daniela — or tenant brand in white-label) |
+| "Powered by SyV" footer (small, muted, one line) | SyV Solutions |
+| Platform-admin console, technical docs, status pages, platform legal/terms | SyV Solutions |
 
-To be validated against Daniela's own description of her practice and her real content.
-
----
-
-## 13. Digital guidelines
-
-### Existing identity (evidence)
-Instagram presence reported; no other digital channel found (no website, no link page) in research §1.
-
-### Recommended refinements
-If a link page or website is created, reuse the same tokens so Instagram → portal → app feel continuous.
-
-### New digital applications — PROVISIONAL
-- **Clinical dashboard (professional):** sober, dense-but-airy, adult tokens; the brand appears in logo, primary color, headings.
-- **Patient portal — adult:** same tokens, larger type, more whitespace, warm greetings.
-- **Patient portal — child:** child-mode tokens (rounded font, accent colors, larger targets ≥ 48px, celebratory micro-feedback that respects reduced motion).
-- **Email/notifications:** plain, text-first, logo + primary color only; never include clinical content in email bodies.
-- **PDF exports:** single-color logo, Inter body, no background tints (print-friendly).
-- **White-label:** every brand value comes from tokens; no hard-coded Daniela colors in components.
+Rules: never combine both logos in one lockup; never use Daniela's palette for SyV surfaces or vice-versa.
+**SyV identity is not defined yet — assets pending.** Until then platform-admin uses a neutral system theme
+(PROVISIONAL, `DESIGN_SYSTEM.md` §2.4).
 
 ---
 
-## 14. Assets required from Daniela (checklist)
-
-- [ ] Logo — master vector **SVG** (and AI/PDF if available)
-- [ ] Logo — **PNG** variants: full color, single color dark, reverse/white, square avatar mark, transparent background
-- [ ] Official color palette (HEX/RGB; Pantone/CMYK if printed materials exist)
-- [ ] Font names and font files/licenses (or Canva template names)
-- [ ] **15–20 screenshots** of representative Instagram posts (feed, carousels, stories highlights)
-- [ ] **Profile screenshot** (avatar, bio, highlights, link-in-bio)
-- [ ] Professional photos **with written usage rights** (photographer release)
-- [ ] Brand manual / style guide, if one exists
-- [ ] Tone examples: 5–10 captions she considers "very her"; preference "tú" vs "usted"
-- [ ] Audience info: country/city, age groups (adult, adolescent, child), modalities (online/in person), languages
-- [ ] Confirmation of which public listings (if any) belong to her (e.g. directory profiles)
-- [ ] Things she dislikes / wants to avoid visually
+## 13. Design principles (PROVISIONAL, aligned with client principles)
+1. **Calma primero.** Generous whitespace, one task per screen, soft surfaces, subtle borders.
+2. **Humano, no hospitalario.** Cream and warm red, no hospital blue, no sterile white-on-blue.
+3. **Jerarquía clara.** One dominant colour, one accent; serif titles, sans everything functional.
+4. **Redondeado, no infantil.** Rounded corners but not pill-shaped everything (REPORTED, client).
+5. **Accesible por defecto.** WCAG 2.2 AA; functional shades used for text/actions.
+6. **Mismo ADN, tres voces.** Adult, child/adolescent and professional share tokens, differ in density and tone.
+7. **La marca del profesional al frente; SyV al fondo.**
 
 ---
 
-## 15. Provisional marketing direction
+## 14. Digital guidelines (PROVISIONAL)
+- **Email/notifications:** text-first, logo + `coral-700` only; no clinical content in email bodies.
+- **PDF exports:** monochrome or red logo, Nunito Sans body, no cream background (print-friendly).
+- **Instagram ↔ portal continuity:** announcement posts reuse cream + red line art + Playfair so patients recognise
+  the portal instantly.
+- **White-label:** every value comes from tokens; no hard-coded Daniela colours in components.
 
-- **Positioning (PROVISIONAL):** "Acompañamiento psicológico cercano y profesional, para adultos y niños" — to be validated.
-- **Instagram ↔ product continuity:** posts announcing the portal should use the same palette and type as the app
-  once validated, so patients recognize it instantly.
-- **Content pillars (proposal):** psychoeducation, practical tools (linked to portal activities), behind-the-scenes
-  of the practice, guidance for parents.
-- **Portal as differentiator:** "Tus actividades entre sesiones, en un solo lugar seguro."
-- **Ethics:** no testimonials that identify patients; no outcome promises; follow local professional-association advertising rules.
-- **Measurement (later phase):** portal activation rate, activity completion, appointment adherence — no clinical data in marketing analytics.
+### 14.1 Marketing direction (PROVISIONAL)
+- Positioning: "Acompañamiento psicológico cercano y profesional, para adultos, niños y adolescentes" — to validate.
+- Content pillars: psychoeducation, practical tools linked to portal activities, guidance for parents.
+- Portal message: "Tus actividades entre sesiones, en un solo lugar seguro."
+- Ethics: no identifying testimonials, no outcome promises; follow professional-association advertising rules
+  `[NEEDS LEGAL VERIFICATION]`.
 
 ---
 
-## 16. Pending decisions
+## 15. Assets still required (checklist)
 
-1. Real logo, palette and fonts (blocks finalizing any of §4–§9).
-2. "Tú" vs "usted" for patients; regional Spanish variant.
-3. Whether child mode applies by age, by professional toggle, or both.
-4. Whether the Doctoralia listing (UNATTRIBUTED) is hers.
-5. Whether dark mode is offered in the patient portal at launch (see `DESIGN_SYSTEM.md` §4).
+- [ ] **Vector logo master (SVG**, plus AI/PDF/EPS if available) — current file is a low-res raster
+- [ ] **Confirmation of practice name/wordmark** for the product: "Psico D.O.H.", "Daniela Ortega — Psicóloga", or both (and where each appears)
+- [ ] Meaning of "D.O.H." and whether the Doctoralia listing "Daniela Ortega Higuita" is hers
+- [ ] Logo variants if they exist (monochrome, reversed, symbol-only, horizontal)
+- [ ] Name of the wordmark typeface (if known)
+- [ ] **Original Canva (or other) templates** used for Instagram, with their fonts and colours
+- [ ] **Exact fonts** actually used, if any differ from the recommended Playfair / Caveat / Nunito Sans
+- [ ] Exact brand HEX values if defined anywhere (to replace approximations)
+- [ ] 10–20 representative post screenshots + profile screenshot (to let the designer verify the client analysis)
+- [ ] Line-art / illustration source files and their author/licence
+- [ ] Professional photos with written usage rights
+- [ ] Tone examples (5–10 captions); tú vs usted
+- [ ] **SyV Solutions identity assets** (logo, colours, fonts) for "powered by" and platform admin
+- [ ] Things Daniela dislikes / wants to avoid visually
+
+---
+
+## 16. Pending decisions / open questions for the client
+
+1. Practice name/wordmark to use in the product ("Psico D.O.H." vs "Daniela Ortega — Psicóloga"); meaning of D.O.H.
+2. Is the Doctoralia listing "Daniela Ortega Higuita" hers? (UNCONFIRMED; not used until confirmed.)
+3. Approval of `coral-700` `#A73C37` (logo ink) as the functional primary, with `#D94A43` reserved for line art/display.
+4. Adolescents: child mode, adult mode, or a separate lighter "teen" variant?
+5. Child-mode trigger: age-based, professional toggle, or both.
+6. "Tú" vs "usted"; regional Spanish variant (Colombia assumed — unconfirmed).
+7. Dark mode deferred for the portal at launch (see `DESIGN_SYSTEM.md` §3.6) — confirm.
+8. SyV Solutions identity: timeline for assets.

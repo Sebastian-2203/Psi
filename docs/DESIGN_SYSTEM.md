@@ -1,359 +1,483 @@
-# Design System — Psi (Daniela Ortega · Psicóloga, white-label ready)
+# Design System — Psi (Psico D.O.H. / Daniela Ortega · Psicóloga, white-label ready)
 
-> Status: **Phase 0 — PROVISIONAL.** All values are proposals pending brand evidence (see
-> [`BRAND_GUIDELINES.md`](./BRAND_GUIDELINES.md) §1 — Instagram returned HTTP 429; no visual assets observed).
-> Stack target: Tailwind CSS + shadcn/ui, CSS variables, semantic tokens. Frontend implements; this doc defines.
-> Last updated: 2026-11-08.
+> Status: **Phase 0 — v2, documentation only.** Replaces the v1 provisional sage palette. Brand inputs:
+> logo file (**OBSERVED**, low-res) and the client's Instagram analysis (**REPORTED (client analysis)**; HEX and
+> fonts are approximations/recommendations). Derived shades, semantic mappings, scales and component specs are
+> **PROVISIONAL** designer proposals. See [`BRAND_GUIDELINES.md`](./BRAND_GUIDELINES.md) §1 for evidence.
+> Stack target: Tailwind CSS + shadcn/ui + Lucide. **No code files exist or are created in Phase 0**; snippets
+> below are specifications for the frontend agent in Phase 1. Last updated: 2026-11-08.
 
 ---
 
 ## 1. Principles
 
-- **Semantic over literal.** Components consume `--primary`, never `#3D6B5E`.
-- **Three layers:** primitives (raw palette) → semantic tokens (role) → component tokens (optional, sparing).
-- **Tenant-overridable:** an organization can override a defined subset of semantic tokens; everything else is derived.
-- **Accessible by construction:** every text/background pair ships with a verified contrast ratio (§3.4).
-- **Modes:** `adult` (default) and `child` are *density/personality* modes on the same token set; `light`/`dark` are *color schemes*.
+- **Semantic over literal.** Components consume `--primary`, never a HEX. No hard-coded HEX in components.
+- **Two colour layers:** brand primitives (raw palette) → semantic tokens (roles). Component tokens only where
+  shadcn requires them (`--sidebar-*`, `--chart-*`).
+- **Brand colour ≠ functional colour.** Client HEX values are kept as brand references; text and controls use
+  derived accessible shades (§3.2).
+- **Three contexts** on one token set: `portal-adult`, `portal-child`, `professional` (+ a neutral
+  `platform` context for SyV admin, pending SyV assets).
+- **Accessible by construction:** every pair used for text/UI has a computed ratio (§3.3).
 
 ---
 
 ## 2. Token architecture
 
-### 2.1 Layers
-
 ```
-primitives      --sage-700, --sand-100, --clay-800 ...   (HEX; never used directly in components)
-semantic        --background, --foreground, --primary, --primary-foreground ...
-component       --sidebar-background, --chart-1 ... (only where shadcn requires)
-mode modifiers  [data-mode="child"]  [data-theme="dark"]  [data-tenant="<slug>"]
+brand primitives   --cream-100, --coral-500, --coral-700 (logo ink), --pink-300 ...  (never used in components)
+semantic tokens    --background, --foreground, --primary, --primary-foreground ...
+component tokens   --sidebar-*, --chart-*  (only where shadcn needs them)
+context selectors  [data-context="portal-adult" | "portal-child" | "professional" | "platform"]
+tenant overrides   [data-tenant="<slug>"]  (generated server-side, §7)
 ```
 
-### 2.2 Semantic token list (shadcn-compatible)
+### 2.1 Brand primitives
 
-| Token | Pair | Purpose |
-|---|---|---|
-| `--background` / `--foreground` | ✓ | App canvas and body text |
-| `--card` / `--card-foreground` | ✓ | Cards, panels |
-| `--popover` / `--popover-foreground` | ✓ | Menus, popovers (= card) |
-| `--primary` / `--primary-foreground` | ✓ | Main action, links, active nav |
-| `--secondary` / `--secondary-foreground` | ✓ | Secondary actions, chips |
-| `--accent` / `--accent-foreground` | ✓ | Hover/selected rows, highlights |
-| `--muted` / `--muted-foreground` | ✓ | Subtle fills; secondary text |
-| `--border` | — | Decorative dividers (not required to hit 3:1) |
-| `--input` | — | Form control borders (must hit ≥3:1 vs background) |
-| `--ring` | — | Focus ring (≥3:1) |
-| `--destructive` / `--destructive-foreground` | ✓ | Delete, errors |
-| `--success` / `--success-foreground` | ✓ | Saved, completed |
-| `--warning` / `--warning-foreground` | ✓ | Caution (bg tint + dark text) |
-| `--info` / `--info-foreground` | ✓ | Neutral information |
-| `--radius` | — | Base radius |
+| Ramp | Step | HEX | Source / label |
+|---|---|---|---|
+| cream | 50 | `#FFFCEE` | Tint of client cream — PROVISIONAL |
+| cream | **100** | **`#FFF9D9`** | **Client "Cream Yellow" — REPORTED** |
+| cream | 200 | `#F7EFC9` | Hover/selected on cream — PROVISIONAL |
+| coral | 50 | `#FDEDEB` | Tint — PROVISIONAL |
+| coral | **500** | **`#D94A43`** | **Client "Coral Red" — REPORTED** (brand reference, decorative/large) |
+| coral | 600 | `#C0403A` | Derived accessible — PROVISIONAL |
+| coral | **700** | **`#A73C37`** | **Logo ink — OBSERVED (approx.)**; functional primary |
+| coral | 800 | `#8A302C` | Derived (hover/pressed) — PROVISIONAL |
+| coral | 900 | `#5E211E` | Derived (text on coral tints) — PROVISIONAL |
+| pink | 100 | `#FCE7E4` | Tint — PROVISIONAL |
+| pink | **300** | **`#F5B9B4`** | **Client "Pastel Pink" — REPORTED** |
+| peach | 100 | `#FDF0D5` | Tint — PROVISIONAL |
+| peach | **300** | **`#F8D9A7`** | **Client "Peach" — REPORTED** |
+| bluegray | 100 | `#E8EDF3` | Tint — PROVISIONAL |
+| bluegray | **300** | **`#AAB7C7`** | **Client "Blue Gray" — REPORTED** |
+| bluegray | 700 | `#46586E` | Derived (info text/icons) — PROVISIONAL |
+| bluegray | 800 | `#36465A` | Derived (text on info tint) — PROVISIONAL |
+| neutral | 0 | `#FFFFFF` | White |
+| neutral | 50 | `#FAF8F3` | Warm near-white (professional canvas) — PROVISIONAL |
+| neutral | 100 | `#F7F3E6` | Muted surface — PROVISIONAL |
+| neutral | 200 | `#E9E0CC` | Decorative border — PROVISIONAL |
+| neutral | 500 | `#8A7D72` | Input border (UI ≥3:1) — PROVISIONAL |
+| neutral | 600 | `#6A5F57` | Muted text — PROVISIONAL |
+| **charcoal** | 900 | **`#292522`** | **Client "Charcoal" — REPORTED** |
+| crimson | 50 / 700 / 800 | `#FCE8EC` / `#9B1C3A` / `#7A1630` | Error family, deliberately off-brand hue — PROVISIONAL |
+| green | 50 / 700 / 800 | `#E5F2E8` / `#2F6B45` / `#24573A` | Success — PROVISIONAL |
+| amber | 50 / 600 / 800 | `#FDEBC8` / `#B7791F` / `#7A4A00` | Warning — PROVISIONAL |
 
-shadcn convention stores HSL channels; we store **HEX in docs, HSL channels in CSS** (frontend converts). Example below uses HSL-free hex via `color` for readability; implementation may use `hsl(var(--x))` per shadcn version in use.
+### 2.2 Semantic tokens per context (PROVISIONAL)
 
-### 2.3 CSS (PROVISIONAL reference)
+| Token | `portal-adult` | `portal-child` | `professional` |
+|---|---|---|---|
+| `--background` | cream-100 `#FFF9D9` | cream-100 `#FFF9D9` | neutral-50 `#FAF8F3` |
+| `--foreground` | charcoal `#292522` | charcoal | charcoal |
+| `--card` / `--popover` | white | white | white |
+| `--card-foreground` | charcoal | charcoal | charcoal |
+| `--primary` | coral-700 `#A73C37` | coral-600 `#C0403A` | coral-700 `#A73C37` |
+| `--primary-hover` | coral-800 `#8A302C` | coral-700 `#A73C37` | coral-800 `#8A302C` |
+| `--primary-foreground` | white | white | white |
+| `--secondary` / `-foreground` | pink-100 `#FCE7E4` / charcoal | peach-100 `#FDF0D5` / charcoal | neutral-100 `#F7F3E6` / charcoal |
+| `--accent` / `-foreground` (hover, selected) | cream-200 `#F7EFC9` / charcoal | pink-100 `#FCE7E4` / charcoal | cream-50 `#FFFCEE` / charcoal |
+| `--muted` / `-foreground` | neutral-100 / neutral-600 | neutral-100 / neutral-600 | neutral-100 / neutral-600 |
+| `--border` (decorative) | neutral-200 `#E9E0CC` | neutral-200 | neutral-200 |
+| `--input` (control outline) | neutral-500 `#8A7D72` | neutral-500 | neutral-500 |
+| `--ring` | coral-700 | coral-700 | coral-700 |
+| `--brand` (decorative line art, large display only) | coral-500 `#D94A43` | coral-500 | coral-500 (rare) |
+| `--sidebar` | — | — | cream-50 `#FFFCEE` |
+| `--destructive` / `-foreground` | crimson-700 `#9B1C3A` / white | same | same |
+| `--destructive-surface` | crimson-50 `#FCE8EC` (text crimson-700) | same | same |
+| `--success` / `-foreground` | green-700 / white | same | same |
+| `--success-surface` | green-50 (text green-800) | same | same |
+| `--warning-surface` / `-foreground` / `-border` | amber-50 / amber-800 / amber-600 | same | same |
+| `--info` / `-foreground` | bluegray-700 `#46586E` / white | same | same |
+| `--info-surface` | bluegray-100 (text bluegray-800) | same | same |
+| `--fun-pink` / `--fun-peach` / `--fun-sky` | — | pink-300 / peach-300 / bluegray-300 (charcoal text only) | — |
+| `--radius` | 0.75rem (12px) | 1.125rem (18px) | 0.625rem (10px) |
+
+Tenants override only `--primary` family, `--secondary`, `--accent`, `--brand`, logo and (allow-listed) fonts — §7.
+Status colours, `--foreground`, `--background` contrast relationships and `--input` are platform-controlled.
+
+### 2.3 Tokens stylesheet — Phase 1 specification (do not create now)
+
+One file (e.g. `app/styles/tokens.css`, path to be confirmed by architect/frontend) contains **all** colour
+values. Shape:
 
 ```css
-:root {                         /* light · adult · default tenant */
-  --background:#FBF8F4; --foreground:#2E2A27;
-  --card:#FFFFFF;       --card-foreground:#2E2A27;
-  --popover:#FFFFFF;    --popover-foreground:#2E2A27;
-  --primary:#3D6B5E;    --primary-foreground:#FFFFFF;
-  --secondary:#EFE6DB;  --secondary-foreground:#4A3F35;
-  --accent:#F7E4D8;     --accent-foreground:#7A3E26;
-  --muted:#F2EDE7;      --muted-foreground:#6B625A;
-  --border:#E3DBD1;     --input:#8C8178;  --ring:#3D6B5E;
-  --destructive:#B3261E; --destructive-foreground:#FFFFFF;
-  --success:#2F6B45;    --success-foreground:#FFFFFF;
-  --warning:#FFF2D6;    --warning-foreground:#7A4E00;
-  --info:#2D5B8A;       --info-foreground:#FFFFFF;
-  --radius:0.75rem;
-  --font-sans:"Inter",system-ui,sans-serif;
-  --font-heading:"Fraunces",Georgia,serif;
+:root {                                   /* primitives */
+  --cream-100:#FFF9D9; --coral-500:#D94A43; --coral-700:#A73C37; --charcoal-900:#292522; /* … all of §2.1 */
 }
-[data-theme="dark"] {
-  --background:#1B1A19; --foreground:#F1ECE6;
-  --card:#252321;       --card-foreground:#F1ECE6;
-  --popover:#252321;    --popover-foreground:#F1ECE6;
-  --primary:#8EC2B1;    --primary-foreground:#12241F;
-  --secondary:#3A332C;  --secondary-foreground:#EDE4DA;
-  --accent:#4A2C20;     --accent-foreground:#F6D3C1;
-  --muted:#2E2B28;      --muted-foreground:#ABA197;
-  --border:#3A3633;     --input:#7D736A;  --ring:#8EC2B1;
-  --destructive:#F2A099; --destructive-foreground:#1B1A19;
-  --success:#8FCBA3;    --success-foreground:#10251A;
-  --warning:#E8BE6A;    --warning-foreground:#2A1C00;
-  --info:#9CC1E8;       --info-foreground:#0F1E2E;
+:root, [data-context="portal-adult"] {    /* semantic — default */
+  --background:var(--cream-100); --foreground:var(--charcoal-900);
+  --primary:var(--coral-700); --primary-foreground:#FFFFFF; --ring:var(--coral-700); /* … §2.2 */
 }
-[data-mode="child"] {
-  --background:#FFFBF5;
-  --primary:#2F7466;    --primary-foreground:#FFFFFF;
-  --kid-sun:#F4C25B;    --kid-sun-foreground:#3A2A00;
-  --kid-coral:#F2A285;  --kid-coral-foreground:#4A1E10;
-  --kid-sky:#BFDDF2;    --kid-sky-foreground:#0F2C44;
-  --radius:1.25rem;
-  --font-heading:"Nunito",system-ui,sans-serif;
-}
+[data-context="portal-child"]  { --primary:var(--coral-600); --radius:1.125rem; /* … */ }
+[data-context="professional"]  { --background:var(--neutral-50); --radius:0.625rem; /* … */ }
 ```
 
-Tailwind maps each token: `colors.primary.DEFAULT = 'var(--primary)'`, `colors.primary.foreground = 'var(--primary-foreground)'`, plus `success`, `warning`, `info` extensions; `borderRadius.lg = 'var(--radius)'`, `md = calc(var(--radius) - 2px)`, `sm = calc(var(--radius) - 4px)`.
+- Value format follows the shadcn version chosen in Phase 1 (HSL channels or OKLCH); names stay the same.
+- Tailwind theme maps `colors.primary.DEFAULT = 'var(--primary)'`, `primary.foreground`, plus `brand`,
+  `success`, `warning`, `info`, `destructive-surface`, `fun-*`; `borderRadius.lg = var(--radius)`,
+  `md = calc(var(--radius) - 2px)`, `sm = calc(var(--radius) - 4px)`.
+- Lint rule (Phase 1 proposal): forbid HEX/rgb literals and Tailwind arbitrary colours (`bg-[#…]`) in
+  `components/` and `app/` outside the tokens file.
+
+### 2.4 `platform` context (SyV Solutions — pending)
+SyV identity is undefined. Platform-admin uses a neutral context: white background, charcoal text, neutral
+greys, a neutral dark primary (e.g. charcoal `#292522` buttons, white text 15.20:1) and **no** cream, coral,
+pink or peach. Replace when SyV assets arrive. "Powered by SyV" footer: `text-xs`, muted, no logo colour.
 
 ---
 
-## 3. Color
+## 3. Colour
 
-### 3.1 Primitive palette (PROVISIONAL)
+### 3.1 Usage weighting (PROVISIONAL; see BRAND_GUIDELINES §5.4)
+Portal ≈ 60% cream/white · 30% charcoal type + soft tints · 10% red. Professional ≈ white work areas, cream ≤10%,
+red ≤5%. Pink and peach are always minor; blue gray balances warmth (info, secondary metadata).
 
-| Ramp | 50 | 100 | 300 | 500 | 700 | 900 |
+### 3.2 Derived accessible shades — why
+Client coral `#D94A43` fails 4.5:1 with white text (4.19) and as text on cream (3.95). Rather than change the
+brand colour, functional roles use **`coral-700` = logo ink `#A73C37`** (6.28 / 5.92), tying UI to the logo.
+`coral-600 #C0403A` is a brighter step for child mode (5.20 / 4.91). `coral-500` stays for line art, large
+display headings (≥24px) and decorative highlights.
+
+### 3.3 WCAG 2.x contrast — computed (python, relative-luminance formula, 2026-11-08)
+
+Legend: **T** = normal text ≥4.5 · **LT** = large text ≥3 (≥24px, or ≥18.66px bold) · **UI** = non-text
+component/graphic ≥3 · **Dec** = decorative only · ✓ allowed · ✕ not allowed.
+
+**Client colours (as supplied)**
+
+| Foreground | Background | Ratio | T | LT | UI | Verdict |
 |---|---|---|---|---|---|---|
-| sage | `#EEF4F1` | `#D6E6E0` | `#8EC2B1` | `#5A8C7D` | `#3D6B5E` | `#12241F` |
-| sand | `#FBF8F4` | `#EFE6DB` | `#D9CCBD` | `#8C8178` | `#4A3F35` | `#2E2A27` |
-| clay | `#FBF1EB` | `#F7E4D8` | `#E8A98C` | `#C46F4E` | `#7A3E26` | `#4A2C20` |
+| charcoal `#292522` | cream `#FFF9D9` | 14.33 | ✓ | ✓ | ✓ | Body text on canvas |
+| charcoal | white | 15.20 | ✓ | ✓ | ✓ | Body text on cards |
+| white | coral `#D94A43` | **4.19** | ✕ | ✓ | ✓ | No normal-size button labels on brand coral |
+| coral `#D94A43` | white | **4.19** | ✕ | ✓ | ✓ | Large display / icons / line art only |
+| coral `#D94A43` | cream | **3.95** | ✕ | ✓ | ✓ | Large display / line art only |
+| coral `#D94A43` | pink `#F5B9B4` | 2.49 | ✕ | ✕ | ✕ | Dec |
+| coral `#D94A43` | peach `#F8D9A7` | 3.09 | ✕ | ✓ | ✓ | Line art on peach only |
+| charcoal | coral `#D94A43` | 3.63 | ✕ | ✓ | ✓ | Avoid (muddy); large only |
+| charcoal | pink `#F5B9B4` | 9.03 | ✓ | ✓ | ✓ | Pink surfaces with charcoal text |
+| charcoal | peach `#F8D9A7` | 11.20 | ✓ | ✓ | ✓ | Peach surfaces with charcoal text |
+| charcoal | blue gray `#AAB7C7` | 7.46 | ✓ | ✓ | ✓ | Blue-gray surfaces with charcoal text |
+| blue gray `#AAB7C7` | white | 2.04 | ✕ | ✕ | ✕ | Dec — never text or control boundary |
+| blue gray | cream | 1.92 | ✕ | ✕ | ✕ | Dec |
+| pink `#F5B9B4` | white / cream | 1.68 / 1.59 | ✕ | ✕ | ✕ | Dec (surfaces only) |
+| peach `#F8D9A7` | white / cream | 1.36 / 1.28 | ✕ | ✕ | ✕ | Dec (surfaces only) |
+| cream | white | 1.06 | — | — | ✕ | Cream vs white cards: needs border/shadow to separate |
 
-### 3.2 White-label override (per tenant)
+**Logo ink and derived shades**
 
-Source: `organization_branding` row (fields defined by backend; designer requirement):
+| Foreground | Background | Ratio | T | LT | UI | Verdict |
+|---|---|---|---|---|---|---|
+| white | coral-700 `#A73C37` (logo ink) | 6.28 | ✓ | ✓ | ✓ | **Primary button** |
+| coral-700 | white | 6.28 | ✓ | ✓ | ✓ | Links, ring on cards |
+| coral-700 | cream | 5.92 | ✓ | ✓ | ✓ | Links, ring on canvas |
+| coral-700 | neutral-50 `#FAF8F3` | 5.92 | ✓ | ✓ | ✓ | Professional links/ring |
+| coral-700 | pink-100 `#FCE7E4` | 5.29 | ✓ | ✓ | ✓ | Links on secondary |
+| coral-700 | cream-200 `#F7EFC9` | 5.43 | ✓ | ✓ | ✓ | Active nav text |
+| coral-700 | coral-50 `#FDEDEB` | 5.53 | ✓ | ✓ | ✓ | Selected chip |
+| coral-700 | pink-300 `#F5B9B4` | 3.73 | ✕ | ✓ | ✓ | Ring/icon on pink only |
+| coral-700 | peach-300 `#F8D9A7` | 4.63 | ✓ | ✓ | ✓ | OK |
+| coral-700 | charcoal (as adjacent body text) | 2.42 | — | — | — | <3:1 → **links must be underlined** (WCAG 1.4.1) |
+| ink samples `#AE312B` / `#9F3C3C` | white | 6.41 / 6.59 | ✓ | ✓ | ✓ | Any sample would pass |
+| logo edge `#DC9C9A` | white | 2.27 | ✕ | ✕ | ✕ | Anti-aliasing only |
+| white | coral-600 `#C0403A` | 5.20 | ✓ | ✓ | ✓ | Child primary button |
+| coral-600 | cream | 4.91 | ✓ | ✓ | ✓ | Child links |
+| coral-600 | peach-100 `#FDF0D5` | 4.61 | ✓ | ✓ | ✓ | Child secondary |
+| coral-600 | pink-100 | **4.38** | ✕ | ✓ | ✓ | Use coral-800 text on pink tints |
+| white | coral-800 `#8A302C` | 8.27 | ✓ | ✓ | ✓ | Hover/pressed |
+| coral-800 | pink-100 | 6.96 | ✓ | ✓ | ✓ | Text on pink tint |
+| coral-900 `#5E211E` | coral-50 | 10.80 | ✓ | ✓ | ✓ | Text on coral tint |
 
-| Field | Required | Maps to |
-|---|---|---|
-| `logo_url` (SVG/PNG), `logo_mark_url`, `favicon_url` | logo yes | header, auth, PDF |
-| `primary_color` (HEX) | yes | `--primary`, `--ring` |
-| `secondary_color` (HEX) | optional | `--secondary` |
-| `accent_color` (HEX) | optional | `--accent` |
-| `heading_font` / `body_font` (from an allow-listed set of Google Fonts) | optional | `--font-heading` / `--font-sans` |
-| `child_mode_enabled` | optional | enables `[data-mode="child"]` in portal |
+**Neutrals and status**
 
-**Pipeline:**
-1. Server reads tenant branding → validates → emits `<style>[data-tenant="slug"]{--primary:…}</style>` (SSR, no flash).
-2. **Auto-derived foregrounds:** for each tenant color `C`, compute `contrast(C,#FFFFFF)` and `contrast(C,#2E2A27)`; choose whichever is higher as `--*-foreground`.
-3. **Contrast guard (reject rule):** a tenant color is **rejected** in the settings UI if the better of the two foregrounds is < **4.5:1**, or if `--primary` vs `--background` is < **3:1** (needed for focus ring/links as UI). The UI explains why and proposes the nearest passing shade (shift lightness in OKLCH in 2% steps until it passes).
-4. Secondary/accent used as *fills*: their derived foreground must also hit 4.5:1; else reject.
-5. Dark mode for tenants: derive by raising lightness of primary to L≈75% (OKLCH) and re-running the guard; if impossible, fall back to default dark primary.
-6. Tenants **cannot** override destructive/success/warning/info, `--background`, `--foreground` (keeps semantics and readability stable).
+| Foreground | Background | Ratio | T | LT | UI | Verdict |
+|---|---|---|---|---|---|---|
+| charcoal | cream-50 / neutral-50 / neutral-100 | 14.77 / 14.32 / 13.69 | ✓ | ✓ | ✓ | |
+| charcoal | pink-100 / peach-100 / bluegray-100 / cream-200 | 12.80 / 13.46 / 12.91 / 13.13 | ✓ | ✓ | ✓ | |
+| neutral-600 `#6A5F57` | white / cream / neutral-50 | 6.20 / 5.85 / 5.84 | ✓ | ✓ | ✓ | Muted text |
+| neutral-600 | neutral-100 / cream-200 / pink-100 / peach-100 / bluegray-100 | 5.58 / 5.36 / 5.22 / 5.49 / 5.27 | ✓ | ✓ | ✓ | Muted text on tints |
+| neutral-500 `#8A7D72` | white / cream / neutral-50 | 3.99 / 3.77 / 3.76 | ✕ | ✓ | ✓ | **Input borders only** |
+| neutral-200 `#E9E0CC` | white / cream | 1.31 / 1.24 | ✕ | ✕ | ✕ | Dec dividers; never sole control boundary |
+| white | crimson-700 `#9B1C3A` | 8.01 | ✓ | ✓ | ✓ | Destructive confirm button |
+| crimson-700 | white / cream / crimson-50 | 8.01 / 7.56 / 6.83 | ✓ | ✓ | ✓ | Error text |
+| crimson-800 | crimson-50 | 9.01 | ✓ | ✓ | ✓ | Error banner text |
+| white | green-700 `#2F6B45` | 6.34 | ✓ | ✓ | ✓ | |
+| green-700 | cream / green-50 | 5.98 / 5.50 | ✓ | ✓ | ✓ | |
+| green-800 | green-50 | 7.28 | ✓ | ✓ | ✓ | Success banner |
+| amber-800 `#7A4A00` | amber-50 / cream | 6.37 / 7.06 | ✓ | ✓ | ✓ | Warning text |
+| amber-600 `#B7791F` | white / cream / amber-50 | 3.64 / 3.43 / 3.10 | ✕ | ✓ | ✓ | Warning border/icon only |
+| white | bluegray-700 `#46586E` | 7.29 | ✓ | ✓ | ✓ | Info badge solid |
+| bluegray-700 | white / cream / bluegray-100 | 7.29 / 6.87 / 6.19 | ✓ | ✓ | ✓ | Info text/icons |
+| bluegray-800 | bluegray-100 | 8.18 | ✓ | ✓ | ✓ | Info banner |
+| crimson-700 vs coral-700 (adjacent) | — | 1.28 | — | — | — | Luminance nearly equal → **hue + non-colour cues required** (§3.5) |
 
-Pseudo-code:
-```
-fg = argmax(contrast(c, '#FFFFFF'), contrast(c, '#2E2A27'))
-if contrast(c, fg) < 4.5 or contrast(c, background) < 3.0: reject(c, suggest=nearest_passing(c))
-```
+### 3.4 Usage summary
+- **Text allowed:** charcoal anywhere listed; neutral-600; coral-700/800/900; coral-600 except on pink tints;
+  status 700/800 shades.
+- **Large text / non-text UI only:** coral-500 `#D94A43`, neutral-500, amber-600.
+- **Decorative / surface only:** cream, pink-300, peach-300, bluegray-300, all *-50/100 tints, neutral-200.
 
-### 3.3 Dark mode stance
+### 3.5 Error / destructive treatment (must not read as brand emphasis)
+Because the brand's own colour is red, errors use a **crimson-wine hue (`#9B1C3A`, bluer than the brick logo red)**
+**and never rely on colour**:
+1. Always an icon (`CircleAlert` for errors, `Trash2` for delete) + explicit text ("Error:", "Eliminar paciente").
+2. Error messages sit in a tinted container (`--destructive-surface`) with a 4px left border, not bare red text.
+3. Destructive buttons are **outline style** (white bg, crimson border + text + icon) in normal views; the only
+   **filled** destructive button is inside the confirmation dialog, where no primary-filled button competes.
+4. Field errors: crimson border 2px (vs 1px neutral) + icon + message linked via `aria-describedby`.
 
-- **Professional dashboard:** light and dark offered (respect `prefers-color-scheme`, user toggle persists).
-- **Patient portal adult:** light default; dark available — *pending decision* (BRAND_GUIDELINES §16).
-- **Child mode:** light only at launch (illustrations/accent colors tuned for light).
-- Dark surfaces are warm (`#1B1A19`), never pure black; elevation by lighter surface, not shadow.
-
-### 3.4 WCAG contrast — computed
-
-Computed with the WCAG 2.x relative luminance formula (python, 2026-11-08). Thresholds: text 4.5:1 (AA),
-large text/UI 3:1, AAA 7:1.
-
-| Pair (L = light, D = dark, C = child) | Text | Background | Ratio | Result |
-|---|---|---|---|---|
-| L foreground / background | `#2E2A27` | `#FBF8F4` | 13.43:1 | AAA |
-| L foreground / card | `#2E2A27` | `#FFFFFF` | 14.22:1 | AAA |
-| L muted-fg / background | `#6B625A` | `#FBF8F4` | 5.64:1 | AA |
-| L muted-fg / muted | `#6B625A` | `#F2EDE7` | 5.13:1 | AA |
-| L primary-fg / primary | `#FFFFFF` | `#3D6B5E` | 6.06:1 | AA |
-| L primary (link text) / background | `#3D6B5E` | `#FBF8F4` | 5.73:1 | AA |
-| L secondary-fg / secondary | `#4A3F35` | `#EFE6DB` | 8.28:1 | AAA |
-| L accent-fg / accent | `#7A3E26` | `#F7E4D8` | 6.70:1 | AA |
-| L destructive-fg / destructive | `#FFFFFF` | `#B3261E` | 6.54:1 | AA |
-| L destructive (text) / background | `#B3261E` | `#FBF8F4` | 6.17:1 | AA |
-| L success-fg / success | `#FFFFFF` | `#2F6B45` | 6.34:1 | AA |
-| L warning-fg / warning | `#7A4E00` | `#FFF2D6` | 6.49:1 | AA |
-| L info-fg / info | `#FFFFFF` | `#2D5B8A` | 7.06:1 | AAA |
-| L input border / background (UI) | `#8C8178` | `#FBF8F4` | 3.59:1 | UI ≥3 ✓ |
-| L ring / background (UI) | `#3D6B5E` | `#FBF8F4` | 5.73:1 | UI ≥3 ✓ |
-| L border / background (decorative) | `#E3DBD1` | `#FBF8F4` | 1.29:1 | Decorative only — never sole boundary of a control |
-| D foreground / background | `#F1ECE6` | `#1B1A19` | 14.80:1 | AAA |
-| D foreground / card | `#F1ECE6` | `#252321` | 13.33:1 | AAA |
-| D muted-fg / background | `#ABA197` | `#1B1A19` | 6.85:1 | AA |
-| D muted-fg / muted | `#ABA197` | `#2E2B28` | 5.55:1 | AA |
-| D primary-fg / primary | `#12241F` | `#8EC2B1` | 8.09:1 | AAA |
-| D primary (link) / background | `#8EC2B1` | `#1B1A19` | 8.69:1 | AAA |
-| D secondary-fg / secondary | `#EDE4DA` | `#3A332C` | 9.89:1 | AAA |
-| D accent-fg / accent | `#F6D3C1` | `#4A2C20` | 8.97:1 | AAA |
-| D destructive-fg / destructive | `#1B1A19` | `#F2A099` | 8.49:1 | AAA |
-| D success-fg / success | `#10251A` | `#8FCBA3` | 8.64:1 | AAA |
-| D warning-fg / warning | `#2A1C00` | `#E8BE6A` | 9.49:1 | AAA |
-| D info-fg / info | `#0F1E2E` | `#9CC1E8` | 9.00:1 | AAA |
-| D input border / background (UI) | `#7D736A` | `#1B1A19` | 3.75:1 | UI ≥3 ✓ |
-| C primary-fg / primary | `#FFFFFF` | `#2F7466` | 5.51:1 | AA |
-| C sun-fg / sun | `#3A2A00` | `#F4C25B` | 8.41:1 | AAA |
-| C coral-fg / coral | `#4A1E10` | `#F2A285` | 6.93:1 | AA |
-| C sky-fg / sky | `#0F2C44` | `#BFDDF2` | 10.14:1 | AAA |
-| C foreground / background | `#2E2A27` | `#FFFBF5` | 13.79:1 | AAA |
-
-Rule: never put white text on sun/coral/sky; never use `--border` as the only outline of an input, checkbox or card that is interactive.
+### 3.6 Dark mode stance
+- **Deferred for all contexts at launch (recommendation).** Portal: the brand is defined by cream warmth;
+  a dark portal would have no validated brand reference, child-mode illustrations are tuned for light, and the
+  audience (patients, families) gains little. Professional: candidate for post-MVP (long sessions); the token
+  architecture allows a `[data-theme="dark"]` layer later. No dark values are specified now to avoid
+  unvalidated colours (v1 dark values are withdrawn).
+- Respect OS high-contrast/forced-colours mode (`@media (forced-colors: active)`): borders and focus visible.
 
 ---
 
-## 4. Typography (PROVISIONAL — open-source Google Fonts)
+## 4. Typography
 
-| Role | Family | Weights | Rationale |
+### 4.1 Families (REPORTED (client analysis) — Google Fonts, OFL)
+
+| Token | Family | Weights | Use |
 |---|---|---|---|
-| UI / body / tables | **Inter** | 400, 500, 600 | High x-height, screen-optimized, full Spanish diacritics, tabular figures (`font-variant-numeric: tabular-nums`) for dates and tables. |
-| Headings (adult, marketing) | **Fraunces** (opsz, SOFT≈50, WONK 0) | 500, 600 | Warm humanist serif → care, not corporate. Used only ≥20px. |
-| Headings (child mode) | **Nunito** | 600, 700, 800 | Rounded, friendly, very legible for early readers. |
-| Monospace (IDs, codes) | system `ui-monospace` | — | No extra download. |
+| `--font-display` | Playfair Display | 400, 500, 600, 700 | H1, H2, display, editorial statements |
+| `--font-hand` | Caveat | 400, 500, 600 | Decorative short phrases only (BRAND §6.3) |
+| `--font-sans` | Nunito Sans | 400, 500, 600, 700 | Everything functional |
 
-Load via `next/font/google` (or self-host) with `display: swap`, subsets `latin`, `latin-ext`.
+Fallback stacks: display `Georgia, "Times New Roman", serif`; hand `"Comic Sans MS", cursive` is **not**
+used — fallback is `var(--font-sans)` so a font failure degrades to plain text; sans `system-ui, -apple-system,
+"Segoe UI", Roboto, sans-serif`. Monospace (IDs): `ui-monospace`.
 
-### 4.1 Scale (rem, base 16px; ratio ≈1.2)
+### 4.2 Fluid scale (PROVISIONAL; base 16px; clamp for 360→1280px viewports)
 
-| Token | Size / line-height | Use |
-|---|---|---|
-| `text-xs` | 12 / 16 | Badges, meta (never body) |
-| `text-sm` | 14 / 20 | Table cells, helper text |
-| `text-base` | 16 / 24 | Body, inputs (min. on mobile to avoid zoom) |
-| `text-note` | 17 / 28 | Session note editor, long reading |
-| `text-lg` | 18 / 28 | Lead text, portal body |
-| `text-xl` | 20 / 28 | Card titles |
-| `text-2xl` | 24 / 32 | Section titles |
-| `text-3xl` | 30 / 36 | Page titles |
-| `text-4xl` | 36 / 44 | Portal hero / login |
+| Token | Size | Line-height | Font / weight | Use |
+|---|---|---|---|---|
+| `display` | `clamp(2.25rem, 1.8rem + 2vw, 3.5rem)` | 1.1 | Playfair 600 | Portal hero, login, marketing |
+| `h1` | `clamp(1.875rem, 1.6rem + 1.2vw, 2.5rem)` | 1.15 | Playfair 600 | Page title |
+| `h2` | `clamp(1.5rem, 1.35rem + 0.7vw, 1.875rem)` | 1.2 | Playfair 500 (600 for emphasis) | Section title |
+| `h3` | `clamp(1.125rem, 1.05rem + 0.35vw, 1.25rem)` | 1.35 | Nunito Sans 700 | Card titles, sub-sections |
+| `h4` | `1rem` | 1.4 | Nunito Sans 700 | Group labels |
+| `body-lg` | `1.125rem` | 1.6 | Nunito Sans 400 | Portal body, lead text |
+| `body` | `1rem` | 1.6 | Nunito Sans 400 | Default body, inputs (≥16px avoids iOS zoom) |
+| `note` | `1.0625rem` | 1.7 | Nunito Sans 400 | Clinical record & session notes (72ch) |
+| `sm` | `0.875rem` | 1.45 | Nunito Sans 400/500 | Table cells, helper text |
+| `xs` | `0.75rem` | 1.35 | Nunito Sans 600 | Badges, meta (never body) |
+| `label` | `0.875rem` | 1.4 | Nunito Sans 600 | Form labels |
+| `button` | `0.9375rem` (lg/child `1rem`) | 1 | Nunito Sans 700 | Buttons |
+| `hand` | `clamp(1.25rem, 1.1rem + 0.6vw, 1.75rem)` | 1.2 | Caveat 500 | Decorative accents (≥20px) |
 
-Child mode shifts body to `text-lg` and headings one step up. Max line length 72ch (notes), 60ch (portal).
+Context adjustments:
+- `professional`: `h1` fixed `1.75rem`, `h2` `1.375rem` (Playfair), tables `sm`; no `display`, no `hand`.
+- `portal-adult`: body uses `body-lg` on reading screens; max measure 60ch.
+- `portal-child`: body `body-lg`, h3 `1.375rem`; `hand` allowed for celebrations only.
+- Playfair never below 24px; letter-spacing 0 (Playfair) / 0.01em for `xs` caps labels.
+- Numerals in tables/dates: `font-variant-numeric: tabular-nums` — **verify Nunito Sans supports `tnum`** in
+  Phase 1; if not, accept proportional digits (do not add a fourth family without designer approval).
+
+### 4.3 Loading — Phase 1 guidance (no code now)
+- Use `next/font/google` in the root layout for **Playfair Display, Caveat, Nunito Sans**, each with
+  `display: 'swap'`, `subsets: ['latin', 'latin-ext']` (latin covers Spanish á é í ó ú ñ ü ¿ ¡; latin-ext covers
+  other names), and `variable: '--font-display' | '--font-hand' | '--font-sans'`.
+- Prefer the variable-font versions (all three are expected to be variable on Google Fonts — verify); if static,
+  request only the weights in §4.1. Caveat may be loaded with `preload: false` (decorative, rarely above the fold).
+- Apply the three variable classes on `<html>`; Tailwind `fontFamily.display = ['var(--font-display)', …fallbacks]`,
+  `fontFamily.hand`, `fontFamily.sans` (default body).
+- Self-hosting via next/font means no runtime request to Google (privacy-friendly).
+- Tenant fonts (white-label): allow-list of Google Fonts loaded the same way; not arbitrary URLs.
 
 ---
 
 ## 5. Spacing, radius, elevation, motion, breakpoints
 
-**Spacing:** Tailwind 4px base. Preferred steps: 1 (4), 2 (8), 3 (12), 4 (16), 6 (24), 8 (32), 12 (48), 16 (64).
-Page gutters: 16px mobile, 24px tablet, 32px desktop. Card padding: 16 (compact) / 24 (default). Child mode: +1 step.
+**Spacing:** Tailwind 4px base; steps 1, 2, 3, 4, 6, 8, 12, 16. Gutters 16 / 24 / 32px (mobile / tablet / desktop).
+Card padding 24 (portal), 16–20 (professional). Child mode +1 step. Generous whitespace is a brand trait.
 
-**Radius:** `--radius` 12px adult (lg 12, md 10, sm 8; pills `9999px` for badges). Child 20px.
+**Radius (rounded, not pills — REPORTED principle):** professional 10px; adult 12px; child 18px. Buttons use
+`md` (not full pills); only badges/chips may be pill-shaped. Inputs `md`.
 
-**Elevation (light):**
+**Borders & elevation (soft surfaces, subtle borders; no heavy shadows):**
 | Token | Value | Use |
 |---|---|---|
-| `shadow-0` | none + 1px `--border` | Default cards |
-| `shadow-1` | `0 1px 2px rgb(46 42 39 / .06), 0 1px 3px rgb(46 42 39 / .08)` | Hover cards, sticky headers |
-| `shadow-2` | `0 4px 12px rgb(46 42 39 / .10)` | Popovers, dropdowns |
-| `shadow-3` | `0 12px 32px rgb(46 42 39 / .14)` | Dialogs, sheets |
-Dark mode: replace shadows with lighter surfaces (`--card`, then `#2E2B28`).
+| `shadow-0` | none + 1px `--border` | Default cards (white card on cream needs the border: 1.06:1) |
+| `shadow-1` | `0 1px 2px rgb(41 37 34 / .06), 0 2px 6px rgb(41 37 34 / .05)` | Hover cards, sticky bars |
+| `shadow-2` | `0 6px 16px rgb(41 37 34 / .08)` | Popovers, menus |
+| `shadow-3` | `0 16px 32px rgb(41 37 34 / .12)` | Dialogs, sheets |
+No glassmorphism, no blur backdrops, no gradients on UI surfaces.
 
-**Motion:**
-| Token | Duration | Easing | Use |
-|---|---|---|---|
-| `motion-fast` | 120ms | `cubic-bezier(.2,0,0,1)` | Hover, press |
-| `motion-base` | 200ms | same | Popovers, toasts |
-| `motion-slow` | 320ms | `cubic-bezier(.2,0,0,1)` | Dialogs, sheets, child celebrations |
-`@media (prefers-reduced-motion: reduce)` → all transitions ≤ 1ms opacity only, no transforms, no confetti, no autoplay. No parallax, no looping animation anywhere.
+**Motion:** `fast` 120ms, `base` 200ms, `slow` 320ms, easing `cubic-bezier(.2,0,0,1)`. Under
+`prefers-reduced-motion: reduce`: opacity-only ≤1ms, no transforms, no confetti, no autoplay.
 
-**Breakpoints (Tailwind defaults):** `sm` 640, `md` 768, `lg` 1024, `xl` 1280, `2xl` 1536. Dashboard sidebar appears at `lg`; below it, top bar + sheet menu. Portal bottom nav below `md`.
+**Breakpoints:** Tailwind defaults (`sm` 640, `md` 768, `lg` 1024, `xl` 1280). Professional sidebar at `lg`;
+portal bottom nav below `md`. Reflow at 320px; zoom 200%.
 
 ---
 
-## 6. Components (shadcn/ui based)
+## 6. Components (shadcn/ui based — updated for v2 palette/fonts)
 
-### 6.1 Buttons
+### 6.1 Buttons (Nunito Sans 700)
 | Variant | Style | Use |
 |---|---|---|
-| `default` | `bg-primary text-primary-foreground` | One main action per view |
-| `secondary` | `bg-secondary text-secondary-foreground` | Alternative actions |
-| `outline` | `border-input bg-background` | Tertiary, toolbars |
-| `ghost` | transparent, `hover:bg-accent` | Icon buttons, nav |
-| `destructive` | `bg-destructive text-destructive-foreground` | Delete — always with confirm dialog |
-| `link` | `text-primary underline-offset-4` | Inline |
-Sizes: sm 32px, default 40px, lg 48px (portal), child 56px. Min. touch target 44×44 (WCAG 2.5.8 requires 24; we exceed). States: hover (−6% lightness), active, focus-visible (2px `--ring` + 2px offset), disabled (50% opacity + `aria-disabled`), loading (spinner + label kept, width locked).
+| `default` | `bg-primary text-primary-foreground`, hover `--primary-hover` | One main action per view |
+| `secondary` | `bg-secondary text-secondary-foreground` + 1px `--border` | Alternatives |
+| `outline` | `bg-card border-input text-foreground` | Tertiary, toolbars |
+| `ghost` | transparent, hover `bg-accent` | Icon buttons, nav |
+| `destructive` | **outline**: `bg-card border-destructive text-destructive` + `Trash2` icon | Delete (opens confirm) |
+| `destructive-solid` | `bg-destructive text-destructive-foreground` + icon | Only inside confirm dialogs |
+| `link` | `text-primary underline underline-offset-4` | Inline |
+Never `bg-brand` (`#D94A43`) with normal-size text. Sizes: sm 32, default 40, lg 48 (portal), child 56px.
+Targets ≥44×44. States: hover, active (coral-800/900), focus-visible (§6.3), disabled (opacity 50% +
+`aria-disabled`; WCAG exempts disabled controls from contrast, but keep labels legible), loading (spinner + label,
+width locked).
 
-### 6.2 Inputs & forms
-- Height 40px (48 portal); border `--input`; radius md; label always visible above (no placeholder-only labels).
-- Helper text `text-sm text-muted-foreground`; error text `text-destructive` + icon + `aria-describedby`; error border `--destructive`.
-- Required: "(obligatorio)" text, not just an asterisk.
-- Group long forms into cards with section titles; sticky save bar on long clinical forms.
-- Autosave indicator for drafts: "Guardado hace 5 s" (muted, `aria-live="polite"`).
+### 6.2 Links
+coral-700 on cream/white/neutral (≥5.29:1), **always underlined in running text** (coral-700 vs charcoal 2.42:1
+fails the 3:1 link-distinction rule). Nav and button-like links may drop the underline if positioned as nav.
+Visited: same colour. Hover: coral-800 + thicker underline. On pink tints use coral-800.
 
-### 6.3 Cards
-`bg-card`, 1px `--border`, radius lg, padding 24, shadow-0; clickable cards get `shadow-1` on hover and a visible focus ring. Header: title (`text-xl` heading font) + optional action at right.
+### 6.3 Focus ring
+`outline: 2px solid var(--ring)` (coral-700) + `outline-offset: 2px`. Contrast of ring vs cream 5.92, white 6.28,
+neutral-50 5.92, pink-300 3.73, peach-300 4.63 — all ≥3:1. On photos/illustrations use a double ring (2px white
+inner + 2px coral-700 outer). Never remove focus styles; `:focus-visible` only for pointer users.
 
-### 6.4 Navigation
-- **Dashboard sidebar (≥lg):** 264px, collapsible to 72px icons; `bg-card`; items 40px, icon 20 + label; active = `bg-accent text-accent-foreground` + 3px left bar `--primary`. Sections: Inicio, Pacientes, Agenda/Sesiones, Actividades (Biblioteca, Constructor), Configuración. Tenant logo top, user menu bottom.
-- **Dashboard top bar (<lg):** logo, search, menu button opening a Sheet with the same items.
-- **Portal nav (≥md):** simple top bar: logo, Inicio, Mis actividades, Mis citas, Perfil.
-- **Mobile bottom nav (<md, portal):** 4 items max, 64px tall, icon 24 + label 12px (always labeled), safe-area padding; active = primary color icon + label weight 600.
+### 6.4 Inputs & forms
+Height 40 (48 portal, 56 child); bg white; 1px `--input` border (3.77–3.99:1); radius md; label above
+(`label` token); helper `sm` muted; error per §3.5; required = "(obligatorio)" text. Caveat never in forms.
+Sticky save bar on long clinical forms; autosave indicator `aria-live="polite"`.
 
-### 6.5 Tables
-`text-sm`, header `bg-muted text-muted-foreground` 600 weight, row 48px, zebra off by default (hover `bg-accent/50`). Sticky header; tabular numerals; row actions in a kebab menu. Below `md`, tables collapse to stacked cards (name, key meta, status badge). Sorting announced via `aria-sort`.
+### 6.5 Cards
+`bg-card`, 1px `--border`, radius lg, `shadow-0`. Title `h3` (Nunito Sans 700); portal feature cards may use `h2`
+Playfair. Secondary cards in portal may use `--secondary` (pink-100) or peach-100 — max one tinted card group per
+view. Clickable cards: `shadow-1` on hover + focus ring.
 
-### 6.6 Dialogs
-Max width 480 (confirm) / 640 (form); radius lg; shadow-3; overlay `rgb(27 26 25 / .5)`. Focus trapped, Esc closes (except unsaved clinical edits → confirm). Destructive confirms name the object: "¿Eliminar la actividad 'Respiración 4-7-8'?". On mobile, forms open as bottom Sheet.
+### 6.6 Navigation
+- **Professional sidebar (≥lg):** 264px (collapsible 72px), `bg-sidebar` (cream-50), items 40px, icon 20
+  (stroke 1.75) + label `sm` 600; active = `bg-accent` + `text-primary` + 3px left bar coral-700. Practice logo
+  top; user menu bottom; "Powered by SyV" in muted `xs` at the very bottom.
+- **Professional top bar (<lg):** logo, search, menu → Sheet.
+- **Portal top bar (≥md):** cream background, logo left, Nunito Sans 600 items; active = coral-700 text +
+  2px underline bar.
+- **Portal bottom nav (<md):** white bar with top border, 4 items max (child: 3), icon 24 + label 12px always
+  visible; active = coral-700 icon + label 700.
 
-### 6.7 Toasts (sonner)
-Bottom-right desktop, top-center mobile; 5s auto-dismiss (errors persist until closed); `role="status"` / `alert` for errors. Never include clinical content or patient names in toasts.
+### 6.7 Tables (professional)
+White surface; header `bg-muted` + `text-muted-foreground` `xs` 600, sentence case; rows 48px, `sm`; hover
+`bg-accent` (cream-50); selected row `coral-50` + 3px left bar coral-700; dividers `--border`. Sticky header,
+`aria-sort`. Below `md`: stacked cards. No brand red in table body except links/actions.
 
-### 6.8 Empty / loading / error states
-- **Empty:** small illustration or icon (muted), title, one sentence, one primary action. e.g. "Aún no hay pacientes · Agrega tu primer paciente".
-- **Loading:** skeletons matching final layout (`bg-muted` pulse; static under reduced motion). Spinners only inside buttons. Show content after 300ms threshold to avoid flicker.
-- **Error:** inline banner with icon, plain explanation, retry action; reassure about data ("Tus datos están a salvo"). Full-page error only for route failure, with link home.
-- **Offline (portal):** persistent subtle banner `--warning`.
+### 6.8 Badges (pill allowed)
+`xs` 600, 22px tall, icon optional, tinted surfaces with dark text (all ≥5.2:1):
+neutral (neutral-100 / charcoal) · brand (coral-50 / coral-900) · success (green-50 / green-800) · warning
+(amber-50 / amber-800 + amber-600 border) · error (crimson-50 / crimson-800) · info (bluegray-100 / bluegray-800).
+Mapping: Borrador → warning + `PencilLine`; Finalizada → success + `Lock`; Adenda → info + `FilePlus`;
+Activo → success; En pausa → neutral; Alta → neutral outline; Niño/a, Adolescente → neutral (not loud).
 
-### 6.9 Badges
-Pill, `text-xs` 500, 20px tall, icon optional. Variants: neutral (`secondary`), primary, success, warning, destructive, info, outline. Session status mapping: Borrador → warning; Finalizada → success + lock icon; Adenda → info. Patient status: Activo → success, En pausa → neutral, Alta → outline.
+### 6.9 Dialogs, toasts
+Dialogs: white, radius lg, `shadow-3`, overlay `rgb(41 37 34 / .45)`; title `h3`; destructive confirms name the
+object and use `destructive-solid`. Toasts: white card + left status bar + icon; errors persist; no clinical
+content or patient names.
 
----
+### 6.10 States
+- **Empty:** small coral line-art illustration (portal) or Lucide icon in a bluegray-100 circle (professional),
+  title, one sentence, one primary action.
+- **Loading:** skeletons `bg-muted` (static under reduced motion); spinners only in buttons; 300ms threshold.
+- **Error:** §3.5 banner; "Tus datos están a salvo"; retry action.
+- **Offline (portal):** warning banner (amber-50, icon, text).
+- **Success:** green-50 banner with `CircleCheck` — no confetti in adult/professional.
 
-## 7. Child mode vs adult mode
-
-| Aspect | Adult (default) | Child |
+### 6.11 Child-mode variations (`portal-child`)
+| Aspect | Adult | Child |
 |---|---|---|
-| Heading font | Fraunces | Nunito 700–800 |
-| Body | 16px | 18px |
-| Radius | 12px | 20px |
-| Touch targets | ≥44px | ≥56px |
-| Color | primary + neutrals | + sun / coral / sky accents (dark text only) |
-| Icons | outline 20px | outline 28px in soft color circles |
-| Feedback | text + check icon | friendly illustration, star/sticker, short celebratory message (static if reduced motion) |
-| Copy | "Actividad completada" | "¡Lo lograste! 🌟" (emoji optional, with text) |
-| Navigation | 4–5 items | 3 items max, big icons + labels |
-| Density | comfortable | spacious, one task per screen |
-Child mode is **only in the patient portal/player**; the professional always sees adult mode. Same tokens → same brand.
+| Primary | coral-700 | coral-600 (brighter, still 5.20:1) |
+| Surfaces | cream + white, pink-100 sparingly | + peach-100, `--fun-*` tints for activity cards (charcoal text) |
+| Radius | 12px | 18px (buttons still not full pills) |
+| Targets | ≥44px | ≥56px |
+| Icons | 20px outline | 28px outline in tinted circle |
+| Illustration | sparse line art | line-art characters in activities, start/end screens |
+| Caveat | none (optional single hero accent) | short celebrations, always duplicated in plain text for AT |
+| Feedback | text + check | illustration + short message (static if reduced motion) |
+| Navigation | 4–5 items | 3 items, big icons + labels |
+Forms, navigation labels, consent and instructions remain Nunito Sans and plain — "not a children's game
+everywhere". The professional always sees `professional`.
 
 ---
 
-## 8. Screen layout guidance
+## 7. White-label override mapping (PROVISIONAL)
 
-**Login** — Centered card (max 400px) on `--background` with a soft organic shape in `--secondary` at one corner; tenant logo above; email + password, "¿Olvidaste tu contraseña?", primary "Iniciar sesión" full width. Language toggle (ES/EN) top-right. No stock hospital imagery. Errors inline, generic ("Correo o contraseña incorrectos").
+Source: `organization_branding` (fields owned by backend; designer requirement):
+`logo_url`, `logo_mark_url`, `favicon_url`, `brand_color` (HEX, required), `secondary_color`, `accent_color`,
+`display_font` / `body_font` (allow-list), `child_mode_enabled`.
 
-**Dashboard home** — Greeting ("Buenos días, Daniela") + date. Row 1: today's sessions (timeline card), pending drafts to finalize (warning badge count). Row 2: recent activity completions by patients; quick actions (Nueva sesión, Nuevo paciente, Crear actividad). 12-col grid; 8/4 split at `xl`; single column on mobile. Avoid KPI-heavy "analytics" look.
+**Pipeline (tenant brand colour → functional shades + contrast guard):**
+1. Store the tenant's colour as `--brand` (decorative; used like coral-500).
+2. Derive a ramp in OKLCH (same hue, adjusted L/C): 50, 100 (tints), 600, 700, 800.
+3. **Pick `--primary`** = the lightest step `S` such that `contrast(white, S) ≥ 4.5` **and**
+   `contrast(S, background_of_each_context) ≥ 4.5` (cream and neutral-50). If the brand colour itself passes,
+   `--primary = --brand`. (Daniela: `#D94A43` fails → `#A73C37`.)
+4. `--primary-hover` = next darker step; `--ring` = `--primary` (≥3:1 guaranteed by step 3).
+5. If the tenant colour is too light for white text, try charcoal foreground (≥4.5); if neither works within the
+   ramp, use the derived dark step and tell the admin.
+6. Secondary/accent: used only as **tints** with charcoal text (must be ≥4.5; auto-lighten until true).
+7. **Error distinction guard:** if tenant primary hue is within ±25° of crimson (≈350°) or the brand is red,
+   keep §3.5 non-colour cues (they are always on) and show an info note in settings.
+8. Tenants cannot override status colours, `--foreground`, `--input`, or the dark/light structure.
+9. Emitted server-side as `<style>[data-tenant="slug"]{…}</style>` (no flash); never inline per component.
 
-**Patient list** — Page title + primary "Nuevo paciente"; search, filters (estado, modalidad, adulto/niño) as chips; table: nombre, edad/grupo, próxima sesión, última sesión, estado badge, acciones. Mobile: cards. Empty state with CTA. Child patients show a small "Niño/a" neutral badge (not colored loudly).
-
-**Patient profile** — Header card: name, age, group badge, contact (masked until clicked), portal access status. Tabs: Resumen · Historia clínica · Sesiones · Actividades · Documentos. Right rail (xl): upcoming session, assigned activities progress. Sensitive data areas show a small lock + "Visible solo para ti".
-
-**Clinical record** — Structured sections in cards (motivo de consulta, antecedentes, evaluación, plan); read mode default with "Editar" per section; change history accessible. Typography `text-note`, 72ch measure.
-
-**Session note editor** — Two states:
-- *Draft:* full editor (rich text, templates), autosave indicator, badge "Borrador" (warning), sticky footer: "Guardar borrador" (secondary) + "Finalizar nota" (primary). Finalize opens confirm dialog explaining it will be locked.
-- *Finalized/locked:* read-only, badge "Finalizada" + lock icon, timestamp and author; editor chrome removed; muted background stripe at top: "Nota finalizada el 08/11/2026 · No editable". Action "Agregar adenda" opens an addendum editor beneath; each addendum is a separate card with its own timestamp/author and "Adenda" info badge, chronologically appended, never merged into the original.
-
-**Activity builder** — Three-pane on `xl`: left block palette (texto, pregunta, escala, respiración guiada, dibujo, checklist), center canvas (ordered blocks, drag handle + keyboard reorder buttons), right properties panel. Top: title, audience toggle (Adulto / Niño — previews child mode), "Vista previa", "Guardar". Mobile/tablet: single column with blocks as an accordion; builder primarily a desktop task.
-
-**Activity library** — Grid of cards (title, audience badge, duration, tags) with filters (audiencia, tipo, etiquetas) and search; actions: Asignar, Duplicar, Editar. Toggle grid/list. Empty: "Crea tu primera actividad".
-
-**Patient activity player** — Full-focus layout, no sidebar; progress indicator ("Paso 2 de 5") at top; one block per screen; large primary "Siguiente"; "Guardar y salir" always available. Adult: calm, text-forward. Child: child-mode tokens, illustrations, bigger controls, celebration at the end (static when reduced motion). Responses autosave.
-
-**Portal home** — Warm greeting; next appointment card; "Tus actividades" (pending first, with progress); a short message from the professional (optional); bottom nav on mobile. No clinical notes are ever shown to patients.
-
-**Organization branding settings** — Two-column: form left (logo upload with preview on light & dark, primary/secondary/accent color pickers with HEX input, font selects from allow-list, child mode toggle), **live preview** right (button, card, nav, badge, portal header). Contrast guard shows per-color status: "✓ Contraste 6.1:1 (AA)" or "✕ 2.8:1 — No cumple AA. Sugerencia: #3D6B5E" with "Usar sugerencia". Save disabled while any color fails. "Restablecer valores" secondary.
+Settings UI shows both: "Color de marca #D94A43 (decorativo)" and "Color funcional #A73C37 · contraste 6.3:1 ✓".
 
 ---
 
-## 9. Accessibility checklist (all components)
+## 8. Screen layout guidance (updated for v2)
 
-- WCAG 2.2 AA: text 4.5:1, UI 3:1, focus visible (2.4.7/2.4.11), target size (2.5.8), no info by color only.
-- Keyboard: full operation, logical order, skip link "Saltar al contenido".
-- Screen readers: landmarks, labelled icons, `aria-live` for autosave/toasts, `lang="es"` / `lang="en"` set.
-- Respect `prefers-reduced-motion`, `prefers-color-scheme`; zoom to 200% without loss; reflow at 320px.
+**Login** — Cream canvas; white card (max 400px) with 1px border; practice logo (stacked) above; `h1` Playfair
+"Bienvenida/o"; Nunito form; primary full-width button (coral-700). Optional single coral line-art tree at a
+corner (≤10% of view). Language toggle top-right. "Powered by SyV" muted footer.
+
+**Professional dashboard home** — neutral-50 canvas, white cards; greeting `h1` Playfair ("Buenos días, Daniela");
+today's sessions, drafts to finalise (warning badge), recent activity completions, quick actions. No KPI-heavy look.
+
+**Patient list / profile / clinical record / session notes** — White work areas; `note` typography 72ch;
+locked notes: success badge + `Lock`, stripe `bg-muted` "Nota finalizada el 08/11/2026 · No editable";
+addenda as separate cards with info badge. Private areas: `Lock` + "Visible solo para ti" (muted).
+
+**Activity builder / library** — Professional context; audience toggle previews `portal-adult` / `portal-child`
+tokens live.
+
+**Patient activity player** — Full focus, no sidebar; progress "Paso 2 de 5"; one block per screen; large primary
+"Siguiente"; "Guardar y salir" always visible. Child: child tokens, illustrations, Caveat celebration + text.
+
+**Portal home** — Cream canvas, Playfair greeting, next appointment card (white), "Tus actividades" (pending first),
+optional message from the professional on a pink-100 card. No clinical notes ever shown.
+
+**Branding settings** — Form left (logo upload preview on cream/white, brand colour + derived functional colour
+with contrast status, font allow-list, child-mode toggle), live preview right (button, link, card, nav, badge,
+error banner). Save disabled while any guard fails.
+
+**Platform admin (SyV)** — `platform` context (§2.4); no practice branding.
+
+---
+
+## 9. Accessibility checklist
+
+- WCAG 2.2 AA: text 4.5, large text/UI 3, focus visible (2.4.7, 2.4.11), target size (2.5.8), no info by colour
+  only (1.4.1 — underlined links, icon+text statuses), reflow 320px, zoom 200%.
+- Keyboard: full operation, skip link "Saltar al contenido". Screen readers: landmarks, labelled icons,
+  `aria-live` for autosave/toasts, `lang` set. Caveat text duplicated or marked decorative.
+- Respect `prefers-reduced-motion`, `forced-colors`.
+- Re-run §3.3 whenever a primitive changes (script: WCAG relative luminance; keep in Phase 1 tests as a token
+  contrast unit test).
 
 ---
 
 ## 10. Pending decisions
 
-1. Replace all PROVISIONAL colors/fonts once Daniela's assets arrive (BRAND_GUIDELINES §14); re-run §3.4.
-2. Dark mode in adult portal at launch (yes/no).
-3. Tenant font override: allow-list size (proposal: 8 Google Fonts).
-4. Child-mode trigger: age-based, professional toggle, or both.
-5. Exact shadcn version (HSL channels vs OKLCH variables) — frontend to confirm; token names stay the same.
+1. Client approval of coral-700 `#A73C37` (logo ink) as functional primary; exact brand HEX once vector/templates arrive.
+2. Practice name/wordmark for the product (BRAND §16).
+3. Adolescent mode: `portal-child`, `portal-adult`, or a third context.
+4. Dark mode deferral (§3.6).
+5. Tenant font allow-list size (proposal: 8 Google Fonts).
+6. shadcn version (HSL vs OKLCH variables) and tokens file path — frontend/architect in Phase 1.
+7. Nunito Sans `tnum` support (verify).
+8. SyV `platform` context colours when SyV identity exists.
