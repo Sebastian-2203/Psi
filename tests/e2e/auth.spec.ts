@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import postgres from 'postgres';
 import { deleteFictionalUser, serviceClient } from '../fixtures/local-stack';
 import { clearMailbox, firstLink, waitForEmail } from '../fixtures/mailpit';
+import { signActivity } from '../../src/lib/session-activity';
 import { FICTIONAL_PASSWORD, ORGS, PERSONAS } from '../fixtures/personas';
 import {
   freshTotp,
@@ -220,10 +221,14 @@ test('idle timeout (15 min) ends and revokes the session server-side', async ({ 
   expect(session?.sameSite).toBe('Lax');
   const activity = cookies.find((c) => c.name === 'psi_activity');
   expect(activity?.httpOnly).toBe(true);
-  // Simulate 16 minutes without requests.
-  await page
-    .context()
-    .addCookies([{ ...activity!, value: String(Math.floor(Date.now() / 1000) - 16 * 60) }]);
+  // P1-02: the cookie is HMAC-signed and bound to the session id.
+  expect(activity?.value).toMatch(/^v1\.[0-9a-f-]{36}\.\d+\.[A-Za-z0-9_-]{43}$/);
+  const sessionId = activity!.value.split('.')[1] as string;
+  const secret = process.env.SESSION_ACTIVITY_SECRET;
+  if (!secret) throw new Error('SESSION_ACTIVITY_SECRET must be available to the E2E process');
+  // Simulate 16 minutes without requests (validly signed, as the server would have issued it).
+  const stale = await signActivity(secret, sessionId, Math.floor(Date.now() / 1000) - 16 * 60);
+  await page.context().addCookies([{ ...activity!, value: stale }]);
   await page.goto('/es/dashboard');
   await expect(page).toHaveURL(/\/es\/sign-in\?expired=idle$/);
   await expect(page.getByText('Cerramos tu sesión por inactividad.')).toBeVisible();

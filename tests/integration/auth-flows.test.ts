@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type postgres from 'postgres';
 import { createHash, randomUUID } from 'node:crypto';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { ORGS, PERSONAS, FICTIONAL_PASSWORD, FICTIONAL_TOTP_SECRET } from '../fixtures/personas';
 import {
   adminSql,
@@ -20,6 +20,26 @@ import { totp } from '../fixtures/totp';
  * codes (bcrypt hashing, single use, factor reset), invitation token lifecycle, password reset
  * through the real recovery email in Mailpit.
  */
+
+/**
+ * Fault injection for the P1-05 test: pass-through to the real Auth admin call unless a test
+ * arms `fault.factorDeletion`, which makes the next reset fail at the deletion stage WITHOUT
+ * touching the factors (as a GoTrue error on the first delete would).
+ */
+const fault = vi.hoisted(() => ({ factorDeletion: 0 }));
+vi.mock('@/server/db/service-role', async (importOriginal) => {
+  const real = await importOriginal<typeof import('@/server/db/service-role')>();
+  return {
+    ...real,
+    adminDeleteAllMfaFactors: async (userId: string) => {
+      if (fault.factorDeletion > 0) {
+        fault.factorDeletion -= 1;
+        return { ok: false as const, removed: 0, stage: 'delete' as const };
+      }
+      return real.adminDeleteAllMfaFactors(userId);
+    },
+  };
+});
 
 const stack = await detectLocalStack();
 skipMessage('auth-flows', stack);
@@ -164,6 +184,18 @@ describe.skipIf(!stack.available)('auth flows (workstream 1.3)', () => {
         and (${actor}::uuid is null or actor_profile_id = ${actor}::uuid)
     `;
     return row?.n ?? 0;
+  }
+
+  /** `outcome:factors_removed` of the user's auth.mfa_reset rows, oldest first. */
+  async function resetOutcomes(actor: string, since: Date) {
+    const rows = await pg<{ outcome: string; removed: string | null }[]>`
+      select metadata->>'outcome' as outcome, metadata->>'factors_removed' as removed
+      from public.audit_logs
+      where event_type = 'auth.mfa_reset' and occurred_at >= ${since}
+        and actor_profile_id = ${actor}::uuid
+      order by seq
+    `;
+    return rows.map((r) => `${r.outcome}:${r.removed ?? ''}`);
   }
 
   // -------------------------------------------------------------------------
@@ -532,7 +564,7 @@ describe.skipIf(!stack.available)('auth flows (workstream 1.3)', () => {
         ),
       ).toBeNull();
       expect(await auditCount('auth.recovery_code_used', user.id, since)).toBe(1);
-      expect(await auditCount('auth.mfa_reset', user.id, since)).toBe(1);
+      expect(await resetOutcomes(user.id, since)).toEqual(['started:', 'ok:1']);
       expect(await auditCount('auth.mfa_failed', user.id, since)).toBeGreaterThanOrEqual(1);
 
       // Sign in again (no factor now -> enrollment), the same code cannot be reused.
@@ -563,6 +595,82 @@ describe.skipIf(!stack.available)('auth flows (workstream 1.3)', () => {
       }
       expect(last && !last.ok && last.error.code).toBe('RATE_LIMITED');
       expect(await auditCount('auth.rate_limited', user.id, since)).toBeGreaterThanOrEqual(1);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  describe('recovery reset failure is recoverable and audited (P1-05)', () => {
+    it('a factor-deletion failure keeps the code pending; the same code retries to completion', async () => {
+      const user = await throwawayUserWithTotp();
+      const since = new Date();
+      const generated = await codes.regenerateRecoveryCodes(user.aal2);
+      if (!generated.ok) throw new Error('generate failed');
+      const code = generated.data.codes[0] as string;
+      const codeState = async () => {
+        const rows = await pg<{ reset_status: string | null; n: number }[]>`
+          select reset_status, count(*)::int as n from public.mfa_recovery_codes
+          where profile_id = ${user.id} and revoked_at is null and used_at is not null
+          group by reset_status
+        `;
+        return rows.map((r) => `${r.reset_status}:${r.n}`);
+      };
+      const factorCount = async () =>
+        (await serviceClient().auth.admin.mfa.listFactors({ userId: user.id })).data?.factors
+          .length;
+
+      const aal1Client = client().client;
+      const aal1 = await signInMod.signInWithPassword(
+        aal1Client,
+        { email: user.email, password: user.password },
+        meta(),
+      );
+      if (!aal1.ok) throw new Error('sign-in failed');
+
+      // 1. Deletion fails: INTERNAL, nothing reset, sessions intact, code pending, audited.
+      fault.factorDeletion = 1;
+      const failed = await codes.redeemRecoveryCode(aal1Client, aal1.data.claims, code, meta());
+      expect(!failed.ok && failed.error.code).toBe('INTERNAL');
+      expect(fault.factorDeletion).toBe(0);
+      expect(await factorCount()).toBe(1);
+      expect(await codeState()).toEqual(['pending:1']);
+      expect(await resetOutcomes(user.id, since)).toEqual(['started:', 'failed:0']);
+      expect(
+        await claimsMod.verifyAccessToken(
+          (await user.client.auth.getSession()).data.session?.access_token as string,
+        ),
+      ).not.toBeNull();
+      expect((await codes.getRecoveryCodesStatus(user.aal2))?.remaining).toBe(9);
+
+      // 2. Retry with the SAME code completes the reset and revokes every session.
+      const retried = await codes.redeemRecoveryCode(aal1Client, aal1.data.claims, code, meta());
+      expect(retried.ok).toBe(true);
+      if (retried.ok) expect(retried.data.factorsRemoved).toBe(1);
+      expect(await factorCount()).toBe(0);
+      expect(await codeState()).toEqual(['completed:1']);
+      expect(await resetOutcomes(user.id, since)).toEqual([
+        'started:',
+        'failed:0',
+        'started:',
+        'ok:1',
+      ]);
+      expect(await auditCount('auth.recovery_code_used', user.id, since)).toBe(1);
+      expect(await auditCount('auth.session_revoked', user.id, since)).toBe(1);
+      expect(
+        await claimsMod.verifyAccessToken(
+          (await user.client.auth.getSession()).data.session?.access_token as string,
+        ),
+      ).toBeNull();
+
+      // 3. Completed: the code is dead.
+      const againClient = client().client;
+      const again = await signInMod.signInWithPassword(
+        againClient,
+        { email: user.email, password: user.password },
+        meta(),
+      );
+      if (!again.ok) throw new Error('sign-in after reset failed');
+      const reuse = await codes.redeemRecoveryCode(againClient, again.data.claims, code, meta());
+      expect(!reuse.ok && reuse.error.code).toBe('VALIDATION_FAILED');
     });
   });
 

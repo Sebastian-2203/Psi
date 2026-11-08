@@ -7,7 +7,7 @@ import {
   RECOVERY_CODE_LENGTH,
 } from '@/lib/recovery-codes';
 import { recordSystemAudit } from '@/server/audit';
-import { adminDeleteAllMfaFactors } from '@/server/db/admin';
+import { adminDeleteAllMfaFactors } from '@/server/db/service-role';
 import { withUserTransaction } from '@/server/db/server';
 import { failure, ok, toAppError, type Outcome } from '@/server/errors';
 import type { VerifiedClaims } from './claims';
@@ -83,12 +83,32 @@ export async function regenerateRecoveryCodes(
   return ok({ codes: codes.map(formatRecoveryCode) });
 }
 
+export type RecoveryResetOutcome = 'ok' | 'partial' | 'failed';
+
+async function finishReset(
+  claims: VerifiedClaims,
+  outcome: RecoveryResetOutcome,
+  factorsRemoved: number,
+): Promise<void> {
+  await withUserTransaction(
+    claims,
+    (tx) => tx`select app.finish_recovery_reset(${outcome}, ${factorsRemoved}::int)`,
+  );
+}
+
 /**
- * ADR-021 "use a code": password already verified (aal1). On success the database marks the
- * code used (audited auth.recovery_code_used), the Auth admin API removes every factor
- * (auth.mfa_reset) and ALL of the user's sessions are revoked with the user's own client
- * (`signOut({ scope: 'global' })`, auth.session_revoked) — deleting a factor alone does not end
- * existing aal2 sessions. The user signs in again and must enroll a new factor; notified by email.
+ * ADR-021 "use a code" (P1-05: every step leaves a recoverable, audited state). Password already
+ * verified (aal1).
+ *   1. DB (one transaction): code marked used + reset `pending`; audits auth.recovery_code_used
+ *      and auth.mfa_reset {outcome: started}. Re-entering the SAME code while its reset is still
+ *      pending (1 h, 5 attempts) resumes it (`retry`).
+ *   2. Auth admin API removes every factor (verified last; never throws, reports progress).
+ *   3. ALL of the user's sessions are revoked with the user's own client
+ *      (`signOut({ scope: 'global' })`, auth.session_revoked). Factor deletion is not relied on
+ *      to end sessions.
+ *   4. DB: auth.mfa_reset {outcome: ok|partial|failed, factors_removed}; only `ok` completes the
+ *      code. Any failure before that keeps the code pending -> the user retries with it.
+ * The user then signs in again and must enroll a new factor; notified by email.
  */
 export async function redeemRecoveryCode(
   client: SupabaseClient,
@@ -110,36 +130,47 @@ export async function redeemRecoveryCode(
   if (status === 'rate_limited') {
     return failure('RATE_LIMITED', { messageKey: 'auth.errors.rateLimited' });
   }
-  if (status !== 'ok') {
+  if (status !== 'ok' && status !== 'retry') {
     return failure('VALIDATION_FAILED', {
       messageKey: 'auth.errors.invalidRecoveryCode',
       fieldErrors: { code: ['recoveryCodeInvalid'] },
     });
   }
 
+  const reset = await adminDeleteAllMfaFactors(claims.sub);
+  if (!reset.ok) {
+    // Code stays pending: the same code can be used again to retry.
+    await finishReset(claims, reset.removed > 0 ? 'partial' : 'failed', reset.removed).catch(
+      () => undefined,
+    );
+    return failure('INTERNAL', { detail: `mfa_reset_${reset.stage}_failed` });
+  }
+
+  let revoked = await client.auth.signOut({ scope: 'global' });
+  if (revoked.error) revoked = await client.auth.signOut({ scope: 'global' });
+  if (revoked.error) {
+    await finishReset(claims, 'partial', reset.removed).catch(() => undefined);
+    return failure('INTERNAL', { detail: 'revoke_sessions_failed' });
+  }
   const auditTarget = {
     actorProfileId: claims.sub,
     requestId: meta.requestId,
     ip: meta.ip,
     userAgent: meta.userAgent,
   };
-  let removed: number;
-  try {
-    removed = await adminDeleteAllMfaFactors(claims.sub);
-  } catch {
-    // The code is spent; the user may use another one. Nothing was reset.
-    return failure('INTERNAL');
-  }
-  await recordSystemAudit('auth.mfa_reset', { via: 'recovery_code' }, auditTarget);
-  const revoked = await client.auth.signOut({ scope: 'global' });
-  if (revoked.error) return failure('INTERNAL', { detail: 'revoke_sessions_failed' });
   await recordSystemAudit('auth.session_revoked', { scope: 'global' }, auditTarget).catch(
     () => undefined,
   );
+  try {
+    await finishReset(claims, 'ok', reset.removed);
+  } catch {
+    // Factors are gone and sessions revoked; only the completion record failed. The code stays
+    // pending (retry is harmless and idempotent); report success to the user.
+  }
 
   const email = typeof claims.payload.email === 'string' ? claims.payload.email : null;
   if (email && notice) {
     await sendEmail({ to: email, ...notice }).catch(() => undefined);
   }
-  return ok({ factorsRemoved: removed });
+  return ok({ factorsRemoved: reset.removed });
 }

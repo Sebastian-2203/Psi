@@ -12,7 +12,7 @@ skipMessage('db-user-transaction', stack);
 type ClaimsModule = typeof import('@/server/auth/claims');
 type ServerModule = typeof import('@/server/db/server');
 type PoolModule = typeof import('@/server/db/pool');
-type AdminModule = typeof import('@/server/db/admin');
+type AdminModule = typeof import('@/server/db/system');
 
 describe.skipIf(!stack.available)('withUserTransaction (ADR-019 Option A)', () => {
   let claimsMod: ClaimsModule;
@@ -27,7 +27,7 @@ describe.skipIf(!stack.available)('withUserTransaction (ADR-019 Option A)', () =
     claimsMod = await import('@/server/auth/claims');
     server = await import('@/server/db/server');
     pool = await import('@/server/db/pool');
-    admin = await import('@/server/db/admin');
+    admin = await import('@/server/db/system');
     ownerA = await claimsMod.verifyAccessToken(await signIn(PERSONAS.ownerA, 'aal2'));
     ownerB = await claimsMod.verifyAccessToken(await signIn(PERSONAS.ownerB, 'aal2'));
     ownerAal1 = await claimsMod.verifyAccessToken(await signIn(PERSONAS.ownerA, 'aal1'));

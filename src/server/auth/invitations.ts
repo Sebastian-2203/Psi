@@ -3,12 +3,8 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { createHash, randomBytes } from 'node:crypto';
 import { recordAudit, recordSystemAudit } from '@/server/audit';
 import { requirePermission, type AuthzContext } from '@/server/authz';
-import {
-  adminCreateInvitedUser,
-  adminDeleteUnacceptedUser,
-  systemAcceptStaffInvitation,
-  systemPeekStaffInvitation,
-} from '@/server/db/admin';
+import { adminCreateInvitedUser, adminDeleteUnacceptedUser } from '@/server/db/service-role';
+import { systemAcceptStaffInvitation, systemPeekStaffInvitation } from '@/server/db/system';
 import { withUserTransaction } from '@/server/db/server';
 import { failure, ok, toAppError, type Outcome } from '@/server/errors';
 import { verifyAccessToken, type VerifiedClaims } from './claims';

@@ -75,6 +75,10 @@ export type Database = {
         }[];
       };
       current_profile_id: { Args: Record<PropertyKey, never>; Returns: string };
+      finish_recovery_reset: {
+        Args: { p_factors_removed: number; p_outcome: string };
+        Returns: string;
+      };
       get_public_branding: {
         Args: { p_org: string };
         Returns: {
@@ -502,6 +506,8 @@ export type Database = {
           created_at: string;
           id: string;
           profile_id: string;
+          reset_attempts: number;
+          reset_status: string | null;
           revoked_at: string | null;
           used_at: string | null;
         };
@@ -512,6 +518,8 @@ export type Database = {
           created_at?: string;
           id?: string;
           profile_id: string;
+          reset_attempts?: number;
+          reset_status?: string | null;
           revoked_at?: string | null;
           used_at?: string | null;
         };
@@ -521,6 +529,8 @@ export type Database = {
           created_at?: string;
           id?: string;
           profile_id?: string;
+          reset_attempts?: number;
+          reset_status?: string | null;
           revoked_at?: string | null;
           used_at?: string | null;
         };

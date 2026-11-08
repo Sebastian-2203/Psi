@@ -22,7 +22,7 @@ describe.skipIf(!stack.available)(
   () => {
     let tenancy: typeof import('@/server/tenancy');
     let authz: typeof import('@/server/authz');
-    let admin: typeof import('@/server/db/admin');
+    let admin: typeof import('@/server/db/system');
     let pool: typeof import('@/server/db/pool');
     let pg: postgres.Sql;
     const claims: Record<string, VerifiedClaims> = {};
@@ -30,7 +30,7 @@ describe.skipIf(!stack.available)(
     beforeAll(async () => {
       tenancy = await import('@/server/tenancy');
       authz = await import('@/server/authz');
-      admin = await import('@/server/db/admin');
+      admin = await import('@/server/db/system');
       pool = await import('@/server/db/pool');
       pg = adminSql();
       const { verifyAccessToken } = await import('@/server/auth/claims');

@@ -2,7 +2,7 @@
 begin;
 \ir _helpers.psql
 
-select plan(20);
+select plan(31);
 
 -- Grants and hardening -----------------------------------------------------------------
 select ok(not has_function_privilege('anon', 'app.replace_recovery_codes(text[])', 'execute'), 'anon cannot replace codes');
@@ -56,8 +56,18 @@ select throws_ok($$ select count(*) from public.mfa_recovery_codes $$, '42501', 
   'authenticated cannot read the hash table directly');
 
 select is((select status from app.consume_recovery_code('aaaa-aaaa-aaaa-aaaa')), 'ok', 'valid code (normalized) is accepted');
-select is((select status from app.consume_recovery_code('AAAAAAAAAAAAAAAA')), 'invalid', 'a used code is rejected');
 select is((select remaining from app.my_recovery_codes_status()), 9, 'status: 9 remaining');
+
+-- P1-05: the reset is pending until the server records `ok`; the same code resumes it.
+select ok(not has_function_privilege('anon', 'app.finish_recovery_reset(text, integer)', 'execute'), 'anon cannot finish a reset');
+select is((select status from app.consume_recovery_code('AAAAAAAAAAAAAAAA')), 'retry', 'a used code with a pending reset resumes it');
+select throws_like($$ select app.finish_recovery_reset('maybe', 0) $$, '%invalid_reset_outcome%', 'unknown outcome rejected');
+select is(app.finish_recovery_reset('partial', 1), 'pending', 'partial outcome keeps the reset pending');
+select is((select status from app.consume_recovery_code('AAAAAAAAAAAAAAAA')), 'retry', 'still retryable after a partial reset');
+select is(app.finish_recovery_reset('ok', 2), 'completed', 'ok completes the reset');
+select is((select status from app.consume_recovery_code('AAAAAAAAAAAAAAAA')), 'invalid', 'a used code with a completed reset is rejected');
+select throws_like($$ select app.finish_recovery_reset('ok', 0) $$, '%no_pending_reset%', 'nothing left to finish');
+select is((select remaining from app.my_recovery_codes_status()), 9, 'retries do not consume other codes');
 
 select tests.as_admin();
 select ok(
@@ -69,6 +79,18 @@ select is(
    where actor_profile_id = 'c0000000-0000-4000-8000-000000000003'
      and event_type in ('auth.recovery_codes_generated', 'auth.recovery_code_used', 'auth.mfa_failed')),
   3, 'generation, use and failed use are audited');
+select is(
+  (select array_agg(metadata->>'outcome' order by seq)::text from public.audit_logs
+   where actor_profile_id = 'c0000000-0000-4000-8000-000000000003' and event_type = 'auth.mfa_reset'),
+  '{started,started,partial,started,ok}', 'every reset step is audited with its outcome');
+select is(
+  (select (metadata->>'factors_removed')::int from public.audit_logs
+   where actor_profile_id = 'c0000000-0000-4000-8000-000000000003' and event_type = 'auth.mfa_reset'
+     and metadata->>'outcome' = 'ok'),
+  2, 'the ok outcome records factors_removed');
+select throws_like(
+  $$ update public.mfa_recovery_codes set reset_status = 'pending' where reset_status = 'completed' $$,
+  '%IMMUTABLE:mfa_recovery_codes%', 'a completed reset is final');
 
 -- Invitation preview (system path only) ------------------------------------------------
 select is(

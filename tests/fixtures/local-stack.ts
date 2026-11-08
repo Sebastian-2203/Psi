@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { randomBytes } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import postgres from 'postgres';
@@ -51,6 +52,8 @@ export function detectLocalStack(): Promise<StackStatus> {
     if (missing.length > 0)
       return { available: false, reason: `missing env: ${missing.join(', ')}` };
     process.env.APP_BASE_DOMAIN ??= 'localhost';
+    // Integration tests never sign activity cookies across processes: a per-run key is enough.
+    process.env.SESSION_ACTIVITY_SECRET ??= randomBytes(32).toString('base64url');
     if (!isLocal(process.env.DATABASE_URL) || !isLocal(process.env.NEXT_PUBLIC_SUPABASE_URL)) {
       return {
         available: false,

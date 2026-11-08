@@ -1,6 +1,7 @@
 /**
  * Session lifetime policy (SECURITY.md §3.5). Configurable product constants, not legal values.
- * Enforced app-side in src/proxy.ts; Supabase Auth `[auth.sessions]` is a backstop.
+ * Enforced app-side in src/proxy.ts AND src/server/auth/claims.ts (getVerifiedClaims) through the
+ * signed activity cookie (src/lib/session-activity.ts); Supabase Auth `[auth.sessions]` is a backstop.
  *
  * Phase 1 only has staff/platform identities, so the staff limits apply to every session.
  * Portal limits (idle 30 min / absolute 7 days, [NEEDS PSYCHOLOGIST INPUT]) need a
@@ -10,7 +11,7 @@ export const SESSION_POLICY = {
   staff: { idleSeconds: 15 * 60, absoluteSeconds: 12 * 60 * 60 },
 } as const;
 
-/** Host-only, httpOnly cookie holding the unix time (s) of the last request with a session. */
+/** Host-only, httpOnly, HMAC-signed cookie with the last request time of a session (P1-02). */
 export const ACTIVITY_COOKIE = 'psi_activity';
 
 type AmrEntry = { method?: unknown; timestamp?: unknown };
@@ -27,7 +28,10 @@ export function sessionStartedAt(claims: { amr?: unknown; iat?: unknown }): numb
 
 export type SessionExpiry = 'active' | 'idle' | 'absolute';
 
-/** Pure decision used by the proxy (unit tested). `lastActivity` null = unknown (not idle). */
+/**
+ * Pure limit check (unit tested). `lastActivity` null = no idle check here; callers must use
+ * decideSessionExpiry() (session-activity.ts), which treats a missing/invalid cookie as idle.
+ */
 export function evaluateSessionExpiry(
   startedAt: number | null,
   lastActivity: number | null,

@@ -6,7 +6,7 @@ import { AUTH_COOKIE_OPTIONS } from '@/lib/auth-cookies';
 import { env } from '@/server/env';
 
 /**
- * Supabase Auth clients (anon key only; the service role lives in src/server/db/admin.ts).
+ * Supabase Auth clients (anon key only; the service role lives in src/server/db/service-role.ts).
  * There is no browser client: sign-in, MFA and recovery all run in server actions / route
  * handlers so the session cookies stay httpOnly (SECURITY.md §3.5).
  */

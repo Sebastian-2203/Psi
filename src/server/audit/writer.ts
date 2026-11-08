@@ -1,6 +1,6 @@
 import 'server-only';
 import type postgres from 'postgres';
-import { systemWriteAudit } from '@/server/db/admin';
+import { systemWriteAudit } from '@/server/db/system';
 import type { UserTransaction } from '@/server/db/server';
 import {
   AUDIT_EVENTS,

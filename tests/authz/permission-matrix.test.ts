@@ -8,6 +8,7 @@ vi.hoisted(() => {
   process.env.SUPABASE_SERVICE_ROLE_KEY ??= 'matrix-test-placeholder';
   process.env.DATABASE_URL ??= 'postgresql://app_server:placeholder@127.0.0.1:1/postgres';
   process.env.APP_BASE_DOMAIN ??= 'localhost';
+  process.env.SESSION_ACTIVITY_SECRET ??= 'unit-test-placeholder-secret-0123456789';
 });
 
 import {

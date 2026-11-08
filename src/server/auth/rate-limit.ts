@@ -1,7 +1,7 @@
 import 'server-only';
 import { createHash } from 'node:crypto';
 import { recordSystemAudit } from '@/server/audit';
-import { systemConsumeRateLimit } from '@/server/db/admin';
+import { systemConsumeRateLimit } from '@/server/db/system';
 
 /**
  * Pre-authentication limiter (ADR-020) over the Postgres fixed-window counters

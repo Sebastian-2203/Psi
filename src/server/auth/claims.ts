@@ -1,7 +1,10 @@
 import 'server-only';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { cookies } from 'next/headers';
 import { cache } from 'react';
 import { z } from 'zod';
+import { ACTIVITY_COOKIE, evaluateActivityCookie } from '@/lib/session-activity';
+import type { SessionExpiry } from '@/lib/session-policy';
 import { env } from '@/server/env';
 import { createRequestAuthClient } from './supabase';
 
@@ -118,15 +121,38 @@ export async function verifyAccessToken(accessToken: string): Promise<VerifiedCl
 }
 
 /**
+ * Session lifetime check for a verified token (SECURITY.md §3.5, P1-02): absolute limit from
+ * `amr`, idle limit from the HMAC-signed activity cookie bound to `session_id`. Same decision as
+ * src/proxy.ts, re-applied server-side so EVERY entry point (pages, Server Actions, route
+ * handlers, also if the proxy is bypassed or misconfigured) fails closed.
+ */
+export async function sessionExpiryFor(
+  claims: VerifiedClaims,
+  activityCookieValue: string | undefined | null,
+  now: number = Math.floor(Date.now() / 1000),
+): Promise<SessionExpiry> {
+  return evaluateActivityCookie({
+    secret: env.SESSION_ACTIVITY_SECRET,
+    cookieValue: activityCookieValue,
+    claims: claims.payload,
+    now,
+  });
+}
+
+/**
  * Verified claims for the current request, from the Supabase SSR cookie session.
- * Memoized per request with React `cache()`. Returns null when signed out or invalid.
- * Session refresh is done by src/proxy.ts before rendering; the cookie client below uses the
- * shared httpOnly cookie options so any write (Server Actions) keeps the same attributes.
+ * Memoized per request with React `cache()`. Returns null when signed out, invalid, or past the
+ * idle/absolute limits (the proxy has already revoked such sessions at Supabase Auth; here
+ * the session is simply not honoured). Session refresh is done by src/proxy.ts before
+ * rendering; the cookie client uses the shared httpOnly cookie options.
  */
 export const getVerifiedClaims = cache(async (): Promise<VerifiedClaims | null> => {
   const supabase = await createRequestAuthClient();
   // getSession() only reads (and may refresh) the cookie; the token is then verified above.
   const { data } = await supabase.auth.getSession();
   const token = data.session?.access_token;
-  return token ? verifyAccessToken(token) : null;
+  const claims = token ? await verifyAccessToken(token) : null;
+  if (!claims) return null;
+  const activity = (await cookies()).get(ACTIVITY_COOKIE)?.value;
+  return (await sessionExpiryFor(claims, activity)) === 'active' ? claims : null;
 });
