@@ -7,8 +7,10 @@ This file is loaded by every Claude Code session and subagent. Read it before do
 
 ## Current phase
 
-**Phase 0 — Foundation (documentation only).** No application code, no `package.json`, no migrations
-until the client explicitly approves the foundation. See `docs/DEVELOPMENT_ROADMAP.md`.
+**Phase 1 — Core infrastructure** (authorized by the client on 2026-11-08). Phase 0 foundation and
+ADR-001…021 are accepted; **ADR-019 Option A**: browsers never query Postgres; the server queries Postgres
+as the user (role `authenticated` + verified JWT claims per transaction). Scope: `docs/DEVELOPMENT_ROADMAP.md` §2
+Phase 1. Do not start Phase 2 features (patients, clinical, activities) without authorization.
 
 ## Source of truth
 

@@ -1,7 +1,8 @@
 # Architecture Decision Records
 
-> All ADRs below are **Status: Proposed** — pending approval by the client (SyV Solutions /
-> Daniela Ortega) and security review where marked. Once accepted, an ADR is changed only
+> **2026-11-08: the client approved the Phase 0 foundation.** ADR-001…021 are **Accepted**
+> (ADR-019: **Option A**). ADR-013 remains pending legal input for the actual periods. Security conditions
+> listed per ADR remain binding and are verified in each Phase 1 security review. Once accepted, an ADR is changed only
 > by a new ADR that supersedes it.
 > Related: [ARCHITECTURE.md](./ARCHITECTURE.md) · [DATABASE.md](./DATABASE.md) · [API_CONTRACTS.md](./API_CONTRACTS.md)
 
@@ -13,27 +14,27 @@ Security column = verdict in SECURITY.md §12 (review v0.1) and how this revisio
 
 | ADR | Title | Status | Security |
 |---|---|---|---|
-| 001 | Technology stack | Proposed | Approved w/ conditions (Auth hardening, F-11) |
-| 002 | Organization as the tenant | Proposed | Approved |
-| 003 | Shared database, shared schema, RLS isolation | Proposed | Approved w/ conditions |
-| 004 | Server-only DAL with RLS as defense in depth | Proposed — revised; depends on ADR-019 | Changes required → revised |
-| 005 | Guardians as profiles + relationship with granular permissions | Proposed — revised | Approved w/ conditions |
-| 006 | Immutable clinical note finalization with addenda | Proposed — revised | Approved w/ conditions |
-| 007 | Activity version pinning | Proposed | Approved |
-| 008 | Block-based activity content, no arbitrary HTML/JS | Proposed | Approved w/ conditions |
-| 009 | next-intl locale-prefixed routing | Proposed | Approved |
-| 010 | CSS-variable white-label theming | Proposed — revised | Approved w/ conditions |
-| 011 | Private storage with signed URLs | Proposed | Approved w/ conditions |
-| 012 | Append-only audit log | Proposed — revised | Approved w/ conditions |
-| 013 | Retention periods not hardcoded | Proposed (legal) | Approved (security) |
-| 014 | platform_admin without clinical access; approval-gated break-glass | Proposed — rewritten | Changes required → rewritten, re-review |
-| 015 | Structured clinical data (no single JSON record) | Proposed | Approved |
-| 016 | Care-team-based clinical access | Proposed — revised | Approved w/ conditions |
-| 017 | Host-based tenant resolution for white-label | Proposed — revised | Approved w/ conditions |
-| 018 | Atomic critical mutations as Postgres functions | Proposed — revised | Approved w/ conditions |
-| 019 | Database access path for authenticated users | **Proposed — awaiting client approval** | New (F-01) — needs review |
-| 020 | Application rate limiting | Proposed | New (F-15) — needs review |
-| 021 | MFA recovery | Proposed | New (F-14) — needs review |
+| 001 | Technology stack | Accepted | Approved w/ conditions (Auth hardening, F-11) |
+| 002 | Organization as the tenant | Accepted | Approved |
+| 003 | Shared database, shared schema, RLS isolation | Accepted | Approved w/ conditions |
+| 004 | Server-only DAL with RLS as defense in depth | Accepted | Changes required → revised |
+| 005 | Guardians as profiles + relationship with granular permissions | Accepted | Approved w/ conditions |
+| 006 | Immutable clinical note finalization with addenda | Accepted | Approved w/ conditions |
+| 007 | Activity version pinning | Accepted | Approved |
+| 008 | Block-based activity content, no arbitrary HTML/JS | Accepted | Approved w/ conditions |
+| 009 | next-intl locale-prefixed routing | Accepted | Approved |
+| 010 | CSS-variable white-label theming | Accepted | Approved w/ conditions |
+| 011 | Private storage with signed URLs | Accepted | Approved w/ conditions |
+| 012 | Append-only audit log | Accepted | Approved w/ conditions |
+| 013 | Retention periods not hardcoded | Accepted (legal periods pending) | Approved (security) |
+| 014 | platform_admin without clinical access; approval-gated break-glass | Accepted | Changes required → rewritten, re-review |
+| 015 | Structured clinical data (no single JSON record) | Accepted | Approved |
+| 016 | Care-team-based clinical access | Accepted | Approved w/ conditions |
+| 017 | Host-based tenant resolution for white-label | Accepted | Approved w/ conditions |
+| 018 | Atomic critical mutations as Postgres functions | Accepted | Approved w/ conditions |
+| 019 | Database access path for authenticated users | Accepted — Option A | New (F-01) — needs review |
+| 020 | Application rate limiting | Accepted | New (F-15) — needs review |
+| 021 | MFA recovery | Accepted | New (F-14) — needs review |
 
 ---
 
@@ -59,7 +60,7 @@ hosted, co-located regions. Node runtime for all data access.
 - Neither Vercel nor Supabase is assumed to make the product legally compliant;
   region/data transfer is a client + legal decision (Q-01).
 
-**Status.** Proposed.
+**Status.** Accepted (client approval 2026-11-08); security conditions apply.
 
 ---
 
@@ -81,7 +82,7 @@ linked).
 - (−) Composite FKs `(organization_id, id)` add verbosity, but make cross-tenant
   references impossible at the DB level.
 
-**Status.** Proposed.
+**Status.** Accepted (client approval 2026-11-08); security conditions apply.
 
 ---
 
@@ -102,7 +103,7 @@ table, default deny), plus composite FKs.
 - (−) Noisy neighbour risk; acceptable at expected scale. Re-evaluate if a large clinic
   requires dedicated infra (would be a new ADR, e.g. dedicated project).
 
-**Status.** Proposed.
+**Status.** Accepted (client approval 2026-11-08); security conditions apply.
 
 ---
 
@@ -133,7 +134,7 @@ surface is actually closed: any user JWT + the public key reaches PostgREST and 
 - (−) Permission logic exists in two places (TS + SQL) → permission matrix tests assert
   both agree, including real-JWT direct-API abuse tests.
 
-**Status.** Proposed — revised after security review; cannot be accepted before ADR-019.
+**Status.** Accepted (client approval 2026-11-08); security conditions apply.
 
 ---
 
@@ -167,7 +168,7 @@ exist before having an account.
   request in app.
 - Open: adolescent defaults (Q-04) `[NEEDS PSYCHOLOGIST INPUT]` `[NEEDS LEGAL VERIFICATION]`.
 
-**Status.** Proposed — revised per security conditions.
+**Status.** Accepted (client approval 2026-11-08); security conditions apply.
 
 ---
 
@@ -196,7 +197,7 @@ never silently overwrite the original (expected by Resolución 1995/1999 —
 - (−) Drafts left unfinalized are a clinical risk → dashboard reminder of open drafts
   (product requirement, not automatic finalization). Auto-finalize policy is open (Q-16).
 
-**Status.** Proposed — revised per security conditions.
+**Status.** Accepted (client approval 2026-11-08); security conditions apply.
 
 ---
 
@@ -220,7 +221,7 @@ activity, or a historic response, must always refer to exactly what the patient 
 - (−) Storage grows with versions (small; blocks are compact JSON).
 - (−) To give a patient the newer version, a psychologist must reassign (explicit by design).
 
-**Status.** Proposed.
+**Status.** Accepted (client approval 2026-11-08); security conditions apply.
 
 ---
 
@@ -247,7 +248,7 @@ in a portal used by patients and children, and make content non-portable and unt
 - (−) Less flexibility; new interaction types require development (a feature, not a bug).
 - (−) Upgraders must be maintained for every schema version ever published.
 
-**Status.** Proposed — requires security review (embed allowlist).
+**Status.** Accepted (client approval 2026-11-08); security conditions apply.
 
 ---
 
@@ -275,7 +276,7 @@ translations.
 - (−) Every link must be locale-aware (use next-intl `Link`/`redirect` helpers only; lint).
 - (−) Translation workflow adds UI to the activity builder.
 
-**Status.** Proposed.
+**Status.** Accepted (client approval 2026-11-08); security conditions apply.
 
 ---
 
@@ -300,7 +301,7 @@ dashboard, without code changes or per-tenant builds.
 - (−) Pre-auth pages need branding before login → branding readable via a narrow public
   function; logos in a public-read, non-listable bucket (Q-09).
 
-**Status.** Proposed — revised per security conditions.
+**Status.** Accepted (client approval 2026-11-08); security conditions apply.
 
 ---
 
@@ -325,7 +326,7 @@ Public URLs are guessable/shareable and unauditable.
 - (−) Media playback for long videos may need re-issuance (renderer handles refresh).
 - Antivirus scanning undecided (Q-10).
 
-**Status.** Proposed — requires security review.
+**Status.** Accepted (client approval 2026-11-08); security conditions apply.
 
 ---
 
@@ -354,7 +355,7 @@ under which authority", including platform staff.
 - (−) Audit retention itself depends on ADR-013.
 - (−) Under ADR-019 Option B, direct Data API reads are not DAL-audited (residual).
 
-**Status.** Proposed — revised per security conditions.
+**Status.** Accepted (client approval 2026-11-08); security conditions apply.
 
 ---
 
@@ -375,7 +376,7 @@ confirmation and may differ per data category.
 - (−) Data accumulates until policies are approved → storage cost, larger breach surface.
 - `[NEEDS LEGAL VERIFICATION]` for every category before activation.
 
-**Status.** Proposed — pending legal input.
+**Status.** Accepted (client approval 2026-11-08); security conditions apply.
 
 ---
 
@@ -417,7 +418,7 @@ report to the tenant. The earlier draft (grant active on insert, optional owner 
 - (−) Support cases involving clinical data are slower and need an owner online (intentional).
 - (−) Approval workflow, notifications and access report must be built before production.
 
-**Status.** Proposed — rewritten after security review; requires security re-review.
+**Status.** Accepted (client approval 2026-11-08); security conditions apply.
 
 ---
 
@@ -436,7 +437,7 @@ rich-text ASTs, never as whole-record JSON.
 - (−) More tables/migrations; section keys must be agreed with the psychologist
   (`[NEEDS PSYCHOLOGIST INPUT]`).
 
-**Status.** Proposed.
+**Status.** Accepted (client approval 2026-11-08); security conditions apply.
 
 ---
 
@@ -462,7 +463,7 @@ membership see directory fields only (pending Q-03).
 - (−) Solo practices see an extra concept; UI auto-handles it.
 - (−) Coverage/vacations require explicit assignment.
 
-**Status.** Proposed — revised per security conditions.
+**Status.** Accepted (client approval 2026-11-08); security conditions apply.
 
 ---
 
@@ -483,7 +484,7 @@ redirect URLs are exact per host; `serverActions.allowedOrigins` is explicit (F-
 - (−) Custom domains require DNS verification, TLS provisioning (Vercel domains API) and
   per-domain auth redirect URLs in Supabase.
 
-**Status.** Proposed — revised per security conditions.
+**Status.** Accepted (client approval 2026-11-08); security conditions apply.
 
 ---
 
@@ -506,7 +507,7 @@ deliberately an RPC. Called inside the request transaction (ADR-019 Option A) or
 - (−) Business logic split between TS and SQL; keep SQL functions small and focused on
   integrity, with validation in Zod first.
 
-**Status.** Proposed — revised per security conditions.
+**Status.** Accepted (client approval 2026-11-08); security conditions apply.
 
 ---
 
@@ -572,7 +573,7 @@ DATABASE.md become mandatory.
 **Consequences.** ADR-004 and ARCHITECTURE §6 depend on this ADR; Phase 1 DAL work is blocked
 until it is accepted. Under A, ADR-018 functions run inside the request transaction.
 
-**Status.** **Proposed — awaiting client approval** (and security re-review).
+**Status.** Accepted (client approval 2026-11-08); security conditions apply.
 
 ---
 
@@ -595,7 +596,7 @@ DSR creation and server actions need app-level limits (F-15).
 - (+) No new subprocessor or cross-border data flow; transactional with the action.
 - (−) Extra DB writes per limited action; revisit a managed KV (new vendor, DPA) if load requires.
 
-**Status.** Proposed — requires security review.
+**Status.** Accepted (client approval 2026-11-08); security conditions apply.
 
 ---
 
@@ -622,7 +623,7 @@ if native support exists, prefer it and supersede this ADR. The app also cannot 
 - (+) Meets AUTH-04 without weakening the `aal2` model.
 - (−) Password + stolen code allows factor reset → mitigated by notifications and audit.
 
-**Status.** Proposed — requires security review.
+**Status.** Accepted (client approval 2026-11-08); security conditions apply.
 
 ---
 
@@ -635,6 +636,7 @@ if native support exists, prefer it and supersede this ADR. The app also cannot 
 | 2026-11-08 | Adolescents use the **child portal** (`portal-child`); no separate teen context | DESIGN_SYSTEM, PRD PRT-03 |
 | 2026-11-08 | Patient- and guardian-facing Spanish copy uses **"tú"** | BRAND_GUIDELINES, i18n catalogs |
 | 2026-11-08 | Vector logo to be supplied later by the client | BRAND_GUIDELINES |
+| 2026-11-08 | **Phase 0 foundation approved; ADR-001…021 accepted; ADR-019 Option A** (no Data API for users; server queries Postgres as the user). Phase 1 authorized. | All |
 
 ## Open questions requiring client input
 
