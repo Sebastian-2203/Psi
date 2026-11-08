@@ -40,7 +40,12 @@ export type AuthzContext = {
     supervisedSessionId?: string;
   };
   platform?: {
-    grants: Array<{ id: string; scope: 'org_support_non_clinical' | 'clinical_read_break_glass'; patientId?: string; expiresAt: string }>;
+    grants: Array<{
+      id: string;
+      scope: 'org_support_non_clinical' | 'clinical_read_break_glass';
+      patientId?: string;
+      expiresAt: string;
+    }>;
   };
   /** ISO timestamp of the last MFA verification in this session (high-risk checks). */
   mfaVerifiedAt?: string;
@@ -80,7 +85,12 @@ async function loadCapacities(claims: VerifiedClaims): Promise<Capacity[]> {
   const capacities: Capacity[] = [];
   for (const row of rows) {
     if (row.acting_as === 'platform_admin') {
-      capacities.push({ organizationId: null, actingAs: 'platform_admin', roles: [], orgStatus: null });
+      capacities.push({
+        organizationId: null,
+        actingAs: 'platform_admin',
+        roles: [],
+        orgStatus: null,
+      });
     } else if (
       row.acting_as === 'staff' &&
       row.membership_id &&
@@ -140,7 +150,10 @@ export async function resolveAuthzContext(
   if (selected === 'ambiguous') {
     return failure('PRECONDITION_FAILED', { messageKey: 'errors.selectCapacity' });
   }
-  if ((selected.actingAs === 'staff' || selected.actingAs === 'platform_admin') && claims.aal !== 'aal2') {
+  if (
+    (selected.actingAs === 'staff' || selected.actingAs === 'platform_admin') &&
+    claims.aal !== 'aal2'
+  ) {
     return failure('MFA_REQUIRED');
   }
 
@@ -152,7 +165,10 @@ export async function resolveAuthzContext(
     organizationId: selected.organizationId,
     organizationStatus: selected.orgStatus,
     actingAs: selected.actingAs,
-    availableCapacities: capacities.map((c) => ({ organizationId: c.organizationId, actingAs: c.actingAs })),
+    availableCapacities: capacities.map((c) => ({
+      organizationId: c.organizationId,
+      actingAs: c.actingAs,
+    })),
     ...(selected.membershipId
       ? { membership: { id: selected.membershipId, roles: selected.roles } }
       : {}),

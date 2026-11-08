@@ -16,7 +16,11 @@ const ADMIN_URL_DEFAULT = 'postgresql://postgres:postgres@127.0.0.1:54322/postgr
 const TOKEN_CACHE = path.resolve('node_modules/.cache/psi-integration/tokens.json');
 
 export function loadLocalEnv(): void {
-  if (!process.env.DATABASE_URL && existsSync('.env.local') && typeof process.loadEnvFile === 'function') {
+  if (
+    !process.env.DATABASE_URL &&
+    existsSync('.env.local') &&
+    typeof process.loadEnvFile === 'function'
+  ) {
     process.loadEnvFile('.env.local');
   }
 }
@@ -37,18 +41,34 @@ let status: Promise<StackStatus> | undefined;
 export function detectLocalStack(): Promise<StackStatus> {
   status ??= (async (): Promise<StackStatus> => {
     loadLocalEnv();
-    const required = ['DATABASE_URL', 'NEXT_PUBLIC_SUPABASE_URL', 'NEXT_PUBLIC_SUPABASE_ANON_KEY', 'SUPABASE_SERVICE_ROLE_KEY'];
+    const required = [
+      'DATABASE_URL',
+      'NEXT_PUBLIC_SUPABASE_URL',
+      'NEXT_PUBLIC_SUPABASE_ANON_KEY',
+      'SUPABASE_SERVICE_ROLE_KEY',
+    ];
     const missing = required.filter((name) => !process.env[name]);
-    if (missing.length > 0) return { available: false, reason: `missing env: ${missing.join(', ')}` };
+    if (missing.length > 0)
+      return { available: false, reason: `missing env: ${missing.join(', ')}` };
     process.env.APP_BASE_DOMAIN ??= 'localhost';
     if (!isLocal(process.env.DATABASE_URL) || !isLocal(process.env.NEXT_PUBLIC_SUPABASE_URL)) {
-      return { available: false, reason: 'integration tests only run against a LOCAL Supabase stack' };
+      return {
+        available: false,
+        reason: 'integration tests only run against a LOCAL Supabase stack',
+      };
     }
-    const sql = postgres(process.env.DATABASE_URL as string, { max: 1, connect_timeout: 3, onnotice: () => {} });
+    const sql = postgres(process.env.DATABASE_URL as string, {
+      max: 1,
+      connect_timeout: 3,
+      onnotice: () => {},
+    });
     try {
       await sql`select 1`;
     } catch (error) {
-      return { available: false, reason: `database unreachable as app_server (${(error as Error).message})` };
+      return {
+        available: false,
+        reason: `database unreachable as app_server (${(error as Error).message})`,
+      };
     } finally {
       await sql.end({ timeout: 1 });
     }
@@ -67,8 +87,14 @@ export function detectLocalStack(): Promise<StackStatus> {
 }
 
 export function skipMessage(suite: string, s: StackStatus): void {
+  if (!s.available && process.env.REQUIRE_LOCAL_STACK === '1') {
+    // CI's Supabase job sets this: a missing stack must fail, never silently skip.
+    throw new Error(`[integration] ${suite}: local stack required but unavailable (${s.reason})`);
+  }
   if (!s.available) {
-    console.warn(`[integration] SKIPPED ${suite}: ${s.reason}. Run \`pnpm db:start && pnpm db:reset\` (see README "Local database").`);
+    console.warn(
+      `[integration] SKIPPED ${suite}: ${s.reason}. Run \`pnpm db:start && pnpm db:reset\` (see README "Local database").`,
+    );
   }
 }
 
@@ -80,15 +106,23 @@ export function adminSql(): postgres.Sql {
 }
 
 export function anonClient(): SupabaseClient {
-  return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL as string, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string, {
-    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
-  });
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL as string,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string,
+    {
+      auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+    },
+  );
 }
 
 export function serviceClient(): SupabaseClient {
-  return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL as string, process.env.SUPABASE_SERVICE_ROLE_KEY as string, {
-    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
-  });
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL as string,
+    process.env.SUPABASE_SERVICE_ROLE_KEY as string,
+    {
+      auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+    },
+  );
 }
 
 type CachedTokens = Record<string, { token: string; exp: number }>;
@@ -107,7 +141,9 @@ function writeCache(cache: CachedTokens): void {
 }
 
 function expOf(token: string): number {
-  const payload = JSON.parse(Buffer.from(token.split('.')[1] ?? '', 'base64url').toString('utf8')) as { exp: number };
+  const payload = JSON.parse(
+    Buffer.from(token.split('.')[1] ?? '', 'base64url').toString('utf8'),
+  ) as { exp: number };
   return payload.exp;
 }
 
@@ -116,7 +152,11 @@ function expOf(token: string): number {
  * Tokens are cached on disk (fictional, local, short-lived) to stay under Auth rate limits,
  * and re-validated against Auth before reuse. `fresh: true` always creates a new session.
  */
-export async function signIn(persona: Persona, aal: 'aal1' | 'aal2', options: { fresh?: boolean } = {}): Promise<string> {
+export async function signIn(
+  persona: Persona,
+  aal: 'aal1' | 'aal2',
+  options: { fresh?: boolean } = {},
+): Promise<string> {
   const cacheKey = `${persona.key}:${aal}`;
   const client = anonClient();
   if (!options.fresh) {
@@ -126,8 +166,12 @@ export async function signIn(persona: Persona, aal: 'aal1' | 'aal2', options: { 
       if (!error) return cached.token;
     }
   }
-  const { data, error } = await client.auth.signInWithPassword({ email: persona.email, password: FICTIONAL_PASSWORD });
-  if (error || !data.session) throw new Error(`sign-in failed for ${persona.key}: ${error?.message}`);
+  const { data, error } = await client.auth.signInWithPassword({
+    email: persona.email,
+    password: FICTIONAL_PASSWORD,
+  });
+  if (error || !data.session)
+    throw new Error(`sign-in failed for ${persona.key}: ${error?.message}`);
   const aal1Token = data.session.access_token;
   const cache = readCache();
   if (!options.fresh) cache[`${persona.key}:aal1`] = { token: aal1Token, exp: expOf(aal1Token) };
@@ -138,7 +182,10 @@ export async function signIn(persona: Persona, aal: 'aal1' | 'aal2', options: { 
     const factors = await client.auth.mfa.listFactors();
     const factor = factors.data?.totp[0];
     if (!factor) throw new Error(`no verified TOTP factor for ${persona.key}`);
-    const verified = await client.auth.mfa.challengeAndVerify({ factorId: factor.id, code: totp(FICTIONAL_TOTP_SECRET) });
+    const verified = await client.auth.mfa.challengeAndVerify({
+      factorId: factor.id,
+      code: totp(FICTIONAL_TOTP_SECRET),
+    });
     if (verified.error) throw new Error(`MFA failed for ${persona.key}: ${verified.error.message}`);
     const session = await client.auth.getSession();
     result = session.data.session?.access_token ?? '';

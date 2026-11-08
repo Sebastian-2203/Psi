@@ -80,7 +80,11 @@ const JWT_SHAPE = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/;
  * anonymous, revoked or not an `authenticated` user token. Never throws on bad input.
  */
 export async function verifyAccessToken(accessToken: string): Promise<VerifiedClaims | null> {
-  if (typeof accessToken !== 'string' || accessToken.length > 8192 || !JWT_SHAPE.test(accessToken)) {
+  if (
+    typeof accessToken !== 'string' ||
+    accessToken.length > 8192 ||
+    !JWT_SHAPE.test(accessToken)
+  ) {
     return null;
   }
   const client = getVerifierClient();
@@ -122,18 +126,22 @@ export async function verifyAccessToken(accessToken: string): Promise<VerifiedCl
  */
 export const getVerifiedClaims = cache(async (): Promise<VerifiedClaims | null> => {
   const cookieStore = await cookies();
-  const supabase = createServerClient(env.NEXT_PUBLIC_SUPABASE_URL, env.NEXT_PUBLIC_SUPABASE_ANON_KEY, {
-    cookies: {
-      getAll: () => cookieStore.getAll(),
-      setAll: (toSet) => {
-        try {
-          for (const { name, value, options } of toSet) cookieStore.set(name, value, options);
-        } catch {
-          // Called from a Server Component: cookies are read-only there.
-        }
+  const supabase = createServerClient(
+    env.NEXT_PUBLIC_SUPABASE_URL,
+    env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    {
+      cookies: {
+        getAll: () => cookieStore.getAll(),
+        setAll: (toSet) => {
+          try {
+            for (const { name, value, options } of toSet) cookieStore.set(name, value, options);
+          } catch {
+            // Called from a Server Component: cookies are read-only there.
+          }
+        },
       },
     },
-  });
+  );
   // getSession() only reads (and may refresh) the cookie; the token is then verified above.
   const { data } = await supabase.auth.getSession();
   const token = data.session?.access_token;

@@ -21,7 +21,10 @@ export function ok<T>(data: T): { ok: true; data: T } {
   return { ok: true, data };
 }
 
-export function failure(code: ErrorCode, options?: AppErrorOptions): { ok: false; error: AppError } {
+export function failure(
+  code: ErrorCode,
+  options?: AppErrorOptions,
+): { ok: false; error: AppError } {
   return { ok: false, error: new AppError(code, options) };
 }
 

@@ -1,8 +1,8 @@
 # Database — Logical Model
 
-> Status: **Phase 0 — Proposed.** This is a logical model for review.
-> **No production migrations exist yet.** No SQL has been written; backend implements
-> migrations in Phase 1 from this document after client + security approval.
+> Status: **Phase 1 — partially implemented.** Tenancy, identity, platform, audit and
+> infrastructure tables are migrated (see §13 "Implementation status"); everything else is
+> still the logical model. Phase 1 migrations await security review (1.4, 1.8).
 > Related: [ARCHITECTURE.md](./ARCHITECTURE.md) · [API_CONTRACTS.md](./API_CONTRACTS.md) · [DECISIONS.md](./DECISIONS.md)
 
 Markers: `[NEEDS PSYCHOLOGIST INPUT]` (clinical content to confirm with Daniela),
@@ -918,3 +918,34 @@ electronic consent/signature in Colombia (Ley 527/1999, Ley 1581/2012) is `[NEED
 - Draft-note visibility to co-care-team, reflection un-sharing, feedback visibility to guardians, owner self-assignment acknowledgement, `paused` portal behaviour `[NEEDS PSYCHOLOGIST INPUT]`.
 - `read_only`/`closed` org custody and legal-representation bases `[NEEDS LEGAL VERIFICATION]`.
 - Section keys, care roles, note types, sex/gender fields `[NEEDS PSYCHOLOGIST INPUT]`.
+
+---
+
+## 13. Implementation status (Phase 1)
+
+Migrations (`supabase/migrations/`, forward-only). Every table: RLS enabled + forced, no anon
+privileges, explicit column grants for `authenticated`; pgTAP coverage in `supabase/tests/`.
+
+| Migration | Contents |
+|---|---|
+| `20261108120000_foundation.sql` | `citext`/`pgcrypto`, drop `pg_graphql`, schema `app` (not exposed), default-privilege hardening, Phase 1 enums, `app.set_updated_at`, `app.reject_mutation` |
+| `20261108120100_tenancy_identity.sql` | `profiles` (+ `on_auth_user_created` trigger), `organizations`, `organization_domains`, `organization_branding`, `platform_admins`, `memberships`, `membership_roles`, `professional_profiles`, `invitations`, `platform_access_grants`; helpers `app.current_profile_id`, `aal`, `is_aal2`, `org_allows`, `my_membership_id`, `is_org_member`, `has_org_role`, `can_write_as_role`, `is_platform_admin`, `has_active_platform_grant`, `my_capacities`, `org_member_directory`; integrity triggers; policies |
+| `20261108120200_infrastructure.sql` | `rate_limit_counters` (UNLOGGED) + `app.consume_rate_limit` / `consume_rate_limit_key`, `idempotency_keys`, `mfa_recovery_codes` |
+| `20261108120300_audit.sql` | `app.audit_event_types` allowlist, `audit_logs` (append-only triggers incl. TRUNCATE), `app.write_audit`, `app.write_system_audit`, self-grant audit trigger |
+| `20261108120400_system_functions.sql` | `app.resolve_organization_by_host`, `app.get_public_branding`, `app.accept_staff_invitation` (system path) |
+| `20261108120500_app_server_role.sql` | `app_server` login role (NOINHERIT, member of `authenticated` with SET only, no BYPASSRLS, owns nothing; password set outside migrations) |
+
+Deviations from the logical model above (to be confirmed by architect/security):
+
+- **Data API**: `[api] enabled = false`, `schemas = []`, `auto_expose_new_tables = false`; `pg_graphql` dropped (ADR-019 Option A).
+- **`organization_branding`** follows the implemented frontend schema (`src/styles/branding.ts`): `brand_color`, `functional_color`, `secondary_color`, `accent_color` as `#rrggbb`, `child_mode_enabled`; `color_*_fg`, `radius_scale`, `font_family` are not stored (foregrounds are derived and contrast-checked in the app). `logo_file_id`/`favicon_file_id`/`signature_file_id` have no FK until `file_objects` exists.
+- **`membership_roles`** carries `organization_id` with a composite FK to `memberships` (rule 1.3); rows are insert/delete only.
+- **`invitations`**: Phase 1 is staff-only (check `invitations_phase1_staff_only`); `patient_id`/`guardian_id` columns + composite FKs arrive in Phase 2. Added `revoked_at`; one pending invitation per (org, email).
+- **`platform_access_grants`**: `patient_id` has no FK until `patients` exists; user-context inserts are forced to `pending` with no approvals; `clinical_read_break_glass` requests are rejected (`PRECONDITION:break_glass_not_available`) until Phase 3 ships `app.can_read_clinical` and the approval workflow (`app.approve_grant_*`, `app.revoke_grant` exist as deny-only stubs, not executable). `psychologist_approval_required` defaults to true (fail closed). Approved T2 grants open `memberships`/`membership_roles` read via `app.has_active_platform_grant`.
+- **`audit_logs`**: no FKs (the log outlives rows); `patient_id` column added in Phase 2; partitioning deferred. Owners read their org's rows; platform admins read org-less and break-glass rows. Metadata: snake_case keys, ≤ 4 KB, key-segment deny-list (DB) + strict Zod per event (`src/server/audit/events.ts`). Per-actor limit 300 user-written rows/min.
+- **Helpers not yet implemented** (need Phase 2/3 tables): `can_read_clinical`, `can_write_clinical`, `is_patient_self`, `guardian_can`, `is_minor`, `can_read_file`.
+- **`app.my_capacities()`** returns rows (caller's own capacities, independent of aal) so the server can answer `MFA_REQUIRED` — an intentional exception to "helpers return boolean".
+- **SECURITY DEFINER helpers are owned by `postgres`** (which has BYPASSRLS in Supabase); a dedicated non-BYPASSRLS owner role (SECURITY.md §4.3 "where feasible") is not done yet.
+- **`mfa_recovery_codes`**: GoTrue v2.197 ships native MFA recovery codes (`auth.mfa_recovery_code_sets`, auth-js `mfa.recoveryCodes.*` behind a flag). ADR-021 says to prefer native support; the table may be superseded.
+- Auth (`config.toml`): sign-ups disabled (email provider stays enabled), 900 s JWTs, password ≥ 12, email confirmation on, secure password change, TOTP enroll/verify on, exact redirect URLs.
+

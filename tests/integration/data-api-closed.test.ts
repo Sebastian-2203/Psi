@@ -31,7 +31,10 @@ skipMessage('data-api-closed', stack);
 describe.skipIf(!stack.available)('Data API rejects persona JWTs (live stack)', () => {
   let token: string;
   const base = () => process.env.NEXT_PUBLIC_SUPABASE_URL as string;
-  const headers = () => ({ apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string, authorization: `Bearer ${token}` });
+  const headers = () => ({
+    apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string,
+    authorization: `Bearer ${token}`,
+  });
 
   beforeAll(async () => {
     token = await signIn(PERSONAS.ownerA, 'aal2');

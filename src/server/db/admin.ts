@@ -16,7 +16,9 @@ import { getSql } from './pool';
  * use the service-role key against the Auth API and are added here by workstream 1.3.
  */
 
-async function withSystemTransaction<T>(fn: (tx: postgres.TransactionSql) => Promise<T>): Promise<T> {
+async function withSystemTransaction<T>(
+  fn: (tx: postgres.TransactionSql) => Promise<T>,
+): Promise<T> {
   const result = await getSql().begin(async (tx) => {
     // Pooled-connection hygiene: guarantee no user identity is visible to system functions.
     await tx`
@@ -58,7 +60,9 @@ export type PublicBrandingRow = {
 };
 
 /** ADR-010: non-PHI branding tokens for pre-auth rendering. */
-export async function systemGetPublicBranding(organizationId: string): Promise<PublicBrandingRow | null> {
+export async function systemGetPublicBranding(
+  organizationId: string,
+): Promise<PublicBrandingRow | null> {
   return withSystemTransaction(async (tx) => {
     const [row] = await tx<PublicBrandingRow[]>`
       select * from app.get_public_branding(${organizationId}::uuid)

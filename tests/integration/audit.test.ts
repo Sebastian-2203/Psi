@@ -12,7 +12,9 @@ describe.skipIf(!stack.available)('audit writer (ADR-012)', () => {
   let server: typeof import('@/server/db/server');
   let pool: typeof import('@/server/db/pool');
   let authz: typeof import('@/server/authz');
-  let ownerA: NonNullable<Awaited<ReturnType<typeof import('@/server/auth/claims')['verifyAccessToken']>>>;
+  let ownerA: NonNullable<
+    Awaited<ReturnType<(typeof import('@/server/auth/claims'))['verifyAccessToken']>>
+  >;
 
   beforeAll(async () => {
     admin = adminSql();
@@ -32,7 +34,9 @@ describe.skipIf(!stack.available)('audit writer (ADR-012)', () => {
   });
 
   it('TS event catalog equals the DB allowlist', async () => {
-    const rows = await admin<{ event_type: string; category: string; writer: string; org_optional: boolean }[]>`
+    const rows = await admin<
+      { event_type: string; category: string; writer: string; org_optional: boolean }[]
+    >`
       select event_type, category, writer, org_optional from app.audit_event_types order by event_type
     `;
     const db = rows.map((r) => [r.event_type, r.category, r.writer, r.org_optional]);
@@ -45,14 +49,21 @@ describe.skipIf(!stack.available)('audit writer (ADR-012)', () => {
   it('recordAudit writes with the actor and roles taken from the DB', async () => {
     const requestId = `it-${Date.now()}`;
     const id = await server.withUserTransaction(ownerA, (tx) =>
-      audit.recordAudit(tx, 'organization.updated', { changed_fields: ['display_name'] }, {
-        organizationId: ORGS.A.id,
-        resourceType: 'organization',
-        resourceId: ORGS.A.id,
-        requestId,
-      }),
+      audit.recordAudit(
+        tx,
+        'organization.updated',
+        { changed_fields: ['display_name'] },
+        {
+          organizationId: ORGS.A.id,
+          resourceType: 'organization',
+          resourceId: ORGS.A.id,
+          requestId,
+        },
+      ),
     );
-    const [row] = await admin<{ actor_profile_id: string; actor_type: string; actor_roles: string[]; metadata: unknown }[]>`
+    const [row] = await admin<
+      { actor_profile_id: string; actor_type: string; actor_roles: string[]; metadata: unknown }[]
+    >`
       select actor_profile_id, actor_type, actor_roles, metadata from public.audit_logs where id = ${id}
     `;
     expect(row).toEqual({
@@ -66,9 +77,14 @@ describe.skipIf(!stack.available)('audit writer (ADR-012)', () => {
   it('rejects metadata outside the event schema before it reaches the DB', async () => {
     await expect(
       server.withUserTransaction(ownerA, (tx) =>
-        audit.recordAudit(tx, 'organization.updated', { changed_fields: ['x'], display_name: 'Ana' } as never, {
-          organizationId: ORGS.A.id,
-        }),
+        audit.recordAudit(
+          tx,
+          'organization.updated',
+          { changed_fields: ['x'], display_name: 'Ana' } as never,
+          {
+            organizationId: ORGS.A.id,
+          },
+        ),
       ),
     ).rejects.toThrow();
   });
@@ -76,18 +92,35 @@ describe.skipIf(!stack.available)('audit writer (ADR-012)', () => {
   it('cannot write for a foreign organization', async () => {
     await expect(
       server.withUserTransaction(ownerA, (tx) =>
-        audit.recordAudit(tx, 'organization.updated', { changed_fields: [] }, { organizationId: ORGS.B.id }),
+        audit.recordAudit(
+          tx,
+          'organization.updated',
+          { changed_fields: [] },
+          { organizationId: ORGS.B.id },
+        ),
       ),
     ).rejects.toThrow(/AUDIT:organization_not_allowed/);
   });
 
   it('requirePermission audits a cross-tenant denial as access.denied (system writer)', async () => {
-    const ctx = await authz.resolveAuthzContext(ownerA, { requestId: `deny-${Date.now()}`, locale: 'es' });
+    const ctx = await authz.resolveAuthzContext(ownerA, {
+      requestId: `deny-${Date.now()}`,
+      locale: 'es',
+    });
     if (!ctx.ok) throw new Error('context failed');
-    const result = await authz.requirePermission(ctx.data, 'org.settings.manage', { organizationId: ORGS.B.id });
+    const result = await authz.requirePermission(ctx.data, 'org.settings.manage', {
+      organizationId: ORGS.B.id,
+    });
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error.code).toBe('NOT_FOUND');
-    const [row] = await admin<{ actor_type: string; actor_profile_id: string; organization_id: string | null; metadata: Record<string, unknown> }[]>`
+    const [row] = await admin<
+      {
+        actor_type: string;
+        actor_profile_id: string;
+        organization_id: string | null;
+        metadata: Record<string, unknown>;
+      }[]
+    >`
       select actor_type, actor_profile_id, organization_id, metadata from public.audit_logs
       where request_id = ${ctx.data.requestId} and event_type = 'access.denied'
     `;
@@ -100,8 +133,8 @@ describe.skipIf(!stack.available)('audit writer (ADR-012)', () => {
   });
 
   it('audit rows are immutable even for the superuser connection', async () => {
-    await expect(admin`update public.audit_logs set event_type = event_type where seq = (select max(seq) from public.audit_logs)`).rejects.toThrow(
-      /IMMUTABLE:audit_logs/,
-    );
+    await expect(
+      admin`update public.audit_logs set event_type = event_type where seq = (select max(seq) from public.audit_logs)`,
+    ).rejects.toThrow(/IMMUTABLE:audit_logs/);
   });
 });

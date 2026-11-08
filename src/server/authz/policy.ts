@@ -7,7 +7,13 @@ import { PERMISSIONS, type Permission } from './permissions';
 /** The fields of AuthzContext a decision depends on (pure; used by matrix tests). */
 export type AuthzSubject = Pick<
   AuthzContext,
-  'profileId' | 'aal' | 'organizationId' | 'organizationStatus' | 'actingAs' | 'membership' | 'mfaVerifiedAt'
+  | 'profileId'
+  | 'aal'
+  | 'organizationId'
+  | 'organizationStatus'
+  | 'actingAs'
+  | 'membership'
+  | 'mfaVerifiedAt'
 >;
 
 export type PermissionScope = {
@@ -21,8 +27,7 @@ export type PermissionScope = {
 
 export type DenyCode = 'FORBIDDEN' | 'NOT_FOUND' | 'MFA_REQUIRED';
 export type Decision =
-  | { allowed: true }
-  | { allowed: false; code: DenyCode; reason: string; messageKey?: string };
+  { allowed: true } | { allowed: false; code: DenyCode; reason: string; messageKey?: string };
 
 const deny = (code: DenyCode, reason: string, messageKey?: string): Decision => ({
   allowed: false,
@@ -74,7 +79,8 @@ export function evaluatePermission(
 
   if ('special' in rule) {
     if (rule.special === 'self_or_owner_membership') {
-      const isSelf = scope.membershipId !== undefined && scope.membershipId === subject.membership?.id;
+      const isSelf =
+        scope.membershipId !== undefined && scope.membershipId === subject.membership?.id;
       const isOwner = subject.membership?.roles.includes('organization_owner') ?? false;
       if (!isSelf && !isOwner) return deny('FORBIDDEN', 'not_self_or_owner');
     }

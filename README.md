@@ -28,6 +28,32 @@ pnpm dev                     # http://localhost:3000
 | `pnpm test` / `test:watch`     | Vitest                                    |
 | `pnpm e2e`                     | Playwright (chromium)                     |
 | `pnpm i18n:check`              | es/en message key parity                  |
+| `pnpm db:*` / `gen:types`      | Local Supabase (see "Local database")     |
+
+## Local database
+
+Local Supabase via Docker (Supabase CLI is a devDependency: `pnpm exec supabase …`).
+ADR-019 Option A: the **Data API (REST/GraphQL) is disabled**; the Next.js server connects to
+Postgres as the `app_server` login role and runs each request as `authenticated` with verified
+JWT claims (`src/server/db`). Auth and Storage stay on the API gateway.
+
+```bash
+pnpm db:start        # start Auth, Storage, gateway and Postgres (studio, realtime, … excluded)
+cp .env.example .env.local   # values from `pnpm exec supabase status -o env`; set APP_DB_PASSWORD
+pnpm db:reset        # migrations from scratch + FICTIONAL seed + sets the app_server password
+pnpm db:test         # pgTAP RLS/trigger suite (supabase/tests)
+pnpm test            # unit + authz matrix + integration (integration skips if the stack is down)
+pnpm gen:types       # regenerate src/server/db/types.gen.ts (CI fails on drift)
+pnpm db:stop
+```
+
+- URLs: API/Auth `http://127.0.0.1:54321`, Postgres `postgresql://…@127.0.0.1:54322/postgres`.
+- `DATABASE_URL` must use `app_server` (the pool refuses `postgres`/`service_role`). Its password
+  is never in migrations; `pnpm db:app-password` sets it from `APP_DB_PASSWORD` (local hosts only).
+- Seeded personas (all fictional, `@example.test`, password `Psi-Local-Fictional-2026`, TOTP
+  secret `JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP`): see `supabase/seed.sql` and
+  `tests/fixtures/personas.ts`. Tenant hosts: `demo-a.localhost`, `demo-b.localhost`.
+- Staff and platform access requires `aal2` (TOTP) in the database itself.
 
 ## Documentation
 

@@ -34,15 +34,38 @@ jobs:
       - run: pnpm test
       - run: pnpm build
 
-  # Enabled by the backend workstream once supabase/ exists.
-  # supabase:
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - uses: supabase/setup-cli@v1
-  #     - run: supabase start
-  #     - run: supabase db reset
-  #     - run: supabase test db   # pgTAP RLS/trigger tests
-  #     - run: supabase gen types --local > /tmp/types.gen.ts && diff /tmp/types.gen.ts src/server/db/types.gen.ts
+  # Local Supabase stack: migrations from scratch, pgTAP RLS suite, integration tests
+  # (real persona JWTs, ADR-019 Option A data path, Data API closed), types drift check.
+  supabase:
+    runs-on: ubuntu-latest
+    env:
+      APP_BASE_DOMAIN: localhost
+      REQUIRE_LOCAL_STACK: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm db:start
+      - name: Export local stack env (well-known local demo keys + random app_server password)
+        run: |
+          eval "$(pnpm exec supabase status -o env)"
+          APP_DB_PASSWORD="$(node -e "console.log(require('node:crypto').randomBytes(24).toString('base64url'))")"
+          echo "::add-mask::$APP_DB_PASSWORD"
+          {
+            echo "NEXT_PUBLIC_SUPABASE_URL=$API_URL"
+            echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=$PUBLISHABLE_KEY"
+            echo "SUPABASE_SERVICE_ROLE_KEY=$SECRET_KEY"
+            echo "APP_DB_PASSWORD=$APP_DB_PASSWORD"
+            echo "DATABASE_URL=postgresql://app_server:$APP_DB_PASSWORD@127.0.0.1:54322/postgres"
+          } >> "$GITHUB_ENV"
+      - run: pnpm db:reset # migrations from scratch + fictional seed + app_server password
+      - run: pnpm db:test # pgTAP
+      - run: pnpm test:integration # Vitest integration + node projects against the stack
+      - name: Generated DB types are up to date
+        run: pnpm gen:types && git diff --exit-code src/server/db/types.gen.ts
 
   # e2e (smoke on PR, full nightly) to be added with Playwright browsers install step.

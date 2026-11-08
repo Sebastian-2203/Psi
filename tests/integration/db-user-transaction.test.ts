@@ -51,16 +51,29 @@ describe.skipIf(!stack.available)('withUserTransaction (ADR-019 Option A)', () =
       `;
       return r;
     });
-    expect(row).toEqual({ uid: PERSONAS.ownerA.id, role: 'authenticated', aal: 'aal2', session_user: 'app_server' });
+    expect(row).toEqual({
+      uid: PERSONAS.ownerA.id,
+      role: 'authenticated',
+      aal: 'aal2',
+      session_user: 'app_server',
+    });
   });
 
   it('applies RLS: each owner only sees their own organization', async () => {
-    const slugsA = await server.withUserTransaction(ownerA!, (tx) => tx<{ slug: string }[]>`select slug from public.organizations`);
-    const slugsB = await server.withUserTransaction(ownerB!, (tx) => tx<{ slug: string }[]>`select slug from public.organizations`);
+    const slugsA = await server.withUserTransaction(
+      ownerA!,
+      (tx) => tx<{ slug: string }[]>`select slug from public.organizations`,
+    );
+    const slugsB = await server.withUserTransaction(
+      ownerB!,
+      (tx) => tx<{ slug: string }[]>`select slug from public.organizations`,
+    );
     expect(slugsA.map((r) => r.slug)).toEqual([ORGS.A.slug]);
     expect(slugsB.map((r) => r.slug)).toEqual([ORGS.B.slug]);
-    const updated = await server.withUserTransaction(ownerA!, (tx) =>
-      tx`update public.organizations set display_name = display_name where id = ${ORGS.B.id}`,
+    const updated = await server.withUserTransaction(
+      ownerA!,
+      (tx) =>
+        tx`update public.organizations set display_name = display_name where id = ${ORGS.B.id}`,
     );
     expect(updated.count).toBe(0);
   });
@@ -76,22 +89,34 @@ describe.skipIf(!stack.available)('withUserTransaction (ADR-019 Option A)', () =
 
   it('refuses claims that were not produced by the claims module', async () => {
     const forged = { ...ownerA!, sub: PERSONAS.ownerB.id };
-    await expect(server.withUserTransaction(forged as typeof ownerA & object, async () => 1)).rejects.toThrow(
-      /Unverified claims/,
-    );
     await expect(
-      server.withUserTransaction({ sub: PERSONAS.ownerA.id } as unknown as NonNullable<typeof ownerA>, async () => 1),
+      server.withUserTransaction(forged as typeof ownerA & object, async () => 1),
+    ).rejects.toThrow(/Unverified claims/);
+    await expect(
+      server.withUserTransaction(
+        { sub: PERSONAS.ownerA.id } as unknown as NonNullable<typeof ownerA>,
+        async () => 1,
+      ),
     ).rejects.toThrow(/Unverified claims/);
   });
 
   it('rejects tampered, garbage and revoked tokens', async () => {
     const token = await signIn(PERSONAS.ownerB, 'aal1', { fresh: true });
     const [h, p, s] = token.split('.');
-    const payload = JSON.parse(Buffer.from(p ?? '', 'base64url').toString('utf8')) as Record<string, unknown>;
-    const tampered = [h, Buffer.from(JSON.stringify({ ...payload, aal: 'aal2' })).toString('base64url'), s].join('.');
+    const payload = JSON.parse(Buffer.from(p ?? '', 'base64url').toString('utf8')) as Record<
+      string,
+      unknown
+    >;
+    const tampered = [
+      h,
+      Buffer.from(JSON.stringify({ ...payload, aal: 'aal2' })).toString('base64url'),
+      s,
+    ].join('.');
     expect(await claimsMod.verifyAccessToken(tampered)).toBeNull();
     expect(await claimsMod.verifyAccessToken('not-a-jwt')).toBeNull();
-    expect(await claimsMod.verifyAccessToken(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string)).toBeNull();
+    expect(
+      await claimsMod.verifyAccessToken(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string),
+    ).toBeNull();
 
     // Still signature-valid after sign-out, but the session is gone: getUser() rejects it.
     expect(await claimsMod.verifyAccessToken(token)).not.toBeNull();
@@ -113,7 +138,10 @@ describe.skipIf(!stack.available)('withUserTransaction (ADR-019 Option A)', () =
       }),
     ).rejects.toThrow(/permission denied/);
     await expect(
-      server.withUserTransaction(ownerA!, (tx) => tx`select app.write_system_audit('access.denied')`),
+      server.withUserTransaction(
+        ownerA!,
+        (tx) => tx`select app.write_system_audit('access.denied')`,
+      ),
     ).rejects.toThrow(/permission denied/);
   });
 
@@ -132,9 +160,11 @@ describe.skipIf(!stack.available)('withUserTransaction (ADR-019 Option A)', () =
     );
     // Every pooled connection is back to the bare login role with no identity.
     const probes = await Promise.all(
-      Array.from({ length: 10 }, () =>
-        // (Bare app_server has no USAGE on schema auth, so read the raw settings.)
-        sql<{ sub: string | null; role: string; claims: string | null }[]>`
+      Array.from(
+        { length: 10 },
+        () =>
+          // (Bare app_server has no USAGE on schema auth, so read the raw settings.)
+          sql<{ sub: string | null; role: string; claims: string | null }[]>`
           select current_setting('request.jwt.claim.sub', true) as sub, current_user as role,
                  current_setting('request.jwt.claims', true) as claims
         `,
@@ -169,7 +199,10 @@ describe.skipIf(!stack.available)('withUserTransaction (ADR-019 Option A)', () =
 async function signOutToken(token: string): Promise<{ error: Error | null }> {
   const res = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/logout?scope=local`, {
     method: 'POST',
-    headers: { apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string, authorization: `Bearer ${token}` },
+    headers: {
+      apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string,
+      authorization: `Bearer ${token}`,
+    },
   });
   return { error: res.status === 204 ? null : new Error(`logout returned ${res.status}`) };
 }

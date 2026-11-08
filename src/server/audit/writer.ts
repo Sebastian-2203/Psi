@@ -25,7 +25,10 @@ type AuditTarget = {
   requestId?: string | null;
 };
 
-function parseMetadata(eventType: keyof typeof AUDIT_EVENTS, metadata: unknown): Record<string, postgres.JSONValue> {
+function parseMetadata(
+  eventType: keyof typeof AUDIT_EVENTS,
+  metadata: unknown,
+): Record<string, postgres.JSONValue> {
   const spec = AUDIT_EVENTS[eventType];
   return spec.metadata.parse(metadata) as Record<string, postgres.JSONValue>;
 }

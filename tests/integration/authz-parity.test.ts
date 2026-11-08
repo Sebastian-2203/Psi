@@ -24,13 +24,18 @@ const SQL_MIRROR = {
 } as const;
 
 type MirroredPermission = keyof typeof SQL_MIRROR;
-const PERSONA_LIST: Persona[] = [PERSONAS.ownerA, PERSONAS.ownerPsyA, PERSONAS.psyA, PERSONAS.platform];
+const PERSONA_LIST: Persona[] = [
+  PERSONAS.ownerA,
+  PERSONAS.ownerPsyA,
+  PERSONAS.psyA,
+  PERSONAS.platform,
+];
 
 describe.skipIf(!stack.available)('registry <-> RLS helper parity (real JWTs)', () => {
   let authz: typeof import('@/server/authz');
   let server: typeof import('@/server/db/server');
   let pool: typeof import('@/server/db/pool');
-  let verify: typeof import('@/server/auth/claims')['verifyAccessToken'];
+  let verify: (typeof import('@/server/auth/claims'))['verifyAccessToken'];
 
   beforeAll(async () => {
     authz = await import('@/server/authz');
@@ -48,10 +53,17 @@ describe.skipIf(!stack.available)('registry <-> RLS helper parity (real JWTs)', 
       it(`${persona.key} @ ${aal}`, async () => {
         const claims = await verify(await signIn(persona, aal));
         if (!claims) throw new Error('verification failed');
-        const ctx = await authz.resolveAuthzContext(claims, { requestId: randomUUID(), locale: 'es' });
+        const ctx = await authz.resolveAuthzContext(claims, {
+          requestId: randomUUID(),
+          locale: 'es',
+        });
 
         for (const permission of Object.keys(SQL_MIRROR) as MirroredPermission[]) {
-          const tsAllowed = ctx.ok && authz.evaluatePermission(ctx.data, permission, { organizationId: ctx.data.organizationId ?? undefined }).allowed;
+          const tsAllowed =
+            ctx.ok &&
+            authz.evaluatePermission(ctx.data, permission, {
+              organizationId: ctx.data.organizationId ?? undefined,
+            }).allowed;
           const dbAllowed = await server.withUserTransaction(claims, async (tx) => {
             const [row] = await tx.unsafe<{ ok: boolean }[]>(SQL_MIRROR[permission]);
             return row?.ok === true;

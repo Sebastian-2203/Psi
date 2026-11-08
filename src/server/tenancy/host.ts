@@ -41,7 +41,9 @@ export function normalizeHost(raw: string | null | undefined): string | null {
   return host;
 }
 
-export async function resolveOrganizationIdByHost(rawHost: string | null | undefined): Promise<string | null> {
+export async function resolveOrganizationIdByHost(
+  rawHost: string | null | undefined,
+): Promise<string | null> {
   const host = normalizeHost(rawHost);
   if (!host) return null;
   const now = Date.now();
