@@ -19,6 +19,11 @@ jobs:
       # Placeholder values so the build does not need real secrets.
       NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
       NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder
+      # Server env required by src/server/env.ts at build time (placeholders, no real secrets).
+      SUPABASE_SERVICE_ROLE_KEY: ci-placeholder
+      DATABASE_URL: postgresql://app_server:ci-placeholder@127.0.0.1:54322/postgres
+      APP_BASE_DOMAIN: localhost
+      TRUSTED_PROXY: none
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
