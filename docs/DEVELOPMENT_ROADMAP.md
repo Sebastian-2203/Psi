@@ -110,9 +110,12 @@ storage), deployment runbooks, pilot-gate checklist.
 
 | Needed by | Item | Source |
 |---|---|---|
-| Phase 1 start | Approve the stack and ADR-001…018 (or request changes) | DECISIONS.md |
+| Phase 1 start | Approve the stack and ADR-001…021 (or request changes) | DECISIONS.md |
+| Phase 1 start | **ADR-019 database access path** (Option A recommended: no direct Data API access for users) — resolves Critical finding F-01 | DECISIONS.md, SECURITY.md §11 |
+| Phase 1 start | Security re-review of the revised break-glass design (F-02) and the `read_only` organization status (F-26) | SECURITY.md |
 | Phase 1 start | Subdomain-only tenancy for MVP (Q-02) | DECISIONS.md |
-| Phase 1 (1.6) | Brand assets from Daniela, or approval to proceed with the provisional palette | BRAND_GUIDELINES.md §14 |
+| Phase 1 (1.6) | Patient-facing name/wordmark ("Psico D.O.H." vs "Daniela Ortega — Psicóloga"), approval of #A73C37 as the functional primary, vector logo, tú/usted, adolescent portal mode | BRAND_GUIDELINES.md, DESIGN_SYSTEM.md |
+| Phase 2 | Who manages consent templates: owner only, or owner and psychologist (F-24) | SECURITY.md, PRODUCT_REQUIREMENTS.md CON-01 |
 | Phase 1 (1.3) | MFA policy for patients/guardians (Q-07); child sign-in model | DECISIONS.md, SECURITY.md |
 | Before pilot | Hosting region (Q-01), DPA, consent text review, retention periods (Q-05) | Legal |
 | Phase 2 | Owner visibility (Q-03), adolescent/guardian rules (Q-04), e-consent form (Q-17) | DECISIONS.md |
