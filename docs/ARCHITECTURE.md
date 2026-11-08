@@ -200,8 +200,10 @@ be justified in Phase 1):
    another module's `server/queries.ts`. Cross-domain reads go through the other module's
    exported server functions (e.g. `notes` asks `patients` "is this patient in the org and
    in my care team" via `patients/server/policy.ts`).
-4. `src/server/db/admin.ts` (service role) may be imported only from an explicit allowlist
-   of files (lint rule). See §6.4.
+4. `src/server/db/system.ts` (app_server system functions) and `src/server/db/service-role.ts`
+   (Supabase Auth admin API, service-role key) may each be imported only from a per-file
+   allowlist in `eslint.config.mjs` (`SYSTEM_DB_IMPORTERS`, `SERVICE_ROLE_IMPORTERS`; no folder
+   globs). `db/admin.ts` is a deprecated system-only shim for `tenancy/host.ts`. See §6.4.
 5. `schemas/` are pure (Zod + types). No I/O, no environment access — safe in client and
    server.
 6. No module reaches into `supabase/` SQL directly; types are generated
@@ -286,7 +288,8 @@ under Option B via `rpc()`. Each writes its domain rows and its audit row in one
 
 ### 6.4 Restricted service role
 
-`src/server/db/admin.ts` exposes narrow functions, not a raw client:
+`src/server/db/system.ts` (app_server) and `src/server/db/service-role.ts` (service-role key,
+Auth admin API only) expose narrow functions, not a raw client:
 
 | Allowed use | Why it needs elevated rights |
 |---|---|
@@ -351,6 +354,16 @@ Rules:
    client.
 
 ### Auth implementation notes (Phase 1.3)
+
+- **Phase 1 hardening (SECURITY.md §14):** the proxy also runs for `/api/*` (header hygiene,
+  session policy; no i18n). Idle/absolute limits use an HMAC-SHA256 activity cookie bound to
+  `session_id` (`src/lib/session-activity.ts`, key `SESSION_ACTIVITY_SECRET`); missing/invalid =
+  idle except within 120 s of the latest `amr` authentication; `getVerifiedClaims()` repeats the
+  check server-side. Documents get a per-request nonce CSP (`src/lib/security-headers.ts`);
+  static headers come from `next.config.ts`; authenticated documents and `/api` are
+  `Cache-Control: private, no-store`. Client IP source: `TRUSTED_PROXY` (verify per deployment).
+  Recovery-code MFA reset is a pending -> completed state machine with `auth.mfa_reset`
+  audited at start and outcome (migration `20261108150000`).
 
 - **No browser Supabase client.** Sign-in, MFA, recovery and invitation acceptance are server
   actions (`src/modules/auth/server/actions.ts` → `src/server/auth/*`); session cookies are

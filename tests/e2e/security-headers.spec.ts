@@ -60,9 +60,9 @@ test.describe('anonymous documents', () => {
     expectStaticHeaders(response);
 
     const nonce = nonceOf(response);
-    const scripts = await page.locator('script').evaluateAll((els) =>
-      els.map((el) => (el as HTMLScriptElement).nonce),
-    );
+    const scripts = await page
+      .locator('script')
+      .evaluateAll((els) => els.map((el) => (el as HTMLScriptElement).nonce));
     expect(scripts.length).toBeGreaterThan(0);
     for (const value of scripts) expect(value).toBe(nonce);
 

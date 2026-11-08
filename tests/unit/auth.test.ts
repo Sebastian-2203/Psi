@@ -290,7 +290,9 @@ describe('client IP under the trusted-proxy config (P1-03)', () => {
     expect(clientIpFromHeaders(forged, { mode: 'xff', hops: 1 })).toBe('10.0.0.2');
     expect(clientIpFromHeaders(forged, { mode: 'xff', hops: 2 })).toBe('198.51.100.7');
     expect(clientIpFromHeaders(forged, { mode: 'xff', hops: 4 })).toBeNull(); // too few hops
-    expect(clientIpFromHeaders(h({ 'x-forwarded-for': ' , ' }), { mode: 'xff', hops: 1 })).toBeNull();
+    expect(
+      clientIpFromHeaders(h({ 'x-forwarded-for': ' , ' }), { mode: 'xff', hops: 1 }),
+    ).toBeNull();
     expect(clientIpFromHeaders(h({}), { mode: 'xff', hops: 1 })).toBeNull();
     expect(
       clientIpFromHeaders(h({ 'x-forwarded-for': '198.51.100.7, not-ip' }), {

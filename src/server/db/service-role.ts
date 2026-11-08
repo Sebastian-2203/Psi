@@ -54,8 +54,7 @@ export async function adminDeleteUnacceptedUser(userId: string): Promise<void> {
 }
 
 export type MfaFactorResetResult =
-  | { ok: true; removed: number }
-  | { ok: false; removed: number; stage: 'list' | 'delete' };
+  { ok: true; removed: number } | { ok: false; removed: number; stage: 'list' | 'delete' };
 
 /**
  * ADR-021 factor reset after a recovery code was consumed (state `reset_pending` in the DB).

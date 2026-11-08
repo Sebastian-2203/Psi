@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   API_CONTENT_SECURITY_POLICY,
+  REFERRER_POLICY,
   buildContentSecurityPolicy,
   generateNonce,
   staticSecurityHeaders,
@@ -58,11 +59,14 @@ describe('security headers (P1-10)', () => {
   it('static headers; HSTS only in production', () => {
     const prod = new Map(staticSecurityHeaders(true).map((h) => [h.key, h.value]));
     expect(prod.get('X-Content-Type-Options')).toBe('nosniff');
-    expect(prod.get('Referrer-Policy')).toBe('strict-origin-when-cross-origin');
     expect(prod.get('Cross-Origin-Opener-Policy')).toBe('same-origin');
     expect(prod.get('Permissions-Policy')).toContain('camera=()');
     expect(prod.get('Strict-Transport-Security')).toMatch(/^max-age=\d{8,}; includeSubDomains$/);
     const dev = staticSecurityHeaders(false).map((h) => h.key);
     expect(dev).not.toContain('Strict-Transport-Security');
+    expect(REFERRER_POLICY).toEqual({
+      documents: 'strict-origin-when-cross-origin',
+      api: 'no-referrer',
+    });
   });
 });

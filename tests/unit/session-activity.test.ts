@@ -40,10 +40,19 @@ describe('signed activity cookie (P1-02)', () => {
     const [v, sid, , mac] = value.split('.');
     expect(await verifyActivity(SECRET, `${v}.${sid}.${NOW}.${mac}`, SID, NOW)).toBeNull();
     const flipped = `${mac!.slice(0, -1)}${mac!.endsWith('A') ? 'B' : 'A'}`;
-    expect(await verifyActivity(SECRET, `${v}.${sid}.${NOW - 1000}.${flipped}`, SID, NOW)).toBeNull();
+    expect(
+      await verifyActivity(SECRET, `${v}.${sid}.${NOW - 1000}.${flipped}`, SID, NOW),
+    ).toBeNull();
     expect(await verifyActivity(OTHER_SECRET, value, SID, NOW)).toBeNull();
     expect(await verifyActivity(null, value, SID, NOW)).toBeNull();
-    for (const bad of [undefined, '', String(NOW), 'v1..1.x', `v2.${sid}.${NOW}.${mac}`, 'x'.repeat(500)]) {
+    for (const bad of [
+      undefined,
+      '',
+      String(NOW),
+      'v1..1.x',
+      `v2.${sid}.${NOW}.${mac}`,
+      'x'.repeat(500),
+    ]) {
       expect(await verifyActivity(SECRET, bad, SID, NOW)).toBeNull();
     }
   });
@@ -96,7 +105,12 @@ describe('session expiry decision (fail closed)', () => {
   it('evaluates cookie + claims in one step (forged cookie on an old session = idle)', async () => {
     const good = await signActivity(SECRET, SID, NOW - 30);
     expect(
-      await evaluateActivityCookie({ secret: SECRET, cookieValue: good, claims: claims(), now: NOW }),
+      await evaluateActivityCookie({
+        secret: SECRET,
+        cookieValue: good,
+        claims: claims(),
+        now: NOW,
+      }),
     ).toBe('active');
     expect(
       await evaluateActivityCookie({

@@ -48,6 +48,10 @@ pnpm db:stop
 ```
 
 - URLs: API/Auth `http://127.0.0.1:54321`, Postgres `postgresql://…@127.0.0.1:54322/postgres`.
+- `SESSION_ACTIVITY_SECRET` (>= 32 random chars, per environment) signs the idle-timeout cookie;
+  the app refuses to start without it. Generate: `node -e "console.log(require('node:crypto').randomBytes(32).toString('base64url'))"`.
+- `TRUSTED_PROXY` / `TRUSTED_PROXY_HOPS` pick the client-IP source (default `vercel` on Vercel,
+  else rightmost X-Forwarded-For hop). **Verify per deployment** (SECURITY.md §14 P1-03).
 - `DATABASE_URL` must use `app_server` (the pool refuses `postgres`/`service_role`). Its password
   is never in migrations; `pnpm db:app-password` sets it from `APP_DB_PASSWORD` (local hosts only).
 - Seeded personas (all fictional, `@example.test`, password `Psi-Local-Fictional-2026`, TOTP

@@ -75,7 +75,11 @@ export async function signActivity(
   sessionId: string,
   timestamp: number,
 ): Promise<string> {
-  const mac = await crypto.subtle.sign('HMAC', await hmacKey(secret), payload(sessionId, timestamp));
+  const mac = await crypto.subtle.sign(
+    'HMAC',
+    await hmacKey(secret),
+    payload(sessionId, timestamp),
+  );
   return `v1.${sessionId.toLowerCase()}.${timestamp}.${toBase64Url(mac)}`;
 }
 
@@ -99,7 +103,12 @@ export async function verifyActivity(
   if (timestamp <= 0 || timestamp > now + MAX_FUTURE_SKEW_SECONDS) return null;
   const mac = fromBase64Url(rawMac);
   if (!mac) return null;
-  const ok = await crypto.subtle.verify('HMAC', await hmacKey(secret), mac, payload(sid, timestamp));
+  const ok = await crypto.subtle.verify(
+    'HMAC',
+    await hmacKey(secret),
+    mac,
+    payload(sid, timestamp),
+  );
   return ok ? timestamp : null;
 }
 
@@ -130,7 +139,8 @@ export function decideSessionExpiry(
   const base = evaluateSessionExpiry(started, verifiedLastActivity, now, policy);
   if (base !== 'active' || verifiedLastActivity !== null) return base;
   const latest = latestAuthenticationAt(claims);
-  return latest !== null && now - latest >= -MAX_FUTURE_SKEW_SECONDS &&
+  return latest !== null &&
+    now - latest >= -MAX_FUTURE_SKEW_SECONDS &&
     now - latest <= FRESH_AUTH_GRACE_SECONDS
     ? 'active'
     : 'idle';

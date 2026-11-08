@@ -80,11 +80,20 @@ export const PERMISSIONS_POLICY = [
 /** Two years; no `preload` (a commitment for every subdomain — decide per domain). */
 export const HSTS_VALUE = 'max-age=63072000; includeSubDomains';
 
+/**
+ * Referrer-Policy per path group. next.config `headers()` OVERRIDES headers set by route
+ * handlers (verified in E2E), so /api gets `no-referrer` here (its links can carry one-time
+ * tokens) and documents `strict-origin-when-cross-origin`.
+ */
+export const REFERRER_POLICY = {
+  documents: 'strict-origin-when-cross-origin',
+  api: 'no-referrer',
+} as const;
+
 /** Headers for EVERY response (next.config.ts `headers()`); HSTS only in production. */
 export function staticSecurityHeaders(production: boolean): { key: string; value: string }[] {
   const headers = [
     { key: 'X-Content-Type-Options', value: 'nosniff' },
-    { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
     { key: 'Permissions-Policy', value: PERMISSIONS_POLICY },
     { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
     { key: 'X-Frame-Options', value: 'DENY' },

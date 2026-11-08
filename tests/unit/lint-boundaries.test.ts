@@ -10,8 +10,7 @@ async function restrictedGroups(file: string): Promise<string[]> {
     rules?: Record<string, unknown>;
   };
   const rule = config.rules?.['no-restricted-imports'] as
-    | [unknown, { patterns?: { group: string[] }[] }]
-    | undefined;
+    [unknown, { patterns?: { group: string[] }[] }] | undefined;
   return (rule?.[1]?.patterns ?? []).flatMap((p) => p.group);
 }
 

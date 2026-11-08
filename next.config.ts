@@ -1,6 +1,6 @@
 import type { NextConfig } from 'next';
 import createNextIntlPlugin from 'next-intl/plugin';
-import { staticSecurityHeaders } from './src/lib/security-headers';
+import { REFERRER_POLICY, staticSecurityHeaders } from './src/lib/security-headers';
 
 const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 
@@ -15,6 +15,11 @@ const nextConfig: NextConfig = {
         source: '/:path*',
         headers: staticSecurityHeaders(process.env.NODE_ENV === 'production'),
       },
+      {
+        source: '/((?!api/).*)',
+        headers: [{ key: 'Referrer-Policy', value: REFERRER_POLICY.documents }],
+      },
+      { source: '/api/:path*', headers: [{ key: 'Referrer-Policy', value: REFERRER_POLICY.api }] },
     ];
   },
 };
