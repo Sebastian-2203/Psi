@@ -13,5 +13,7 @@ export default defineConfig({
     url: 'http://localhost:3000',
     reuseExistingServer: !process.env.CI,
     timeout: 180_000,
+    // Enables the dev-only portal mode preview (?mode=child) on the production build.
+    env: { PORTAL_MODE_PREVIEW: '1' },
   },
 });

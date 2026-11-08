@@ -1,1 +1,183 @@
 @import 'tailwindcss';
+@import 'tw-animate-css';
+@import '../styles/tokens.css';
+
+/* Tailwind v4 theme: semantic tokens only. Raw colour values live in styles/tokens.css. */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-brand: var(--brand);
+  --color-brand-surface: var(--brand-surface);
+  --color-brand-surface-foreground: var(--brand-surface-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-destructive-surface: var(--destructive-surface);
+  --color-destructive-surface-foreground: var(--destructive-surface-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-success-surface: var(--success-surface);
+  --color-success-surface-foreground: var(--success-surface-foreground);
+  --color-warning-surface: var(--warning-surface);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-warning-border: var(--warning-border);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+  --color-info-surface: var(--info-surface);
+  --color-info-surface-foreground: var(--info-surface-foreground);
+  --color-fun-pink: var(--fun-pink);
+  --color-fun-peach: var(--fun-peach);
+  --color-fun-sky: var(--fun-sky);
+  --color-overlay: var(--overlay);
+
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 4px);
+
+  --shadow-1: var(--elevation-1);
+  --shadow-2: var(--elevation-2);
+  --shadow-3: var(--elevation-3);
+
+  --font-sans: var(--font-nunito), system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-display: var(--font-playfair), Georgia, 'Times New Roman', serif;
+  --font-hand: var(--font-caveat), var(--font-nunito), system-ui, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* Fluid type scale (DESIGN_SYSTEM §4.2). h1/h2/h3 are context-dependent via tokens.css. */
+  --text-display: clamp(2.25rem, 1.8rem + 2vw, 3.5rem);
+  --text-display--line-height: 1.1;
+  --text-h1: var(--size-h1);
+  --text-h1--line-height: 1.15;
+  --text-h2: var(--size-h2);
+  --text-h2--line-height: 1.2;
+  --text-h3: var(--size-h3);
+  --text-h3--line-height: 1.35;
+  --text-body-lg: 1.125rem;
+  --text-body-lg--line-height: 1.6;
+  --text-note: 1.0625rem;
+  --text-note--line-height: 1.7;
+  --text-hand: clamp(1.25rem, 1.1rem + 0.6vw, 1.75rem);
+  --text-hand--line-height: 1.2;
+  --text-sm: 0.875rem;
+  --text-sm--line-height: 1.45;
+  --text-xs: 0.75rem;
+  --text-xs--line-height: 1.35;
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    font-size: var(--size-body);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    color: var(--foreground);
+    letter-spacing: 0;
+  }
+  h1 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: var(--size-h1);
+    line-height: 1.15;
+  }
+  h2 {
+    font-family: var(--font-display);
+    font-weight: 500;
+    font-size: var(--size-h2);
+    line-height: 1.2;
+  }
+  h3 {
+    font-family: var(--font-sans);
+    font-weight: 700;
+    font-size: var(--size-h3);
+    line-height: 1.35;
+  }
+  h4 {
+    font-family: var(--font-sans);
+    font-weight: 700;
+    font-size: 1rem;
+    line-height: 1.4;
+  }
+
+  /* Running-text links are always underlined (coral-700 vs charcoal is 2.42:1, WCAG 1.4.1). */
+  a:not([class]),
+  .prose-link {
+    color: var(--primary);
+    text-decoration: underline;
+    text-underline-offset: 4px;
+  }
+  a:not([class]):hover,
+  .prose-link:hover {
+    color: var(--primary-hover);
+    text-decoration-thickness: 2px;
+  }
+
+  /* Visible focus ring on every surface (DESIGN_SYSTEM §6.3). */
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+  [data-context] {
+    background-color: var(--background);
+    color: var(--foreground);
+  }
+
+  button:not(:disabled),
+  [role='button']:not([aria-disabled='true']) {
+    cursor: pointer;
+  }
+}
+
+@layer utilities {
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@media (forced-colors: active) {
+  :focus-visible {
+    outline: 2px solid Highlight;
+  }
+}

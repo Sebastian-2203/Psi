@@ -1,0 +1,176 @@
+/*
+ * Design tokens - the ONLY file that contains raw colour values (DESIGN_SYSTEM §2).
+ * Layers: brand primitives -> semantic tokens -> context selectors -> tenant overrides (ThemeVariables).
+ * Status: provisional palette (client analysis + OBSERVED logo ink). Dark mode deferred (§3.6).
+ */
+
+/* 1. Brand primitives (never used directly by components) --------------------------------- */
+:root {
+  --cream-50: #fffcee;
+  --cream-100: #fff9d9; /* client "Cream Yellow" */
+  --cream-200: #f7efc9;
+  --coral-50: #fdedeb;
+  --coral-500: #d94a43; /* client "Coral Red": decorative / large display only */
+  --coral-600: #c0403a;
+  --coral-700: #a73c37; /* logo ink: functional primary */
+  --coral-800: #8a302c;
+  --coral-900: #5e211e;
+  --pink-100: #fce7e4;
+  --pink-300: #f5b9b4;
+  --peach-100: #fdf0d5;
+  --peach-300: #f8d9a7;
+  --bluegray-100: #e8edf3;
+  --bluegray-300: #aab7c7;
+  --bluegray-700: #46586e;
+  --bluegray-800: #36465a;
+  --neutral-0: #ffffff;
+  --neutral-50: #faf8f3;
+  --neutral-100: #f7f3e6;
+  --neutral-200: #e9e0cc;
+  --neutral-500: #8a7d72;
+  --neutral-600: #6a5f57;
+  --charcoal-900: #292522;
+  --crimson-50: #fce8ec;
+  --crimson-700: #9b1c3a;
+  --crimson-800: #7a1630;
+  --green-50: #e5f2e8;
+  --green-700: #2f6b45;
+  --green-800: #24573a;
+  --amber-50: #fdebc8;
+  --amber-600: #b7791f;
+  --amber-800: #7a4a00;
+
+  /* Elevation (DESIGN_SYSTEM §5): soft, no blur backdrops. */
+  --elevation-1: 0 1px 2px rgb(41 37 34 / 0.06), 0 2px 6px rgb(41 37 34 / 0.05);
+  --elevation-2: 0 6px 16px rgb(41 37 34 / 0.08);
+  --elevation-3: 0 16px 32px rgb(41 37 34 / 0.12);
+  --overlay: rgb(41 37 34 / 0.45);
+
+  /* Motion */
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+  --duration-slow: 320ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+}
+
+/* 2. Semantic tokens shared by every context (status colours are platform-controlled) ---- */
+:root,
+[data-context] {
+  --card: var(--neutral-0);
+  --card-foreground: var(--charcoal-900);
+  --popover: var(--neutral-0);
+  --popover-foreground: var(--charcoal-900);
+  --foreground: var(--charcoal-900);
+  --primary-foreground: var(--neutral-0);
+  --muted: var(--neutral-100);
+  --muted-foreground: var(--neutral-600);
+  --border: var(--neutral-200);
+  --input: var(--neutral-500);
+  --brand: var(--coral-500);
+
+  --destructive: var(--crimson-700);
+  --destructive-foreground: var(--neutral-0);
+  --destructive-surface: var(--crimson-50);
+  --destructive-surface-foreground: var(--crimson-800);
+  --success: var(--green-700);
+  --success-foreground: var(--neutral-0);
+  --success-surface: var(--green-50);
+  --success-surface-foreground: var(--green-800);
+  --warning-surface: var(--amber-50);
+  --warning-foreground: var(--amber-800);
+  --warning-border: var(--amber-600);
+  --info: var(--bluegray-700);
+  --info-foreground: var(--neutral-0);
+  --info-surface: var(--bluegray-100);
+  --info-surface-foreground: var(--bluegray-800);
+  --brand-surface: var(--coral-50);
+  --brand-surface-foreground: var(--coral-900);
+
+  --text-measure: 60ch;
+}
+
+/* 3. Contexts ---------------------------------------------------------------------------- */
+
+/* portal-adult is also the default (:root) */
+:root,
+[data-context='portal-adult'] {
+  --background: var(--cream-100);
+  --primary: var(--coral-700);
+  --primary-hover: var(--coral-800);
+  --ring: var(--coral-700);
+  --secondary: var(--pink-100);
+  --secondary-foreground: var(--charcoal-900);
+  --accent: var(--cream-200);
+  --accent-foreground: var(--charcoal-900);
+  --sidebar: var(--cream-50);
+  --radius: 0.75rem;
+  --control-h: 3rem;
+  --target-min: 2.75rem;
+  --size-body: 1rem;
+  --size-h1: clamp(1.875rem, 1.6rem + 1.2vw, 2.5rem);
+  --size-h2: clamp(1.5rem, 1.35rem + 0.7vw, 1.875rem);
+  --size-h3: clamp(1.125rem, 1.05rem + 0.35vw, 1.25rem);
+  --fun-pink: var(--pink-300);
+  --fun-peach: var(--peach-300);
+  --fun-sky: var(--bluegray-300);
+}
+
+[data-context='portal-child'] {
+  --background: var(--cream-100);
+  --primary: var(--coral-600);
+  --primary-hover: var(--coral-700);
+  --ring: var(--coral-700);
+  --secondary: var(--peach-100);
+  --secondary-foreground: var(--charcoal-900);
+  --accent: var(--pink-100);
+  --accent-foreground: var(--charcoal-900);
+  --sidebar: var(--cream-50);
+  --radius: 1.125rem;
+  --control-h: 3.5rem;
+  --target-min: 3.5rem;
+  --size-body: 1.125rem;
+  --size-h1: clamp(1.875rem, 1.6rem + 1.2vw, 2.5rem);
+  --size-h2: clamp(1.5rem, 1.35rem + 0.7vw, 1.875rem);
+  --size-h3: 1.375rem;
+}
+
+[data-context='professional'] {
+  --background: var(--neutral-50);
+  --primary: var(--coral-700);
+  --primary-hover: var(--coral-800);
+  --ring: var(--coral-700);
+  --secondary: var(--neutral-100);
+  --secondary-foreground: var(--charcoal-900);
+  --accent: var(--cream-50);
+  --accent-foreground: var(--charcoal-900);
+  --sidebar: var(--cream-50);
+  --radius: 0.625rem;
+  --control-h: 2.5rem;
+  --target-min: 2rem;
+  --size-body: 1rem;
+  --size-h1: 1.75rem;
+  --size-h2: 1.375rem;
+  --size-h3: clamp(1.125rem, 1.05rem + 0.35vw, 1.25rem);
+  --text-measure: 72ch;
+}
+
+/* SyV Solutions platform admin (§2.4): neutral, no cream / coral / pink / peach. Provisional. */
+[data-context='platform'] {
+  --background: var(--neutral-0);
+  --primary: var(--charcoal-900);
+  --primary-hover: var(--neutral-600);
+  --ring: var(--charcoal-900);
+  --secondary: var(--neutral-100);
+  --secondary-foreground: var(--charcoal-900);
+  --accent: var(--neutral-100);
+  --accent-foreground: var(--charcoal-900);
+  --sidebar: var(--neutral-50);
+  --brand: var(--charcoal-900);
+  --radius: 0.625rem;
+  --control-h: 2.5rem;
+  --target-min: 2rem;
+  --size-body: 1rem;
+  --size-h1: 1.75rem;
+  --size-h2: 1.375rem;
+  --size-h3: 1.125rem;
+}

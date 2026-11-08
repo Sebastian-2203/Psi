@@ -1,0 +1,105 @@
+{
+  "common": {
+    "skipToContent": "Saltar al contenido",
+    "poweredBy": "Con tecnología de SyV Solutions",
+    "loading": "Cargando…",
+    "retry": "Reintentar",
+    "cancel": "Cancelar",
+    "close": "Cerrar",
+    "openMenu": "Abrir menú",
+    "comingSoon": "Próximamente",
+    "required": "(obligatorio)",
+    "alert": {
+      "error": "Error:",
+      "info": "Información:",
+      "success": "Listo:",
+      "warning": "Aviso:"
+    }
+  },
+  "locale": {
+    "label": "Idioma",
+    "es": "Español",
+    "en": "English",
+    "switchTo": "Cambiar el idioma a {language}"
+  },
+  "nav": {
+    "dashboard": "Inicio",
+    "patients": "Pacientes",
+    "activities": "Actividades",
+    "settings": "Configuración",
+    "portalHome": "Inicio",
+    "portalActivities": "Mis actividades",
+    "portalAppointments": "Mis citas",
+    "portalProfile": "Mi perfil",
+    "portalChildHome": "Inicio",
+    "portalChildActivities": "Actividades",
+    "portalChildMe": "Yo"
+  },
+  "shell": {
+    "professional": {
+      "navLabel": "Navegación principal",
+      "collapse": "Contraer la barra lateral",
+      "expand": "Expandir la barra lateral",
+      "userMenu": "Menú de usuario",
+      "profile": "Mi perfil",
+      "signOut": "Cerrar sesión",
+      "dashboard": {
+        "title": "Inicio de la consulta",
+        "subtitle": "Aquí verás un resumen de tu día de trabajo.",
+        "sessionsTitle": "Sesiones de hoy",
+        "sessionsEmpty": "Todavía no hay sesiones programadas.",
+        "draftsTitle": "Notas por finalizar",
+        "draftsEmpty": "No hay notas en borrador.",
+        "activityTitle": "Actividad reciente",
+        "activityEmpty": "Cuando tus pacientes completen actividades, las verás aquí."
+      }
+    },
+    "portal": {
+      "navLabel": "Navegación del portal",
+      "devModeLabel": "Vista previa (solo desarrollo)",
+      "modeAdult": "Adulto",
+      "modeChild": "Niño/a o adolescente",
+      "adult": {
+        "welcomeTitle": "Te damos la bienvenida",
+        "welcomeBody": "Este es tu espacio. Aquí encontrarás tus citas y las actividades que tu psicóloga te comparta.",
+        "activitiesTitle": "Tus actividades",
+        "activitiesEmpty": "Por ahora no tienes actividades pendientes."
+      },
+      "child": {
+        "welcomeTitle": "¡Hola! Qué bueno verte",
+        "welcomeBody": "Aquí aparecerán tus actividades. ¡Vamos paso a paso!",
+        "activitiesTitle": "Tus actividades",
+        "activitiesEmpty": "Todavía no hay actividades. ¡Vuelve pronto!"
+      }
+    }
+  },
+  "auth": {
+    "signIn": {
+      "title": "Te damos la bienvenida",
+      "description": "Inicia sesión para entrar a tu espacio.",
+      "email": "Correo electrónico",
+      "password": "Contraseña",
+      "submit": "Iniciar sesión",
+      "pending": "Próximamente: el inicio de sesión se habilita en el flujo de autenticación (en construcción)."
+    }
+  },
+  "home": {
+    "title": "Elige un espacio",
+    "description": "Vista provisional de desarrollo para navegar entre las áreas de la aplicación.",
+    "signIn": "Iniciar sesión",
+    "professional": "Panel profesional",
+    "portal": "Portal de pacientes"
+  },
+  "states": {
+    "emptyTitle": "Aún no hay nada aquí",
+    "emptyDescription": "Cuando haya información, aparecerá en este lugar.",
+    "loadingTitle": "Cargando",
+    "errorTitle": "Algo salió mal",
+    "errorDescription": "No pudimos mostrar esta página. Tus datos están a salvo. Inténtalo de nuevo en unos segundos."
+  },
+  "errors": {
+    "notFoundTitle": "No encontramos esta página",
+    "notFoundDescription": "Puede que el enlace haya cambiado o que la página ya no exista.",
+    "backHome": "Volver al inicio"
+  }
+}

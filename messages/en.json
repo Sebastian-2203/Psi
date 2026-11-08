@@ -1,0 +1,105 @@
+{
+  "common": {
+    "skipToContent": "Skip to content",
+    "poweredBy": "Powered by SyV Solutions",
+    "loading": "Loading…",
+    "retry": "Try again",
+    "cancel": "Cancel",
+    "close": "Close",
+    "openMenu": "Open menu",
+    "comingSoon": "Coming soon",
+    "required": "(required)",
+    "alert": {
+      "error": "Error:",
+      "info": "Information:",
+      "success": "Done:",
+      "warning": "Notice:"
+    }
+  },
+  "locale": {
+    "label": "Language",
+    "es": "Español",
+    "en": "English",
+    "switchTo": "Change language to {language}"
+  },
+  "nav": {
+    "dashboard": "Home",
+    "patients": "Patients",
+    "activities": "Activities",
+    "settings": "Settings",
+    "portalHome": "Home",
+    "portalActivities": "My activities",
+    "portalAppointments": "My appointments",
+    "portalProfile": "My profile",
+    "portalChildHome": "Home",
+    "portalChildActivities": "Activities",
+    "portalChildMe": "Me"
+  },
+  "shell": {
+    "professional": {
+      "navLabel": "Main navigation",
+      "collapse": "Collapse the sidebar",
+      "expand": "Expand the sidebar",
+      "userMenu": "User menu",
+      "profile": "My profile",
+      "signOut": "Sign out",
+      "dashboard": {
+        "title": "Practice home",
+        "subtitle": "Here you will see a summary of your working day.",
+        "sessionsTitle": "Today's sessions",
+        "sessionsEmpty": "There are no scheduled sessions yet.",
+        "draftsTitle": "Notes to finalize",
+        "draftsEmpty": "There are no draft notes.",
+        "activityTitle": "Recent activity",
+        "activityEmpty": "When your patients complete activities, you will see them here."
+      }
+    },
+    "portal": {
+      "navLabel": "Portal navigation",
+      "devModeLabel": "Preview (development only)",
+      "modeAdult": "Adult",
+      "modeChild": "Child or teen",
+      "adult": {
+        "welcomeTitle": "Welcome",
+        "welcomeBody": "This is your space. Here you will find your appointments and the activities your psychologist shares with you.",
+        "activitiesTitle": "Your activities",
+        "activitiesEmpty": "You have no pending activities for now."
+      },
+      "child": {
+        "welcomeTitle": "Hi! Great to see you",
+        "welcomeBody": "Your activities will show up here. Let's go step by step!",
+        "activitiesTitle": "Your activities",
+        "activitiesEmpty": "There are no activities yet. Come back soon!"
+      }
+    }
+  },
+  "auth": {
+    "signIn": {
+      "title": "Welcome",
+      "description": "Sign in to enter your space.",
+      "email": "Email address",
+      "password": "Password",
+      "submit": "Sign in",
+      "pending": "Coming soon: sign-in will be enabled in the authentication workstream (under construction)."
+    }
+  },
+  "home": {
+    "title": "Choose a space",
+    "description": "Provisional development view to move between the areas of the application.",
+    "signIn": "Sign in",
+    "professional": "Professional dashboard",
+    "portal": "Patient portal"
+  },
+  "states": {
+    "emptyTitle": "Nothing here yet",
+    "emptyDescription": "When there is information, it will show up here.",
+    "loadingTitle": "Loading",
+    "errorTitle": "Something went wrong",
+    "errorDescription": "We could not show this page. Your data is safe. Please try again in a few seconds."
+  },
+  "errors": {
+    "notFoundTitle": "We could not find this page",
+    "notFoundDescription": "The link may have changed or the page may no longer exist.",
+    "backHome": "Back to home"
+  }
+}
