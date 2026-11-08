@@ -32,24 +32,47 @@ Markers: `[NEEDS PSYCHOLOGIST INPUT]` (clinical content to confirm with Daniela)
    `check (jsonb_typeof(x) = 'object')`, validated by Zod in the app). One AST per field —
    never a whole record in one JSON document (structured data requirement).
 7. **RLS**: enabled and forced on every table. Policies use helpers in schema `app`
-   (`SECURITY DEFINER`, `STABLE`, `set search_path = ''`). Intent per table below; exact
-   policies are drafted with security.
+   (`STABLE`, `set search_path = ''`, `SECURITY DEFINER` only where they must read tables
+   the caller cannot). Intent per table below; draft policy sketches live in SECURITY.md §4.4.
 8. **Indexes**: every FK column is indexed (composite with `organization_id` first where
    queries are tenant-scoped).
 9. **Enums**: Postgres enum types (list in §3). Adding values is a migration; removing is
    forbidden (deprecate instead).
+10. **Access path (ADR-019, Proposed).** This model must be safe under both options of
+    ADR-019. Under the recommended Option A the Data API is disabled for domain schemas and
+    the server queries Postgres as `authenticated` with the verified JWT claims; under
+    Option B the column splits marked **[B]** below become mandatory. Tables marked
+    **[split]** are separated in either case because they are cheap and protect against DAL
+    mistakes (consent evidence, guardian safety caveats, patient-facing goal text).
+11. **Views** are always created `with (security_invoker = true, security_barrier = true)`
+    (F-05); a migration lint rejects any other view. A projection for a role that has **no**
+    row access to the base table (e.g. owner patient directory) is a `SECURITY DEFINER`
+    function in schema `app` with explicit checks returning only the allowed columns — never
+    a view.
+12. **Integrity rules in the DB, not only Zod** (F-10): state transitions, actor rules and
+    cross-row invariants that protect clinical or consent meaning are enforced by triggers or
+    by the Postgres function that performs the write; Zod remains the first validation layer.
 
 ### RLS helper functions (intent)
 
+Rules for all helpers (SECURITY.md §4.3): schema `app` is **not exposed** through any API;
+`execute` revoked from `public`/`anon`; identity always derived inside (`auth.uid()`,
+`auth.jwt()`), never passed as a parameter; return `boolean` only; every staff, clinical and
+platform helper requires `aal2` (F-03); every helper requires the organization to be in an
+allowed status (§5.1) and memberships/relationships to be `active`.
+
 | Function | Returns true when |
 |---|---|
-| `app.current_profile_id()` | `auth.uid()` (profiles.id = auth.users.id) |
-| `app.is_org_member(org)` | active membership in org |
-| `app.has_org_role(org, role)` | active membership with role |
-| `app.has_clinical_access(org, patient)` | caller's membership has `psychologist` role **and** an active `care_team_members` row for the patient, **or** an active, unexpired break-glass grant covering the patient |
-| `app.is_patient_self(patient)` | `patients.profile_id = auth.uid()` and patient active |
-| `app.guardian_can(patient, permission)` | caller is a guardian with active `patient_guardians` relationship (within validity) and an unrevoked permission row |
-| `app.is_platform_admin()` | row in `platform_admins` not revoked — used **only** for non-clinical platform tables |
+| `app.is_aal2()` | `auth.jwt()->>'aal' = 'aal2'` |
+| `app.my_membership_id(org)` | (returns uuid) caller's active membership id in org, else null |
+| `app.is_org_member(org)` | aal2 ∧ active membership ∧ org readable |
+| `app.has_org_role(org, role)` | `is_org_member` ∧ role held |
+| `app.can_write_clinical(org, patient)` | aal2 ∧ membership with `psychologist` role ∧ active `care_team_members` row ∧ org `active` |
+| `app.can_read_clinical(org, patient)` | `can_write_clinical` (org `active` or `read_only`) **or** an **approved, active** break-glass grant for this admin and patient (§5.1) — break-glass never satisfies `can_write_clinical` (F-02) |
+| `app.is_patient_self(org, patient, need)` | `patients.profile_id = auth.uid()` ∧ org `active` ∧ patient status allows `need` (`portal_read`, `portal_write`) per §5.3 table |
+| `app.guardian_can(org, patient, permission)` | guardian `active` ∧ relationship `active`, verified, within validity ∧ unrevoked permission row ∧ patient **is a minor** (`app.is_minor`) ∧ patient status allows portal ∧ org `active` |
+| `app.is_platform_admin()` | aal2 ∧ unrevoked `platform_admins` row — used **only** for non-clinical platform tables |
+| `app.can_read_file(file_id)` | delegates to the owning entity's helper |
 
 ---
 
@@ -76,7 +99,15 @@ Markers: `[NEEDS PSYCHOLOGIST INPUT]` (clinical content to confirm with Daniela)
 | — | **`platform_admins`**, **`platform_access_grants`** | platform_admin is not a membership; break-glass is explicit, time-boxed, audited. |
 | — | **`data_subject_requests`**, **`retention_policies`** | Habeas data workflow (Ley 1581) and configurable — not hardcoded — retention. `[NEEDS LEGAL VERIFICATION]` |
 | — | **`idempotency_keys`** | Safe retries for submissions/consents. |
-| `patient_preferences` | Kept | Portal mode (adult/child) is chosen by the psychologist, never auto-derived from age. |
+| `patient_preferences` | Kept | Portal mode (child/adolescent/adult) is suggested from age and confirmed or overridden by the psychologist (PAT-03); never silently changed by the system. |
+| — | **`patient_reflections`** | PRT-05 journal; deliberately **not** an activity response so no guardian permission can reach it (F-07). |
+| — | **`clinical_document_shares`** | DOC-02/PRT-07: sharing a deliberately authored document is a revocable, audited event, like `resource_shares` (F-08b). |
+| — | **`treatment_goal_patient_texts`** [split] | TPL-03/PRT-06: patient-facing wording separate from clinical goal text (F-08b). |
+| — | **`activity_response_feedback`** | RSP-05: feedback visible to the patient, separate from private notes and from the immutable response. |
+| — | **`consent_record_evidence`** [split] | IP/UA/typed name are care-team only; other guardians never see them (F-09). |
+| — | **`patient_guardian_caveats`** [split] | GRD-08 safety caveat visible to the care team only. |
+| — | **`portal_supervised_sessions`** | AUTH-07 Option A: guardian-started child session (SECURITY.md §3.4). |
+| — | **`mfa_recovery_codes`**, **`rate_limit_counters`** | ADR-021, ADR-020. |
 
 ---
 
@@ -84,27 +115,29 @@ Markers: `[NEEDS PSYCHOLOGIST INPUT]` (clinical content to confirm with Daniela)
 
 | Enum | Values |
 |---|---|
-| `org_status` | `active`, `suspended`, `closed` |
+| `org_status` | `active`, `read_only`, `suspended`, `closed` (behaviour in §5.1) |
 | `domain_type` | `subdomain`, `custom` |
 | `membership_status` | `active`, `suspended`, `removed` |
 | `membership_role` | `organization_owner`, `psychologist` |
 | `invitation_type` | `staff`, `patient`, `guardian` |
 | `invitation_status` | `pending`, `accepted`, `revoked`, `expired` |
 | `document_type` | `cc`, `ti`, `rc`, `ce`, `pa`, `ppt`, `nit`, `other` (Colombian ID types) `[NEEDS LEGAL VERIFICATION]` |
-| `patient_status` | `active`, `inactive`, `discharged`, `archived` |
-| `portal_mode` | `adult`, `child` |
+| `patient_status` | `intake`, `active`, `paused`, `discharged`, `archived` (PRD PAT-05; access per §5.3) |
+| `portal_mode` | `child`, `adolescent`, `adult` (PRD PAT-03/PRT-03) |
 | `care_role` | `primary`, `secondary`, `supervisor` `[NEEDS PSYCHOLOGIST INPUT]` |
 | `guardian_relationship` | `mother`, `father`, `legal_guardian`, `grandparent`, `other_relative`, `other` |
 | `relationship_status` | `pending_verification`, `active`, `suspended`, `revoked` |
-| `guardian_permission` | `view_assignments`, `complete_assignments`, `view_responses`, `view_shared_resources`, `sign_consents`, `view_session_schedule`, `manage_portal_preferences`, `receive_notifications` |
+| `relationship_suspension_reason` | `age_of_majority`, `custody_review`, `safety_concern`, `other` |
+| `legal_representation_basis` | `parental_authority`, `legal_guardianship`, `court_order`, `other` `[NEEDS LEGAL VERIFICATION]` |
+| `guardian_permission` | `view_assignments`, `complete_assignments`, `view_responses`, `view_shared_resources`, `sign_consents`, `view_session_schedule`, `manage_portal_preferences`, `receive_notifications`, `view_shared_documents`, `view_patient_facing_goals` (PRD GRD-04) |
 | `record_status` | `open`, `closed` |
 | `record_section_key` | `consultation_reason`, `current_problem`, `personal_history`, `family_history`, `developmental_history`, `school_work_history`, `social_history`, `medical_history`, `mental_status_exam`, `case_formulation`, `other` `[NEEDS PSYCHOLOGIST INPUT]` |
 | `entry_status` | `draft`, `finalized` (assessments, notes) |
 | `code_system` | `cie10`, `cie11`, `dsm5tr`, `other` |
 | `diagnosis_status` | `provisional`, `confirmed`, `ruled_out`, `resolved` |
 | `plan_status` | `draft`, `active`, `completed`, `superseded`, `discontinued` |
-| `goal_status` | `not_started`, `in_progress`, `achieved`, `discontinued` |
-| `session_status` | `scheduled`, `completed`, `cancelled`, `no_show` |
+| `goal_status` | `open`, `in_progress`, `achieved`, `discontinued` (PRD TPL-03) |
+| `session_status` | `scheduled`, `held`, `cancelled_by_patient`, `cancelled_by_psychologist`, `no_show` (PRD SES-04) |
 | `session_modality` | `in_person`, `remote_external`, `phone` (remote = outside the system; no video in MVP) |
 | `note_type` | `intake`, `session_progress`, `contact`, `closure`, `general` |
 | `addendum_reason` | `correction`, `clarification`, `late_entry`, `other` |
@@ -116,11 +149,12 @@ Markers: `[NEEDS PSYCHOLOGIST INPUT]` (clinical content to confirm with Daniela)
 | `signer_type` | `patient`, `guardian`, `professional_recorded` |
 | `consent_method` | `portal_checkbox`, `portal_typed_name`, `paper_scan`, `verbal_recorded` |
 | `consent_decision` | `accepted`, `declined` |
+| `consent_record_status` | `accepted`, `declined`, `withdrawn` (derived column, PRD CON-04) |
 | `content_status` | `draft`, `published`, `archived` (resources, activities) |
 | `resource_type` | `file`, `link`, `video_embed`, `audio` |
 | `audience` | `adult`, `adolescent`, `child`, `any` |
 | `block_type` | `text`, `image`, `multiple_choice`, `open_response`, `scale`, `emotion_selector`, `audio`, `video`, `game` |
-| `assignment_status` | `assigned`, `in_progress`, `submitted`, `reviewed`, `cancelled`, `expired` |
+| `assignment_status` | `assigned`, `in_progress`, `submitted`, `reviewed`, `withdrawn` (PRD ASG-04; "overdue" is derived from `due_at`, not a status) |
 | `guardian_visibility` | `none`, `assignment_only`, `assignment_and_responses` |
 | `response_status` | `in_progress`, `submitted` |
 | `response_actor` | `patient`, `guardian`, `professional_in_session` |
@@ -129,6 +163,7 @@ Markers: `[NEEDS PSYCHOLOGIST INPUT]` (clinical content to confirm with Daniela)
 | `dsr_type` | `access`, `rectification`, `update`, `suppression`, `revoke_authorization`, `other` `[NEEDS LEGAL VERIFICATION]` |
 | `dsr_status` | `received`, `in_review`, `fulfilled`, `partially_fulfilled`, `rejected` |
 | `grant_scope` | `org_support_non_clinical`, `clinical_read_break_glass` |
+| `grant_status` | `pending`, `approved`, `rejected`, `revoked`, `expired` |
 | `actor_type` | `user`, `system`, `platform_admin`, `break_glass` |
 
 ---
@@ -224,6 +259,14 @@ Purpose: a practice/clinical brand (tenant).
   `time_zone text default 'America/Bogota'`, `status org_status`.
 - C: `unique(slug)`, `check (slug ~ '^[a-z0-9-]{3,48}$')`, `check (default_locale in ('es','en'))`.
 - RLS: members read own org; owners update non-critical fields; platform admin reads/creates metadata (no clinical joins).
+- **Status behaviour** (F-26; enforced inside every helper, not only in the app):
+
+  | Status | Staff | Portal (patients/guardians) | Notes |
+  |---|---|---|---|
+  | `active` | normal | normal | — |
+  | `read_only` | read (incl. clinical for care team), no writes except exports by care team | denied (neutral notice page) | Grace/offboarding state (e.g. non-payment) so clinical custody is not interrupted `[NEEDS LEGAL VERIFICATION]` |
+  | `suspended` | denied | denied | Security incident or legal order; platform admin sees metadata only |
+  | `closed` | denied; care-team export only via the offboarding procedure (service-role job, audited) | denied | Custody/handover of records `[NEEDS LEGAL VERIFICATION]` |
 
 #### `organization_domains`
 Purpose: host → org mapping for white-label tenant resolution.
@@ -245,15 +288,35 @@ Purpose: white-label tokens.
 - RLS: no tenant access; only service role / platform admins read.
 
 #### `platform_access_grants`
-Purpose: explicit, time-boxed elevation for a platform admin (ADR-014).
-- Cols: `platform_admin_profile_id`, `scope grant_scope`, `patient_id uuid null`,
-  `reason text not null`, `ticket_reference text`, `approved_by_profile_id uuid null`
-  (org owner approval, Q-06), `starts_at`, `expires_at`, `revoked_at null`.
-- C: `check (expires_at > starts_at and expires_at - starts_at <= interval '24 hours')`
-  (max duration configurable via constant pending decision), `check (char_length(reason) >= 20)`;
-  `clinical_read_break_glass` requires `patient_id is not null`.
-- Idx: `(platform_admin_profile_id, expires_at)`.
-- RLS: insert by platform admin; org owners read grants for their org; consumed only by `app.has_clinical_access`. Read-only access, never write.
+Purpose: approval-gated, time-boxed elevation for a platform admin (ADR-014, SECURITY.md §6, PRD SEC-14).
+- Cols: `platform_admin_profile_id` (requester), `scope grant_scope`, `patient_id uuid null`,
+  `object_scope jsonb null` (ids only, optional narrowing to specific records),
+  `reason text not null`, `ticket_reference text not null`, `requested_duration interval`,
+  `status grant_status default 'pending'`,
+  `owner_approved_by_profile_id null`, `owner_approved_at null`,
+  `psychologist_approval_required bool`, `psychologist_approved_by_membership_id null`, `psychologist_approved_at null`,
+  `second_approver_profile_id null`, `second_approved_at null`,
+  `starts_at null`, `expires_at null`, `revoked_at null`, `revoked_by_profile_id null`,
+  `report_sent_at null`.
+- C: `check (char_length(reason) >= 20)`; `clinical_read_break_glass` ⇒ `patient_id is not null`;
+  `requested_duration <= max_break_glass_duration` (constant, **default and max 4 h**, configurable
+  only downward without a new ADR); `second_approver_profile_id <> platform_admin_profile_id`;
+  `status = 'approved'` ⇒ owner approval ∧ second approval ∧ (psychologist approval when required)
+  ∧ `starts_at`/`expires_at` set.
+- **Activation is done by the database, not the requester**: a trigger sets `status = 'approved'`,
+  `starts_at = now()` and `expires_at = now() + requested_duration` only when the last required
+  approval arrives; the requester cannot update approval columns (column checks in the
+  approval functions `app.approve_grant_as_owner/psychologist/second_admin`, each `aal2`,
+  each rejecting self-approval). `psychologist_approval_required` is set at request time when the
+  patient's primary psychologist is not the approving owner `[NEEDS PSYCHOLOGIST INPUT]`.
+- Read-only by construction: grants are consulted only by `app.can_read_clinical`; no write
+  helper, export, or `exports` signed URL ever accepts a grant.
+- Revocation: owner, treating psychologist or either SyV approver (one-time `revoked_*`).
+  Expiry job sets `expired` and triggers the access report to the owner.
+- Idx: `(platform_admin_profile_id, status, expires_at)`, `(organization_id, status)`.
+- RLS: requester inserts `pending` rows only; org owners (and the treating psychologist) read
+  grants for their org and approve via functions; platform admins read grants they requested
+  or must second-approve. Every use is audited with `break_glass_grant_id`.
 
 ### 5.2 Identity & membership
 
@@ -261,8 +324,8 @@ Purpose: explicit, time-boxed elevation for a platform admin (ADR-014).
 Purpose: one row per auth user; person-level settings.
 - Cols: `id uuid PK = auth.users.id`, `display_name text`, `locale text null`,
   `time_zone text null`, `last_seen_at timestamptz null`.
-- RLS: self read/update; co-members of an org read `display_name` via a view
-  `org_member_directory`.
+- RLS: self read/update; co-members of an org read `display_name` via the
+  `SECURITY DEFINER` function `app.org_member_directory(org)` (not a view, F-05).
 
 #### `memberships`
 Purpose: profile ↔ organization (staff only; patients/guardians are not members).
@@ -273,7 +336,11 @@ Purpose: profile ↔ organization (staff only; patients/guardians are not member
 #### `membership_roles`
 - Cols: `membership_id`, `role membership_role`, `granted_by`, `granted_at`.
 - C: `unique(membership_id, role)`.
-- RLS: members read; owners manage (owners cannot self-grant `psychologist` without `professional_profiles` licence data — app rule).
+- RLS: members read; owners manage via function.
+- **Self-grant of `psychologist`** (F-06) is enforced **in the DB**: a trigger requires a
+  `professional_profiles` row with licence data for that membership; when grantor = grantee it
+  writes `membership.role_self_granted` and notifies other owners/psychologists of the org.
+  Cannot remove the last `organization_owner` (trigger).
 
 #### `professional_profiles` (renamed from `psychologists`)
 - Cols: `membership_id unique`, `professional_title text`, `license_number text`
@@ -303,10 +370,27 @@ Purpose: patient demographic identity within an org.
   `check (date_of_birth <= current_date)`.
 - Idx: `(organization_id, last_name, first_name)`, `(organization_id, status)`.
 - Minor status is **derived** (`app.is_minor(date_of_birth, country)`), never stored, with age-of-majority as configuration. `[NEEDS LEGAL VERIFICATION]`
-- RLS: care team full read/update; owners read **directory fields only** via a view (Q-03); patient reads own limited fields; guardians with any active permission read name/preferred name only.
+- C (PAT-02/CON-05, F-10): status may leave `intake` only through `app.activate_patient()`,
+  which checks required consents and, for minors, at least one `active` legal-representative
+  relationship with verified basis. `profile_id` may not belong to a profile with an active
+  membership in the same org (no staff ↔ patient in one org, F-21; trigger).
+- RLS: care team full read/update; owners get **directory fields only** through
+  `app.patient_directory(org)` (SECURITY DEFINER function, Q-03); patient reads own row (DTO
+  limits fields); guardians get name/preferred name only through
+  `app.guardian_patient_summary()`. **[B]** split `document_type/number`, `email`, `phone`,
+  `sex`, `gender_identity` into care-team-only `patient_identifiers`.
+- **Portal access per patient status** (F-20; enforced in `app.is_patient_self` / `app.guardian_can`):
+
+  | Status | Portal read | Portal write (respond, reflect) | New assignments | Notes |
+  |---|---|---|---|---|
+  | `intake` | onboarding only: consents, privacy, safety info | sign consents/assent | no | PAT-02 gating |
+  | `active` | yes | yes | yes | — |
+  | `paused` | yes | existing assignments, reflections | no | `[NEEDS PSYCHOLOGIST INPUT]` |
+  | `discharged` | consents list, account, DSR | no | no | Record read-only for staff (PAT-05) |
+  | `archived` | no (neutral notice) | no | no | DSR via practice contact |
 
 #### `patient_preferences` (1:1)
-- Cols: `patient_id unique`, `portal_mode portal_mode default 'adult'`, `locale text null`,
+- Cols: `patient_id unique`, `portal_mode portal_mode` (suggested from age, set by psychologist), `locale text null`,
   `notify_email bool`, `text_size smallint`, `reduced_motion bool`, `audio_instructions bool`.
 - RLS: care team manages `portal_mode`; patient (and guardians with `manage_portal_preferences`) update accessibility/notification fields only (column-level via function).
 
@@ -318,24 +402,55 @@ Purpose: which psychologist memberships have clinical access to which patient.
   partial unique `(patient_id) where care_role = 'primary' and ends_at is null`;
   membership must hold `psychologist` role (trigger).
 - Idx: `(organization_id, membership_id) where ends_at is null`.
-- RLS: care team + owners read; owners and primary psychologist assign/end. Never hard-deleted.
+- RLS: care team + owners read; assign/end via `app.assign_care_team_member()` only. Never hard-deleted.
+- **Owner self-assignment** (F-06): when the assigner assigns their own membership to a patient
+  who already has a different `primary`, the function requires `reason`, notifies the primary
+  psychologist, and writes `care_team.self_assigned` (highlighted in the patient's access
+  history). Whether the primary must acknowledge before access starts: `[NEEDS PSYCHOLOGIST INPUT]`
+  (default proposal: acknowledgement required). Solo practices are unaffected.
 
 #### `guardians`
 Purpose: adult acting for a patient; org-scoped person record, may exist before login.
 - Cols: `profile_id uuid null`, `first_name`, `last_name`, `document_type`,
   `document_number null`, `email citext null`, `phone null`, `status` (`active`/`inactive`).
-- C: partial unique `(organization_id, profile_id)`; partial unique `(organization_id, document_type, document_number)`.
-- RLS: care team of any linked patient reads/updates; guardian reads self.
+- C: partial unique `(organization_id, profile_id)`; partial unique `(organization_id, document_type, document_number)`;
+  `profile_id` may not hold an active membership in the same org (trigger, F-21) `[NEEDS PSYCHOLOGIST INPUT]`.
+- RLS: care team of any linked patient reads/updates; guardian reads self. Guardians never read
+  other guardians' rows.
 
 #### `patient_guardians`
 Purpose: the relationship that scopes all guardian access.
 - Cols: `patient_id`, `guardian_id`, `relationship guardian_relationship`,
-  `is_legal_representative bool`, `status relationship_status`, `valid_from date`,
+  `is_legal_representative bool`, `legal_basis legal_representation_basis null`,
+  `legal_basis_file_id uuid null` (supporting document, `clinical-documents`),
+  `legal_basis_verified_by_membership_id null`, `legal_basis_verified_at null`,
+  `is_primary_contact bool default false`, `status relationship_status`,
+  `suspension_reason relationship_suspension_reason null`, `valid_from date`,
   `valid_until date null`, `verified_by null`, `verified_at null`,
   `verification_note text null`, `revoked_by null`, `revoked_at null`, `revoke_reason null`.
-- C: `unique(patient_id, guardian_id)`; `check (valid_until is null or valid_until >= valid_from)`;
-  `status = 'active'` requires `verified_at is not null`.
-- RLS: care team manages; guardian reads own relationships.
+- C (GRD-02/03, F-12): `unique(patient_id, guardian_id)`; `check (valid_until is null or valid_until >= valid_from)`;
+  `status = 'active'` ⇒ `verified_at is not null`; `is_legal_representative` ⇒ `legal_basis is not null`;
+  `status = 'suspended'` ⇔ `suspension_reason is not null`; partial unique `(patient_id) where is_primary_contact and status = 'active'`.
+- RLS: care team manages; guardian reads **own** relationships via DTO (no verification notes).
+- **Age of majority** (F-08, PRD PAT-06, fail-closed): a daily job creates a care-team task 60
+  days before the derived 18th birthday; on the day it sets every `active` relationship of
+  that patient to `suspended` (`age_of_majority`) and notifies the care team. Independently,
+  `app.guardian_can` returns false once `app.is_minor` is false, so access stops even if the
+  job is late. Reactivation requires the adult patient's own consent record and a
+  psychologist action. Threshold is configuration `[NEEDS LEGAL VERIFICATION]`.
+
+#### `patient_guardian_caveats` [split] (GRD-08)
+- Cols: `patient_guardian_id`, `caveat text`, `restrict_schedule bool`, `created_by_membership_id`, `ended_at null`.
+- RLS: care team only. When active with `restrict_schedule`, `app.set_guardian_permissions()`
+  refuses `view_session_schedule` and the UI warns before any share.
+
+#### `portal_supervised_sessions` (AUTH-07 Option A)
+- Cols: `guardian_profile_id`, `patient_id`, `patient_guardian_id`, `started_at`, `expires_at`,
+  `last_activity_at`, `ended_at null`.
+- C: insert only via `app.start_supervised_session()` which requires
+  `app.guardian_can(..., 'complete_assignments')`; idle 20 min / absolute 60 min (constants).
+- RLS: the guardian reads own; care team reads. Checked on every request; permission
+  revocation ends it.
 
 #### `patient_guardian_permissions`
 Purpose: granular, revocable permission grants per relationship.
@@ -343,13 +458,17 @@ Purpose: granular, revocable permission grants per relationship.
   `revoked_by null`, `revoked_at null`.
 - C: partial unique `(patient_guardian_id, permission) where revoked_at is null`.
   Rows are never updated except setting `revoked_*` once (trigger); re-grant = new row.
-- RLS: care team manages; guardian reads own grants.
+- RLS: care team manages via `app.set_guardian_permissions()`; guardian reads own grants.
+  Enabling `view_responses` for an adolescent writes a distinct audit flag (SECURITY.md §5.3).
 
 ### 5.4 Clinical
 
-All clinical tables: **RLS = `app.has_clinical_access(org, patient_id)` only**. Patients,
-guardians, owners-without-care-team and platform admins (without break-glass) have **no
-policy** → no access. Every read is audited by the DAL.
+All clinical tables: **SELECT = `app.can_read_clinical(org, patient_id)`; INSERT/UPDATE =
+`app.can_write_clinical(org, patient_id)`** (F-02 split; break-glass is read-only by
+construction). Patients, guardians, owners-without-care-team and platform admins (without an
+approved grant) have **no policy** → no access. `aal2` is required inside the helpers (F-03).
+Every read is audited by the DAL. Patient-visible derivatives (patient-facing goal text,
+document shares) live in **separate** tables with their own policies.
 
 #### `clinical_records`
 - Cols: `patient_id`, `record_number text`, `status record_status`, `opened_at`,
@@ -392,17 +511,28 @@ Purpose: professional-entered diagnostic impressions.
 - Once `active`, content columns frozen; changes create a new version that supersedes it.
 
 #### `treatment_goals`
-- Cols: `treatment_plan_id`, `position smallint`, `description jsonb`,
+- Cols: `treatment_plan_id`, `position smallint`, `description jsonb` (clinical wording),
   `status goal_status`, `target_date null`, `achieved_at null`.
 - Content frozen with its plan; `status`/`achieved_at` updatable while plan active (progress tracking).
+
+#### `treatment_goal_patient_texts` [split] (TPL-03, PRT-06, F-08b)
+- Cols: `treatment_goal_id unique`, `patient_id`, `patient_facing_text jsonb` (AST written by
+  the psychologist), `published_at null`, `withdrawn_at null`, `author_membership_id`.
+- Frozen with its plan (new plan version copies rows). Status shown to the patient is the
+  goal's `status`, read through `app.portal_patient_goals(patient)` (SECURITY DEFINER,
+  returns text + status only, active plan only).
+- RLS: care team manages; patient self (`portal_read`); guardian with `view_patient_facing_goals`.
+  The clinical `description` is never reachable from the portal.
 
 #### `therapy_sessions` (renamed from `sessions`)
 - Cols: `patient_id`, `psychologist_membership_id`, `scheduled_start timestamptz`,
   `scheduled_end timestamptz`, `status session_status`, `modality session_modality`,
-  `cancelled_reason text null`.
-- C: `check (scheduled_end > scheduled_start)`.
+  `cancelled_reason text null`, `location_or_link text null` (SES-06, external only).
+- C: `check (scheduled_end > scheduled_start)`; `cancelled_reason` only for `cancelled_*`.
 - Idx: `(organization_id, psychologist_membership_id, scheduled_start)`, `(organization_id, patient_id, scheduled_start desc)`.
-- RLS: clinical access; guardians with `view_session_schedule` and the patient see date/time/status only via a restricted view.
+- RLS: clinical access; the patient and guardians with `view_session_schedule` get date/time/status
+  only through `app.portal_upcoming_sessions(patient)` (SECURITY DEFINER, explicit checks,
+  blocked by an active schedule caveat).
 
 #### `clinical_notes` (renamed from `session_notes`)
 - Cols: `clinical_record_id`, `patient_id`, `therapy_session_id null`, `note_type`,
@@ -410,7 +540,12 @@ Purpose: professional-entered diagnostic impressions.
   `finalized_at null`, `finalized_by_membership_id null`, `content_hash bytea null`.
 - C: `status = 'finalized'` ⇔ `finalized_at`, `finalized_by`, `content_hash` not null.
 - Idx: `(organization_id, patient_id, created_at desc)`.
-- Trigger: UPDATE/DELETE rejected when `OLD.status = 'finalized'` (§6). Drafts editable only by author. **Never visible to patients or guardians.**
+- Trigger: UPDATE/DELETE rejected when `OLD.status = 'finalized'` (§6); finalization is
+  self-validating (finalizer = author = caller, server timestamp, hash recomputed, body
+  unchanged — SECURITY.md §4.4f). **Never visible to patients or guardians.**
+- Drafts (F-13, NOTE-02): INSERT/UPDATE policy requires `author_membership_id =
+  app.my_membership_id(org)` **and** `can_write_clinical`. Draft **read** by other care-team
+  members: default **author only** `[NEEDS PSYCHOLOGIST INPUT]`.
 
 #### `clinical_note_addenda` (append-only)
 - Cols: `clinical_note_id`, `patient_id`, `reason addendum_reason`, `body jsonb`,
@@ -430,6 +565,15 @@ Purpose: metadata of every storage object.
   `document_date date null`, `description text null`, `supersedes_document_id null`,
   `uploaded_by_membership_id`, `archived_at null`.
 - File content immutable; replacement = new document with `supersedes_document_id`.
+- Private by default; patient visibility only via `clinical_document_shares`.
+
+#### `clinical_document_shares` (DOC-02, PRT-07, F-08b)
+- Cols: `clinical_document_id`, `patient_id`, `shared_by_membership_id`, `shared_at`,
+  `guardian_visible bool default false`, `revoked_at null`, `revoked_by_membership_id null`.
+- C: partial unique `(clinical_document_id, patient_id) where revoked_at is null`; document
+  must belong to the same patient (composite FK); `clinical_notes` can never be shared (no FK path, NOTE-04).
+- RLS: care team manages; patient self (`portal_read`); guardian with `view_shared_documents`
+  ∧ `guardian_visible`. `app.can_read_file` honours an active share; every view/URL audited.
 
 ### 5.5 Consents
 
