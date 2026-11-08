@@ -14,7 +14,8 @@
       "info": "Información:",
       "success": "Listo:",
       "warning": "Aviso:"
-    }
+    },
+    "logoAlt": "Logo de {name}"
   },
   "locale": {
     "label": "Idioma",
@@ -262,5 +263,77 @@
     "recentMfaRequired": "Por seguridad, vuelve a verificar tu código de dos pasos.",
     "emailUnavailable": "El envío de correos no está disponible. Inténtalo más tarde.",
     "reference": "Referencia: {id}"
+  },
+  "branding": {
+    "title": "Marca de tu consulta",
+    "cardDescription": "Nombre, colores y logo que verán tu equipo y tus pacientes.",
+    "open": "Personalizar la marca",
+    "back": "Volver a Configuración",
+    "description": "Define cómo se ve tu consulta: nombre, colores y logo. Los cambios se aplican a todo tu equipo y a tu portal.",
+    "ownerOnly": "Solo la titular o el titular de la consulta puede cambiar la marca.",
+    "loadError": "No pudimos cargar la marca de tu consulta. Inténtalo de nuevo más tarde.",
+    "save": "Guardar cambios",
+    "saved": "Guardamos la marca de tu consulta.",
+    "identity": {
+      "title": "Nombre y colores",
+      "description": "Los colores se ajustan solos cuando hace falta para que el texto y los botones se lean bien."
+    },
+    "fields": {
+      "displayName": "Nombre de la consulta",
+      "displayNameHint": "Hasta {max} caracteres. Aparece en el menú, el inicio de sesión y el portal.",
+      "brandColor": "Color principal de la marca",
+      "brandColorPicker": "Elegir el color principal",
+      "brandColorHint": "Formato #RRGGBB. Se usa en detalles decorativos; para texto y botones calculamos un tono legible.",
+      "functionalColor": "Color para texto y botones",
+      "functionalColorPicker": "Elegir el color para texto y botones",
+      "functionalColorHint": "Solo si quieres fijarlo tú. Debe tener un contraste de al menos 4,5 a 1.",
+      "secondaryColor": "Color secundario",
+      "secondaryColorPicker": "Elegir el color secundario",
+      "secondaryColorHint": "Se usa en versión suave, con texto oscuro encima.",
+      "optional": "(opcional)",
+      "useSuggestion": "Usar {color}"
+    },
+    "contrast": {
+      "report": "Color para texto y botones: {color} · contraste {ratio}:1",
+      "adjusted": "Oscurecimos un poco tu color para que se lea bien.",
+      "rejected": "Este color no tiene suficiente contraste: llega a {ratio}:1 y necesita al menos {minimum}:1.",
+      "suggest": "Prueba con {color}, el tono más cercano que sí cumple."
+    },
+    "logo": {
+      "title": "Logo",
+      "description": "Aparece junto al nombre de tu consulta.",
+      "none": "Todavía no has subido un logo.",
+      "file": "Archivo del logo",
+      "hint": "PNG, JPEG o WebP, hasta 512 KB y entre 16 y 2048 píxeles por lado. No se admite SVG.",
+      "chooseFirst": "Elige primero un archivo.",
+      "upload": "Subir logo",
+      "remove": "Quitar logo",
+      "uploaded": "Subimos tu logo.",
+      "removed": "Quitamos tu logo."
+    },
+    "preview": {
+      "title": "Vista previa",
+      "description": "Así se ve tu marca en cada espacio, antes de guardar.",
+      "professional": "Panel profesional",
+      "portalAdult": "Portal para adultos",
+      "portalChild": "Portal para niñas, niños y adolescentes",
+      "sample": "Ejemplo de texto sobre el fondo del espacio.",
+      "primaryButton": "Botón principal",
+      "link": "Enlace de ejemplo",
+      "tag": "Etiqueta"
+    },
+    "validation": {
+      "displayNameRequired": "Escribe el nombre de tu consulta.",
+      "displayNameTooLong": "El nombre es demasiado largo.",
+      "colorInvalid": "Escribe un color con el formato #RRGGBB, por ejemplo #2f7d6d.",
+      "versionRequired": "Recarga la página e inténtalo de nuevo."
+    },
+    "errors": {
+      "logoTooLarge": "El logo pesa más de 512 KB. Elige una imagen más liviana.",
+      "logoUnsupported": "Solo se admiten imágenes PNG, JPEG o WebP (no SVG).",
+      "logoCorrupt": "No pudimos leer esa imagen. Prueba con otro archivo.",
+      "logoDimensions": "El logo debe medir entre 16 y 2048 píxeles por lado.",
+      "logoMissing": "Elige un archivo para subir."
+    }
   }
 }

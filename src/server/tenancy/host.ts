@@ -69,11 +69,20 @@ export type PublicBranding = {
   accentColor: string | null;
   childModeEnabled: boolean;
   logoFileId: string | null;
+  /** Object path in the public `branding` bucket (workstream 1.7). */
+  logoPath: string | null;
   faviconFileId: string | null;
   portalWelcome: { es: string | null; en: string | null };
 };
 
-function toPublicBranding(row: PublicBrandingRow): PublicBranding {
+/**
+ * `app.get_public_branding` also returns `logo_path` since 20261108131000_branding_storage.sql.
+ * TODO(db): add `logo_path` to PublicBrandingRow in src/server/db/admin.ts (owned by the backend
+ * workstream); until then the row is widened here.
+ */
+type PublicBrandingRowWithLogo = PublicBrandingRow & { logo_path?: string | null };
+
+function toPublicBranding(row: PublicBrandingRowWithLogo): PublicBranding {
   return {
     organizationId: row.organization_id,
     slug: row.slug,
@@ -85,6 +94,7 @@ function toPublicBranding(row: PublicBrandingRow): PublicBranding {
     accentColor: row.accent_color,
     childModeEnabled: row.child_mode_enabled,
     logoFileId: row.logo_file_id,
+    logoPath: row.logo_path ?? null,
     faviconFileId: row.favicon_file_id,
     portalWelcome: { es: row.portal_welcome_es, en: row.portal_welcome_en },
   };

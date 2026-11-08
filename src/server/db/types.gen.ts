@@ -52,6 +52,9 @@ export type Database = {
       approve_grant_as_psychologist: { Args: { p_grant_id: string }; Returns: undefined };
       approve_grant_as_second_admin: { Args: { p_grant_id: string }; Returns: undefined };
       audit_metadata_is_safe: { Args: { p_metadata: Json }; Returns: boolean };
+      auth_user_id_by_email: { Args: { p_email: string }; Returns: string };
+      auth_user_verified_email: { Args: { p_user_id: string }; Returns: string };
+      branding_object_org: { Args: { p_name: string }; Returns: string };
       can_write_as_role: {
         Args: { p_org: string; p_role: Database['public']['Enums']['membership_role'] };
         Returns: boolean;
@@ -63,6 +66,13 @@ export type Database = {
       consume_rate_limit_key: {
         Args: { p_bucket_key: string; p_limit: number; p_window: string };
         Returns: boolean;
+      };
+      consume_recovery_code: {
+        Args: { p_code: string };
+        Returns: {
+          batch_id: string;
+          status: string;
+        }[];
       };
       current_profile_id: { Args: Record<PropertyKey, never>; Returns: string };
       get_public_branding: {
@@ -76,6 +86,7 @@ export type Database = {
           favicon_file_id: string;
           functional_color: string;
           logo_file_id: string;
+          logo_path: string;
           organization_id: string;
           portal_welcome_en: string;
           portal_welcome_es: string;
@@ -91,6 +102,7 @@ export type Database = {
         Args: { p_org: string; p_role: Database['public']['Enums']['membership_role'] };
         Returns: boolean;
       };
+      has_recent_mfa: { Args: { p_seconds: number }; Returns: boolean };
       insert_audit_row: {
         Args: {
           p_actor_profile_id: string;
@@ -124,6 +136,15 @@ export type Database = {
         }[];
       };
       my_membership_id: { Args: { p_org: string }; Returns: string };
+      my_recovery_codes_status: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          batch_id: string;
+          created_at: string;
+          remaining: number;
+          total: number;
+        }[];
+      };
       org_allows: { Args: { p_access: string; p_org: string }; Returns: boolean };
       org_member_directory: {
         Args: { p_org: string };
@@ -135,7 +156,22 @@ export type Database = {
           status: Database['public']['Enums']['membership_status'];
         }[];
       };
+      peek_staff_invitation: {
+        Args: { p_token_hash: string };
+        Returns: {
+          email: string;
+          existing_profile_id: string;
+          expires_at: string;
+          invitation_id: string;
+          organization_display_name: string;
+          organization_id: string;
+          roles: Database['public']['Enums']['membership_role'][];
+        }[];
+      };
       rate_limit_window_start: { Args: { p_window: string }; Returns: string };
+      replace_recovery_codes: { Args: { p_codes: string[] }; Returns: string };
+      request_jwt: { Args: Record<PropertyKey, never>; Returns: Json };
+      request_uid: { Args: Record<PropertyKey, never>; Returns: string };
       resolve_organization_by_host: { Args: { p_host: string }; Returns: string };
       revoke_grant: { Args: { p_grant_id: string; p_reason: string }; Returns: undefined };
       write_audit: {
@@ -508,6 +544,7 @@ export type Database = {
           favicon_file_id: string | null;
           functional_color: string | null;
           logo_file_id: string | null;
+          logo_path: string | null;
           organization_id: string;
           portal_welcome_en: string | null;
           portal_welcome_es: string | null;
@@ -524,6 +561,7 @@ export type Database = {
           favicon_file_id?: string | null;
           functional_color?: string | null;
           logo_file_id?: string | null;
+          logo_path?: string | null;
           organization_id: string;
           portal_welcome_en?: string | null;
           portal_welcome_es?: string | null;
@@ -539,6 +577,7 @@ export type Database = {
           favicon_file_id?: string | null;
           functional_color?: string | null;
           logo_file_id?: string | null;
+          logo_path?: string | null;
           organization_id?: string;
           portal_welcome_en?: string | null;
           portal_welcome_es?: string | null;

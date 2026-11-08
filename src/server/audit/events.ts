@@ -143,6 +143,17 @@ export const AUDIT_EVENTS = {
     false,
     z.object({ changed_fields: fieldNames }).strict(),
   ),
+  'organization_branding.logo_uploaded': event(
+    'branding',
+    'user',
+    false,
+    z
+      .object({
+        media_type: z.enum(['image/png', 'image/jpeg', 'image/webp']),
+        size_bytes: z.number().int().min(1).max(1_048_576),
+      })
+      .strict(),
+  ),
   // membership
   'membership.created': event(
     'membership',

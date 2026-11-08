@@ -65,10 +65,12 @@ insert into public.organization_domains (organization_id, host, domain_type, is_
   -- Unverified host: must never resolve.
   ('0b000000-0000-4000-8000-000000000001', 'unverified-b.localhost', 'subdomain', false, null);
 
-insert into public.organization_branding (organization_id, display_name, brand_color, functional_color, accent_color, portal_welcome_es, portal_welcome_en) values
-  ('0a000000-0000-4000-8000-000000000001', 'Consultorio Demo A', '#2f7d6d', '#1f5c50', '#e0a33b',
+insert into public.organization_branding (organization_id, display_name, brand_color, functional_color, secondary_color, accent_color, portal_welcome_es, portal_welcome_en) values
+  -- A: the provisional Daniela Ortega brand (BRAND_GUIDELINES, DESIGN_SYSTEM §2.1).
+  ('0a000000-0000-4000-8000-000000000001', 'Psicóloga Daniela Ortega', '#d94a43', '#a73c37', null, null,
    'Bienvenida al portal de Consultorio Demo A (texto ficticio).', 'Welcome to the Consultorio Demo A portal (fictional text).'),
-  ('0b000000-0000-4000-8000-000000000001', 'Consultorio Demo B', '#5b4b8a', null, null, null, null);
+  -- B: a clearly different FICTIONAL brand (violet + amber) so cross-tenant theming is visible.
+  ('0b000000-0000-4000-8000-000000000001', 'Centro Demo B (ficticio)', '#5b4b8a', null, '#e8c46b', null, null, null);
 
 -- -----------------------------------------------------------------------------
 -- Memberships, professional profiles (before the psychologist role), roles

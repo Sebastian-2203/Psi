@@ -14,7 +14,8 @@
       "info": "Information:",
       "success": "Done:",
       "warning": "Notice:"
-    }
+    },
+    "logoAlt": "{name} logo"
   },
   "locale": {
     "label": "Language",
@@ -262,5 +263,77 @@
     "recentMfaRequired": "For your security, verify your two-step code again.",
     "emailUnavailable": "Email delivery is not available. Try again later.",
     "reference": "Reference: {id}"
+  },
+  "branding": {
+    "title": "Your practice branding",
+    "cardDescription": "The name, colors and logo your team and patients will see.",
+    "open": "Customize your branding",
+    "back": "Back to Settings",
+    "description": "Set how your practice looks: name, colors and logo. Changes apply to your whole team and your portal.",
+    "ownerOnly": "Only the practice owner can change the branding.",
+    "loadError": "We could not load your practice branding. Please try again later.",
+    "save": "Save changes",
+    "saved": "We saved your practice branding.",
+    "identity": {
+      "title": "Name and colors",
+      "description": "Colors adjust themselves when needed so text and buttons stay easy to read."
+    },
+    "fields": {
+      "displayName": "Practice name",
+      "displayNameHint": "Up to {max} characters. Shown in the menu, on sign-in and in the portal.",
+      "brandColor": "Main brand color",
+      "brandColorPicker": "Pick the main color",
+      "brandColorHint": "Format #RRGGBB. Used for decoration; for text and buttons we calculate a readable shade.",
+      "functionalColor": "Color for text and buttons",
+      "functionalColorPicker": "Pick the color for text and buttons",
+      "functionalColorHint": "Only if you want to set it yourself. It needs a contrast of at least 4.5 to 1.",
+      "secondaryColor": "Secondary color",
+      "secondaryColorPicker": "Pick the secondary color",
+      "secondaryColorHint": "Used as a soft tint with dark text on top.",
+      "optional": "(optional)",
+      "useSuggestion": "Use {color}"
+    },
+    "contrast": {
+      "report": "Color for text and buttons: {color} · contrast {ratio}:1",
+      "adjusted": "We darkened your color slightly so it reads well.",
+      "rejected": "This color does not have enough contrast: it reaches {ratio}:1 and needs at least {minimum}:1.",
+      "suggest": "Try {color}, the closest shade that does."
+    },
+    "logo": {
+      "title": "Logo",
+      "description": "Shown next to your practice name.",
+      "none": "You have not uploaded a logo yet.",
+      "file": "Logo file",
+      "hint": "PNG, JPEG or WebP, up to 512 KB and between 16 and 2048 pixels per side. SVG is not supported.",
+      "chooseFirst": "Choose a file first.",
+      "upload": "Upload logo",
+      "remove": "Remove logo",
+      "uploaded": "We uploaded your logo.",
+      "removed": "We removed your logo."
+    },
+    "preview": {
+      "title": "Preview",
+      "description": "This is how your branding looks in each space, before you save.",
+      "professional": "Professional dashboard",
+      "portalAdult": "Adult portal",
+      "portalChild": "Child and teen portal",
+      "sample": "Sample text on the space's background.",
+      "primaryButton": "Primary button",
+      "link": "Sample link",
+      "tag": "Tag"
+    },
+    "validation": {
+      "displayNameRequired": "Enter your practice name.",
+      "displayNameTooLong": "The name is too long.",
+      "colorInvalid": "Enter a color in the #RRGGBB format, for example #2f7d6d.",
+      "versionRequired": "Reload the page and try again."
+    },
+    "errors": {
+      "logoTooLarge": "The logo is larger than 512 KB. Choose a lighter image.",
+      "logoUnsupported": "Only PNG, JPEG or WebP images are supported (not SVG).",
+      "logoCorrupt": "We could not read that image. Try another file.",
+      "logoDimensions": "The logo must be between 16 and 2048 pixels per side.",
+      "logoMissing": "Choose a file to upload."
+    }
   }
 }

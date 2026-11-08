@@ -22,7 +22,9 @@ export default async function SettingsPage({ params }: { params: Promise<{ local
   const ctx = await getStaffPageContext(locale, '/settings');
   if (!ctx) return null;
   const t = await getTranslations('auth.settings');
+  const tb = await getTranslations('branding');
   const format = await getFormatter();
+  const canBrand = evaluatePermission(ctx, 'org.branding.manage').allowed;
   const canInvite = evaluatePermission(ctx, 'org.invitations.manage').allowed;
   const invitations = canInvite ? await listStaffInvitations(ctx) : null;
   const statusLabel = {
@@ -80,6 +82,22 @@ export default async function SettingsPage({ params }: { params: Promise<{ local
           )}
         </Card>
       ) : null}
+      <Card className="max-w-2xl">
+        <CardHeader>
+          <CardTitle>{tb('title')}</CardTitle>
+          <CardDescription>{tb('cardDescription')}</CardDescription>
+        </CardHeader>
+        {canBrand ? (
+          <Link
+            href="/settings/branding"
+            className="font-semibold text-primary underline underline-offset-4"
+          >
+            {tb('open')}
+          </Link>
+        ) : (
+          <p className="text-muted-foreground">{tb('ownerOnly')}</p>
+        )}
+      </Card>
       <Card className="max-w-2xl">
         <CardHeader>
           <CardTitle>{t('security')}</CardTitle>
