@@ -203,7 +203,7 @@ be justified in Phase 1):
 4. `src/server/db/system.ts` (app_server system functions) and `src/server/db/service-role.ts`
    (Supabase Auth admin API, service-role key) may each be imported only from a per-file
    allowlist in `eslint.config.mjs` (`SYSTEM_DB_IMPORTERS`, `SERVICE_ROLE_IMPORTERS`; no folder
-   globs). `db/admin.ts` is a deprecated system-only shim for `tenancy/host.ts`. See §6.4.
+   globs). The former `db/admin.ts` shim was removed; `tenancy/host.ts` imports `db/system.ts`. See §6.4.
 5. `schemas/` are pure (Zod + types). No I/O, no environment access — safe in client and
    server.
 6. No module reaches into `supabase/` SQL directly; types are generated

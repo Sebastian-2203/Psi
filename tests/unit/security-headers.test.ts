@@ -41,6 +41,11 @@ describe('security headers (P1-10)', () => {
     expect(csp.get('default-src')).toBe("'self'");
     expect(csp.get('script-src')).not.toContain('unsafe-inline');
     expect(csp.get('script-src')).not.toContain('unsafe-eval');
+    // Styles: elements need the nonce; only style ATTRIBUTES (React style props) are inline.
+    expect(csp.get('style-src')).toBe("'self'");
+    expect(csp.get('style-src-elem')).toBe("'self' 'nonce-abc123'");
+    expect(csp.get('style-src-attr')).toBe("'unsafe-inline'");
+    expect(csp.get('style-src-elem')).not.toContain('unsafe-inline');
   });
 
   it("allows 'unsafe-eval' only in development", () => {

@@ -3,7 +3,7 @@ import {
   systemGetPublicBranding,
   systemResolveOrganizationIdByHost,
   type PublicBrandingRow,
-} from '@/server/db/admin';
+} from '@/server/db/system';
 
 /**
  * Host-based tenant resolution (ADR-017), DB side only.

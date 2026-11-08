@@ -9,15 +9,15 @@ import nextTs from 'eslint-config-next/typescript';
 // 1. src/server/db/system.ts — app_server system functions (no table privileges; only the
 //    granted `app.*` system functions). No service-role key.
 const SYSTEM_DB_PATTERN = {
-  group: ['@/server/db/system', '**/db/system', '@/server/db/admin', '**/db/admin'],
+  group: ['@/server/db/system', '**/db/system'],
   message:
-    'src/server/db/system (and the deprecated db/admin shim) may only be imported from SYSTEM_DB_IMPORTERS (eslint.config.mjs).',
+    'src/server/db/system may only be imported from SYSTEM_DB_IMPORTERS (eslint.config.mjs).',
 };
 const SYSTEM_DB_IMPORTERS = [
   'src/server/audit/writer.ts', // system/denied-attempt audit writer (§6.4 row 6)
   'src/server/auth/rate-limit.ts', // pre-auth limiter (ADR-020)
   'src/server/auth/invitations.ts', // invitation peek/accept (SECURITY.md §3.8)
-  'src/server/tenancy/host.ts', // host -> org, public branding (ADR-010/017); via db/admin shim
+  'src/server/tenancy/host.ts', // host -> org, public branding (ADR-010/017);
 ];
 
 // 2. src/server/db/service-role.ts — Supabase Auth admin API with the SERVICE-ROLE key.

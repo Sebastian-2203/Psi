@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { hasLocale, NextIntlClientProvider } from 'next-intl';
 import { setRequestLocale } from 'next-intl/server';
 import { getRouteLocale } from '@/i18n/route-locale';
+import { headers } from 'next/headers';
 import { notFound } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { TenantBrandProvider } from '@/components/shared/tenant-brand';
@@ -37,11 +38,13 @@ export default async function LocaleLayout({
   // Branding of the organization the HOST resolves to (ADR-010/017); default Daniela brand on the
   // app host or unknown hosts. Server-side, so the stylesheet is in the first byte (no flash).
   const { brand, logoUrl } = await getTenantBrand();
+  // CSP nonce set by src/proxy.ts on the request; required by every inline <style> (style-src-elem).
+  const nonce = (await headers()).get('x-nonce') ?? undefined;
 
   return (
     <html lang={locale} data-tenant={brand.slug} className={fontVariables}>
       <head>
-        <ThemeVariables brand={brand} />
+        <ThemeVariables brand={brand} nonce={nonce} />
       </head>
       <body>
         {/* Client messages: the whole catalog is small; narrow per-route when it grows. */}

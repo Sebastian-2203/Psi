@@ -196,7 +196,11 @@ test('password recovery: same message for any email; email link -> new password'
 
   const link = firstLink(await waitForEmail(user.email));
   expect(new URL(link).pathname).toBe('/api/auth/confirm/es');
+  // P1-12: GETs (link scanners, previews) must not consume the token; only the button does.
+  await page.request.get(link);
   await page.goto(link);
+  await expect(page).toHaveURL(/\/es\/confirm\?/);
+  await page.getByRole('button', { name: 'Continuar' }).click();
   await expect(page).toHaveURL(/\/es\/reset-password$/);
   const newPassword = `Fictional-new-${randomUUID()}`;
   await page.getByLabel('Nueva contraseña', { exact: true }).fill(newPassword);
@@ -208,6 +212,7 @@ test('password recovery: same message for any email; email link -> new password'
   // The link is single use.
   await page.context().clearCookies();
   await page.goto(link);
+  await page.getByRole('button', { name: 'Continuar' }).click();
   await expect(page).toHaveURL(/\/es\/forgot-password\?error=link$/);
 });
 

@@ -97,6 +97,11 @@
       "linkInvalid": "The link is not valid or has expired. Request a new one.",
       "backToSignIn": "Back to sign in"
     },
+    "confirmLink": {
+      "title": "Confirm you want to change your password",
+      "description": "To protect your account, the link is only used when you confirm. Press the button to continue; if you did not request this change, you can close this page.",
+      "submit": "Continue"
+    },
     "resetPassword": {
       "title": "Choose a new password",
       "description": "When you save it, we will sign out your other open sessions.",
@@ -305,6 +310,8 @@
       "none": "You have not uploaded a logo yet.",
       "file": "Logo file",
       "hint": "PNG, JPEG or WebP, up to 512 KB and between 16 and 2048 pixels per side. SVG is not supported.",
+      "choose": "Choose file",
+      "noFile": "No file selected",
       "chooseFirst": "Choose a file first.",
       "upload": "Upload logo",
       "remove": "Remove logo",

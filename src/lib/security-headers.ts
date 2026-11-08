@@ -34,12 +34,13 @@ export function generateNonce(): string {
 }
 
 /**
- * Document CSP. Styles: `'unsafe-inline'` (no nonce) is a deliberate, documented exception:
- * - React `style={…}` props (Radix positioning, progress bars) render as style ATTRIBUTES,
- *   which a nonce can never allow;
- * - the tenant theme `<style>` (src/components/shared/theme-variables.tsx) is not yet given the
- *   nonce by src/app/[locale]/layout.tsx (branding workstream). Once it is, tighten to
- *   `style-src-elem 'self' 'nonce-…'; style-src-attr 'unsafe-inline'`.
+ * Document CSP. Styles are split (CSP3):
+ * - `style-src-elem 'self' 'nonce-…'`: stylesheets (<link>, e.g. next/font and app CSS from
+ *   /_next/static) and <style> elements; the tenant theme <style> carries the nonce
+ *   (src/components/shared/theme-variables.tsx). No `unsafe-inline` for elements.
+ * - `style-src-attr 'unsafe-inline'`: React `style={…}` props (Radix positioning, progress bars)
+ *   render as style ATTRIBUTES, which a nonce can never allow. Documented exception.
+ * - `style-src 'self'` stays as the fallback for browsers without the -elem/-attr directives.
  * CSS cannot execute script; img-src/connect-src/font-src bound what injected CSS could load.
  */
 export function buildContentSecurityPolicy({ nonce, supabaseUrl, development }: CspInput): string {
@@ -48,7 +49,9 @@ export function buildContentSecurityPolicy({ nonce, supabaseUrl, development }: 
   return [
     "default-src 'self'",
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${development ? " 'unsafe-eval'" : ''}`,
-    "style-src 'self' 'unsafe-inline'",
+    "style-src 'self'",
+    `style-src-elem 'self' 'nonce-${nonce}'`,
+    "style-src-attr 'unsafe-inline'",
     `img-src 'self' data: blob:${extra}`,
     "font-src 'self'",
     `connect-src 'self'${extra}`,

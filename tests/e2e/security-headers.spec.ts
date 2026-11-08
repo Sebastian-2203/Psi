@@ -56,6 +56,8 @@ test.describe('anonymous documents', () => {
       expect(csp).toContain(directive);
     }
     expect(csp).not.toContain('unsafe-eval');
+    expect(csp).toMatch(/style-src-elem 'self' 'nonce-[A-Za-z0-9+/=]+'(;|$)/);
+    expect(csp).toContain("style-src-attr 'unsafe-inline'");
     expect(h['referrer-policy']).toBe('strict-origin-when-cross-origin');
     expectStaticHeaders(response);
 
@@ -65,6 +67,11 @@ test.describe('anonymous documents', () => {
       .evaluateAll((els) => els.map((el) => (el as HTMLScriptElement).nonce));
     expect(scripts.length).toBeGreaterThan(0);
     for (const value of scripts) expect(value).toBe(nonce);
+    // Every inline <style> element carries the nonce (style-src-elem has no unsafe-inline).
+    const styles = await page
+      .locator('style')
+      .evaluateAll((els) => els.map((el) => (el as HTMLStyleElement).nonce));
+    for (const value of styles) expect(value).toBe(nonce);
 
     // A second request gets a different nonce.
     expect(nonceOf(await page.request.get('/es/sign-in'))).not.toBe(nonce);
@@ -83,6 +90,15 @@ test.describe('anonymous documents', () => {
     const response = await page.goto('http://demo-b.localhost:3000/es/sign-in');
     expect(response?.status()).toBe(200);
     await expect(page.locator('html')).toHaveAttribute('data-tenant', 'demo-b');
+    // The nonced tenant <style> was applied (not blocked): the primary token is overridden.
+    const nonce = nonceOf(response);
+    await expect(page.locator(`style[nonce]`).first()).toHaveCount(1);
+    expect(
+      await page
+        .locator('style')
+        .first()
+        .evaluate((el) => (el as HTMLStyleElement).nonce),
+    ).toBe(nonce);
     expect(violations).toEqual([]);
   });
 

@@ -97,6 +97,11 @@
       "linkInvalid": "El enlace no es válido o ya venció. Solicita uno nuevo.",
       "backToSignIn": "Volver a iniciar sesión"
     },
+    "confirmLink": {
+      "title": "Confirma que quieres cambiar tu contraseña",
+      "description": "Para proteger tu cuenta, el enlace solo se usa cuando tú lo confirmas. Pulsa el botón para continuar; si no pediste este cambio, puedes cerrar esta página.",
+      "submit": "Continuar"
+    },
     "resetPassword": {
       "title": "Elige una nueva contraseña",
       "description": "Al guardarla, cerraremos tus otras sesiones abiertas.",
@@ -305,6 +310,8 @@
       "none": "Todavía no has subido un logo.",
       "file": "Archivo del logo",
       "hint": "PNG, JPEG o WebP, hasta 512 KB y entre 16 y 2048 píxeles por lado. No se admite SVG.",
+      "choose": "Elegir archivo",
+      "noFile": "Ningún archivo seleccionado",
       "chooseFirst": "Elige primero un archivo.",
       "upload": "Subir logo",
       "remove": "Quitar logo",

@@ -11,7 +11,7 @@ import { DEFAULT_BRAND } from '@/styles/default-brand';
  * branding object (ADR-010, DESIGN_SYSTEM §7). The default brand matches tokens.css, so nothing is
  * emitted for it. Invalid branding is rejected (no output) rather than rendered.
  *
- * TODO(branding): feed with `organization_branding` of the resolved tenant; pass the CSP nonce.
+ * The CSP nonce (x-nonce, set by src/proxy.ts) is passed by the root layout; style-src-elem needs it.
  */
 export function ThemeVariables({
   brand = DEFAULT_BRAND,

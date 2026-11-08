@@ -139,3 +139,11 @@ export type CreateInvitationInput = z.input<typeof createInvitationSchema>;
 
 /** Staff invitation lifetime (SECURITY.md §3.8): product constant, configurable. */
 export const STAFF_INVITATION_TTL_HOURS = 72;
+
+/** Recovery-link interstitial form (P1-12): the token is only consumed by this POST. */
+export const confirmRecoveryLinkSchema = z
+  .object({
+    token_hash: z.string().regex(/^[A-Za-z0-9_-]{16,128}$/),
+    type: z.literal('recovery'),
+  })
+  .strict();

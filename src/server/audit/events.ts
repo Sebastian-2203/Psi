@@ -65,7 +65,14 @@ export const AUDIT_EVENTS = {
     'auth',
     'system',
     true,
-    z.object({ via: z.enum(['recovery_code', 'support']) }).strict(),
+    z
+      .object({
+        via: z.enum(['recovery_code', 'support']),
+        outcome: z.enum(['started', 'ok', 'partial', 'failed']).optional(),
+        attempt: z.number().int().min(1).optional(),
+        factors_removed: z.number().int().min(0).optional(),
+      })
+      .strict(),
   ),
   'auth.password_reset': event('auth', 'both', true, empty),
   'auth.rate_limited': event(

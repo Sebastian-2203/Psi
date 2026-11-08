@@ -19,7 +19,6 @@ describe('restricted DB import boundaries (eslint.config.mjs)', () => {
     const groups = await restrictedGroups('src/server/auth/some-new-file.ts');
     expect(groups).toContain('@/server/db/service-role');
     expect(groups).toContain('@/server/db/system');
-    expect(groups).toContain('@/server/db/admin');
     const moduleFile = await restrictedGroups('src/modules/platform/server/actions.ts');
     expect(moduleFile).toContain('@/server/db/service-role');
   }, 30_000);

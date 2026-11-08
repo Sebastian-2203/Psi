@@ -172,30 +172,34 @@ export function ProfessionalShell({
     <ContextScope context="professional" className="flex">
       <SkipLink />
       <TooltipProvider delayDuration={200}>
+        {/* The aside stretches the full page height (background + border); the inner panel is
+            sticky at viewport height and scrolls on its own when the content is taller. */}
         <aside
           className={cn(
-            'sticky top-0 hidden h-dvh shrink-0 flex-col gap-4 border-r bg-sidebar p-3 transition-[width] duration-(--duration-base) ease-(--ease-standard) lg:flex',
+            'hidden shrink-0 self-stretch border-r bg-sidebar transition-[width] duration-(--duration-base) ease-(--ease-standard) lg:block',
             collapsed ? 'w-[72px]' : 'w-[264px]',
           )}
         >
-          <div className={cn('flex min-h-12 items-center px-2', collapsed && 'sr-only')}>
-            <PracticeName display={false} />
-          </div>
-          <nav aria-label={t('navLabel')} className="flex-1">
-            <NavList collapsed={collapsed} />
-          </nav>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="justify-start"
-            onClick={() => setCollapsed((v) => !v)}
-            aria-expanded={!collapsed}
-          >
-            {collapsed ? <ChevronsRight aria-hidden /> : <ChevronsLeft aria-hidden />}
-            <span className="sr-only">{collapsed ? t('expand') : t('collapse')}</span>
-          </Button>
-          <div className={cn('px-2', collapsed && 'sr-only')}>
-            <PoweredBy />
+          <div className="sticky top-0 flex h-dvh flex-col gap-4 overflow-y-auto p-3">
+            <div className={cn('flex min-h-12 items-center px-2', collapsed && 'sr-only')}>
+              <PracticeName display={false} />
+            </div>
+            <nav aria-label={t('navLabel')} className="flex-1">
+              <NavList collapsed={collapsed} />
+            </nav>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="justify-start"
+              onClick={() => setCollapsed((v) => !v)}
+              aria-expanded={!collapsed}
+            >
+              {collapsed ? <ChevronsRight aria-hidden /> : <ChevronsLeft aria-hidden />}
+              <span className="sr-only">{collapsed ? t('expand') : t('collapse')}</span>
+            </Button>
+            <div className={cn('px-2', collapsed && 'sr-only')}>
+              <PoweredBy />
+            </div>
           </div>
         </aside>
       </TooltipProvider>

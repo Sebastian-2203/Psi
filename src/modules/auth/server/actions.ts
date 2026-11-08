@@ -9,6 +9,7 @@ import type { Locale } from '@/i18n/routing';
 import { ACTIVITY_COOKIE } from '@/lib/session-policy';
 import {
   acceptInvitationSchema,
+  confirmRecoveryLinkSchema,
   createInvitationSchema,
   previewInvitationSchema,
   recoveryCodeSchema,
@@ -43,6 +44,7 @@ import {
 } from '@/server/auth/mfa';
 import {
   completePasswordReset,
+  confirmRecoveryToken,
   recoveryRedirectUrl,
   requestPasswordReset,
 } from '@/server/auth/password';
@@ -167,6 +169,28 @@ export async function resetPasswordAction(input: ResetPasswordInput): Promise<Re
     return internal(error, meta.requestId);
   }
   return redirect({ href: '/dashboard', locale: await currentLocale() });
+}
+
+/**
+ * Consumes the emailed recovery token (P1-12). Only reachable by an explicit button press on the
+ * interstitial page (POST), never by a GET, so link scanners that prefetch the URL cannot burn the
+ * single-use token. Any failure goes to the generic "link invalid" screen.
+ */
+export async function confirmRecoveryLinkAction(formData: FormData): Promise<void> {
+  const locale = await currentLocale();
+  const parsed = confirmRecoveryLinkSchema.safeParse({
+    token_hash: formData.get('token_hash'),
+    type: formData.get('type'),
+  });
+  let ok = false;
+  if (parsed.success) {
+    try {
+      ok = await confirmRecoveryToken(await createRequestAuthClient(), parsed.data.token_hash);
+    } catch {
+      ok = false;
+    }
+  }
+  redirect({ href: ok ? '/reset-password' : '/forgot-password?error=link', locale });
 }
 
 // ---------------------------------------------------------------------------
