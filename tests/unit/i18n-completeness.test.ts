@@ -78,9 +78,11 @@ describe('translation keys referenced in source exist', () => {
     let checked = 0;
     for (const file of walk('src')) {
       const src = readFileSync(file, 'utf8');
-      const calls = [...src.matchAll(/(?:useTranslations|getTranslations)\(\s*(?:\{[^}]*namespace:\s*)?(?:'([\w.]+)')?/g)].map(
-        (m) => m[1] ?? '',
-      );
+      const calls = [
+        ...src.matchAll(
+          /(?:useTranslations|getTranslations)\(\s*(?:\{[^}]*namespace:\s*)?(?:'([\w.]+)')?/g,
+        ),
+      ].map((m) => m[1] ?? '');
       const namespaces = calls.filter((n) => n !== '');
       if (calls.length !== namespaces.length) continue; // root-scoped call present: ambiguous
       if (new Set(namespaces).size !== 1) continue; // ambiguous: skip rather than guess
