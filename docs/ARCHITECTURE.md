@@ -288,8 +288,10 @@ under Option B via `rpc()`. Each writes its domain rows and its audit row in one
 
 ### 6.4 Restricted service role
 
-`src/server/db/system.ts` (app_server) and `src/server/db/service-role.ts` (service-role key,
-Auth admin API only) expose narrow functions, not a raw client:
+`src/server/db/system.ts` (app_server) and `src/server/db/service-role.ts` (service-role key:
+Auth admin API and `branding` bucket writes) expose narrow functions, not a raw client. Only
+`service-role.ts` may read `SUPABASE_SERVICE_ROLE_KEY`, and neither module may be reached through
+dynamic `import()`/`require()` (lint, P1-20):
 
 | Allowed use | Why it needs elevated rights |
 |---|---|
@@ -297,6 +299,7 @@ Auth admin API only) expose narrow functions, not a raw client:
 | Auth admin operations (create user for invitation, revoke sessions, MFA factor reset after recovery-code use, ADR-021) | Supabase Auth admin API |
 | Platform org provisioning | Creates first org + owner membership |
 | Scheduled jobs (expire invitations/grants, majority transition, export cleanup, rate-limit purge) | No user context |
+| Branding logo upload/removal (`src/modules/branding/server/service.ts`) **after** the RLS-bound owner + aal2 UPDATE of `organization_branding` in the user's transaction; sanitised bytes only (P1-16/P1-18) | `authenticated` has no write policy on the `branding` bucket |
 | Signed URL creation **after** `app.can_read_file()` returned true in the user's RLS-bound transaction | Storage RLS denies direct reads to `authenticated` (§12) |
 | Writing audit rows for **failed/denied** access attempts (`app.write_system_audit`) | User may lack rights for that org |
 
@@ -512,7 +515,7 @@ ADR-011.
 | `clinical-documents` | Clinical documents, signed consent scans, exports | Private; care team only |
 | `activity-media` | Images/audio/video used in activity blocks | Private; org members + assigned patients/guardians |
 | `resources` | Resource library files | Private; org members + patients with a share |
-| `branding` | Logos, favicons (PNG/JPEG/WebP, no SVG; 512 KiB) | Public-read, no listing (Q-09); write by org owner via server action. Path `<organization_id>/logo-<hash>.<ext>` (not the `org/…` convention: no `file_objects` row, public by design); INSERT-only storage policy, objects immutable |
+| `branding` | Logos, favicons (PNG/JPEG/WebP, no SVG; 512 KiB) | Public-read, no listing (Q-09); write by org owner via server action. Path `<organization_id>/logo-<hash>.<ext>` (not the `org/…` convention: no `file_objects` row, public by design); **no storage policy for any user role** (migration `20261108160000`, P1-16): the server writes sanitised bytes with the service role after the owner check; superseded objects are deleted on publish and all objects on "remove logo" (P1-18) |
 | `exports` | Generated record exports / DSR packages | Private; requester only; auto-expire |
 
 **Path convention** (enforced by storage RLS on `storage.objects` using path segments):

@@ -77,7 +77,7 @@ Not added (already covered): invitation expiry (`auth-flows.test.ts` "expired to
 | RBAC-04 platform_admin sees no clinical data | Must | Partial | e2e "no professional access by role alone", pgTAP 05_platform_admin; clinical data does not exist yet |
 | RBAC-05/06/07 | Must/Should | RBAC-06 partial (owner capacities in matrix); 05 and 07 later | |
 | I18N-01 es+en UI | Must | Verified for existing UI | i18n:check, new completeness test, e2e locale switch |
-| I18N-02 user/org language | Must | Partial (D-2) | |
+| I18N-02 user/org language | Must | User preference: verified (`locale-preference.test.ts`); org default: Phase 2 | |
 | I18N-03 authored content per language | Must | Out of Phase 1 | |
 | I18N-04 locale/timezone formatting | Must | Partial (D-4) | formatters module exists |
 | AUD-01 read/write audit of sensitive data | Must | Partial | writer and auth/branding events (audit.test.ts, pgTAP 06); no clinical data yet |
@@ -103,3 +103,16 @@ Not added (already covered): invitation expiry (`auth-flows.test.ts` "expired to
 3. Re-run e2e a third time in CI (retries on) and add axe accessibility checks (ARCHITECTURE 14 lists them; none exist yet).
 4. CI already has an `e2e` job (ci.yml line 83); not executed by QA. Confirm it passes once D-1-style env gaps are checked there too.
 5. No escalation needed for the suites above; D-1 is a trivial config fix.
+
+## Resolution (orchestrator, 2026-11-08)
+
+- **D-1 fixed:** the CI `app` job now provides placeholder `SUPABASE_SERVICE_ROLE_KEY`, `DATABASE_URL`,
+  `APP_BASE_DOMAIN` and `TRUSTED_PROXY`. Verified: a fresh clone builds with exactly that environment
+  (`env -i … pnpm build` succeeds). Exit gate item "CI green from a clean clone": **met locally**; the
+  first real GitHub Actions run is still to be observed.
+- **D-2 fixed:** the user's language is stored on `profiles.locale` when they use the switcher
+  (signed in) and applied after the second factor. Integration test
+  `tests/integration/locale-preference.test.ts` (2 tests). The organization default locale for
+  users without a preference and per-org time zone (D-4) move to Phase 2 with patient onboarding.
+- Final full run after all fixes: format/i18n OK (282 keys), pgTAP PASS, Vitest 481/481, build OK,
+  Playwright 34/34.

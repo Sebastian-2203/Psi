@@ -27,6 +27,9 @@ export default defineConfig({
       PORTAL_MODE_PREVIEW: '1',
       // Lets the production build deliver app emails to the LOCAL Mailpit (loopback only).
       E2E_LOCAL_MAIL: '1',
+      // P1-21: production builds off Vercel must name the proxy mode. Local `next start` has no
+      // proxy in front; `xff` with Next's own X-Forwarded-For (acceptable for local E2E only).
+      TRUSTED_PROXY: process.env.TRUSTED_PROXY ?? 'xff',
     },
   },
 });

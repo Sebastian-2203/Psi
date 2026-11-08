@@ -199,8 +199,23 @@ test.describe('branding settings (owner, aal2)', () => {
     // Remove it again (restores the seeded state).
     await page.goto(`${A}/es/settings/branding`);
     await hydrated(page);
+    const logoSrc = await page
+      .getByTestId('logo-current')
+      .getByRole('img')
+      .first()
+      .getAttribute('src');
     await page.getByRole('button', { name: 'Quitar logo' }).click();
+    // P1-18: confirmation dialog; cancelling keeps the logo.
+    const dialog = page.getByRole('dialog', { name: '¿Quitar tu logo?' });
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole('button', { name: 'Cancelar' }).click();
+    await expect(dialog).toBeHidden();
+    await page.getByRole('button', { name: 'Quitar logo' }).click();
+    await page.getByRole('button', { name: 'Sí, quitar logo' }).click();
     await expect(page.getByText('Quitamos tu logo.')).toBeVisible();
+    // The object itself is gone from the public bucket.
+    expect(logoSrc).toBeTruthy();
+    expect((await page.request.get(logoSrc as string)).status()).not.toBe(200);
     await page.close();
   });
 

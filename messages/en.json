@@ -316,7 +316,10 @@
       "upload": "Upload logo",
       "remove": "Remove logo",
       "uploaded": "We uploaded your logo.",
-      "removed": "We removed your logo."
+      "removed": "We removed your logo.",
+      "removeConfirmTitle": "Remove your logo?",
+      "removeConfirmBody": "Your logo will no longer show in your workspace or portal, and we will delete the stored image. You can upload a new one at any time.",
+      "removeConfirm": "Yes, remove logo"
     },
     "preview": {
       "title": "Preview",
@@ -340,7 +343,8 @@
       "logoUnsupported": "Only PNG, JPEG or WebP images are supported (not SVG).",
       "logoCorrupt": "We could not read that image. Try another file.",
       "logoDimensions": "The logo must be between 16 and 2048 pixels per side.",
-      "logoMissing": "Choose a file to upload."
+      "logoMissing": "Choose a file to upload.",
+      "logoRateLimited": "You uploaded many logos in a short time. Wait an hour and try again."
     }
   }
 }

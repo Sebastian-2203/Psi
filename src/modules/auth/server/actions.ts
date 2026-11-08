@@ -28,6 +28,7 @@ import {
   type VerifyMfaInput,
 } from '@/modules/auth/schemas';
 import { getVerifiedClaims } from '@/server/auth/claims';
+import { getPreferredLocale } from '@/modules/profiles/server/locale';
 import {
   acceptStaffInvitation,
   createStaffInvitation,
@@ -237,6 +238,7 @@ export async function verifyMfaAction(input: VerifyMfaInput): Promise<Result<nev
   const meta = await getRequestMeta();
   const parsed = verifyMfaSchema.safeParse(input);
   if (!parsed.success) return validationFailure(parsed.error, meta.requestId);
+  let preferred: Locale | null = null;
   try {
     const claims = await getVerifiedClaims();
     if (!claims) return fail('UNAUTHENTICATED', meta.requestId);
@@ -247,10 +249,15 @@ export async function verifyMfaAction(input: VerifyMfaInput): Promise<Result<nev
       meta,
     );
     if (!outcome.ok) return toResult(outcome, meta.requestId);
+    preferred = await getPreferredLocale(claims);
   } catch (error) {
     return internal(error, meta.requestId);
   }
-  return redirect({ href: parsed.data.next ?? '/dashboard', locale: await currentLocale() });
+  // I18N-02: after the second factor, continue in the user's stored language.
+  return redirect({
+    href: parsed.data.next ?? '/dashboard',
+    locale: preferred ?? (await currentLocale()),
+  });
 }
 
 export async function generateRecoveryCodesAction(): Promise<Result<{ codes: string[] }>> {

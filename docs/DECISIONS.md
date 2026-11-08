@@ -124,8 +124,9 @@ surface is actually closed: any user JWT + the public key reaches PostgREST and 
 4. Application-level `requirePermission()` runs before every query/mutation (first line).
 5. Views are `security_invoker`; restricted projections are explicit `SECURITY DEFINER`
    functions (F-05). Tenant/clinical data is never put in a shared Next.js cache (F-17).
-6. The service-role key is wrapped in narrow functions in `src/server/db/admin.ts`,
-   importable only from an allowlist (lint rule), each audited.
+6. The service-role key is wrapped in narrow functions in `src/server/db/service-role.ts`
+   (app_server system functions: `src/server/db/system.ts`; the former `db/admin.ts` was split,
+   SECURITY.md §14 P1-04), importable only from a per-file allowlist (lint rule), each audited.
 
 **Consequences.**
 - (+) Two independent controls must both fail for a leak.

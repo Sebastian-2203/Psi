@@ -7,7 +7,8 @@ import { adminSql, detectLocalStack, signIn, skipMessage } from '../fixtures/loc
 
 /**
  * Workstream 1.7 — organization branding against the REAL local stack: use cases with real
- * AuthzContexts, RLS, audit rows, and the Storage API with real persona JWTs (storage policy).
+ * AuthzContexts, RLS, audit rows, and the Storage API with real persona JWTs (no user write
+ * path into the bucket: P1-16; takedown + superseded cleanup + upload limit: P1-18).
  */
 const stack = await detectLocalStack();
 skipMessage('branding', stack);
@@ -89,6 +90,7 @@ describe.skipIf(!stack.available)('organization branding (workstream 1.7)', () =
     const [row] =
       await admin`select * from public.organization_branding where organization_id = ${ORGS.A.id}`;
     original = { ...row };
+    await admin`truncate public.rate_limit_counters`;
   });
 
   afterAll(async () => {
@@ -208,10 +210,10 @@ describe.skipIf(!stack.available)('organization branding (workstream 1.7)', () =
   });
 
   it('logo upload: sanitised bytes land in the public bucket, readable without auth, audited', async () => {
-    const { outcome, token } = await contextFor(PERSONAS.ownerA);
+    const { outcome } = await contextFor(PERSONAS.ownerA);
     if (!outcome.ok) throw new Error('no context');
     const source = png(11, 'GPS-SECRET');
-    const saved = await service.saveLogo(outcome.data, token, source);
+    const saved = await service.saveLogo(outcome.data, source);
     expect(saved.ok).toBe(true);
     if (!saved.ok) return;
     expect(saved.data.logoUrl).toMatch(
@@ -229,12 +231,61 @@ describe.skipIf(!stack.available)('organization branding (workstream 1.7)', () =
       order by occurred_at desc limit 1`;
     expect(audit?.metadata).toMatchObject({ media_type: 'image/png' });
     // Uploading the same bytes again is idempotent (content-addressed name).
-    expect((await service.saveLogo(outcome.data, token, source)).ok).toBe(true);
+    expect((await service.saveLogo(outcome.data, source)).ok).toBe(true);
     // The pre-auth path (what layouts use) returns it.
     queries.invalidateTenantBranding(ORGS.A.id);
     const tenancy = await import('@/server/tenancy');
     const pub = await tenancy.getPublicBranding(ORGS.A.id);
     expect(queries.toTenantBrand(pub as never).logoUrl).toBe(saved.data.logoUrl);
+    // P1-18: publishing a new logo deletes the superseded object from the public bucket.
+    const next = await service.saveLogo(outcome.data, png(13));
+    expect(next.ok).toBe(true);
+    expect((await fetch(saved.data.logoUrl as string)).status).not.toBe(200);
+    const folder = await admin<{ name: string }[]>`
+      select name from storage.objects where bucket_id = 'branding' and name like ${`${ORGS.A.id}/%`}`;
+    expect(folder.map((r) => r.name)).toEqual([
+      (next.ok ? next.data.logoUrl : '')?.split('/branding/')[1],
+    ]);
+  });
+
+  it('P1-16: a pre-existing object under the content-addressed name is overwritten, never trusted', async () => {
+    const { outcome } = await contextFor(PERSONAS.ownerA);
+    if (!outcome.ok) throw new Error('no context');
+    const source = png(14);
+    const path = logo.logoObjectPath(ORGS.A.id, logo.sanitizeLogo(source));
+    // Simulates an object planted before migration 20261108160000 (HTML labelled as PNG).
+    const plant = await fetch(`${supabaseUrl}/storage/v1/object/branding/${path}`, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY as string}`,
+        apikey: process.env.SUPABASE_SERVICE_ROLE_KEY as string,
+        'content-type': 'image/png',
+      },
+      body: '<html><script>alert(1)</script></html>',
+    });
+    expect(plant.status).toBe(200);
+    const saved = await service.saveLogo(outcome.data, source);
+    expect(saved.ok).toBe(true);
+    const body = Buffer.from(
+      await (await fetch(saved.ok ? (saved.data.logoUrl as string) : '')).arrayBuffer(),
+    );
+    expect(body.toString('latin1')).not.toContain('<script>');
+    expect(body.equals(logo.sanitizeLogo(source).bytes)).toBe(true);
+  });
+
+  it('P1-18: uploads are rate limited per owner (fail closed, before touching storage)', async () => {
+    const { outcome, claims } = await contextFor(PERSONAS.ownerA);
+    if (!outcome.ok) throw new Error('no context');
+    const { limit, windowSeconds } = service.LOGO_UPLOAD_LIMIT;
+    await admin`
+      insert into public.rate_limit_counters (bucket_key, window_start, count)
+      values (extensions.digest(${`branding.logo_upload:${claims.sub}`}, 'sha256'),
+              app.rate_limit_window_start(make_interval(secs => ${windowSeconds})), ${limit})
+      on conflict (bucket_key, window_start) do update set count = excluded.count`;
+    const limited = await service.saveLogo(outcome.data, png(15));
+    expect(limited.ok).toBe(false);
+    if (!limited.ok) expect(limited.error.code).toBe('RATE_LIMITED');
+    await admin`truncate public.rate_limit_counters`;
   });
 
   it('logo upload rejects SVG, spoofed files and a psychologist before touching storage', async () => {
@@ -242,19 +293,18 @@ describe.skipIf(!stack.available)('organization branding (workstream 1.7)', () =
     if (!owner.outcome.ok) throw new Error('no context');
     const svg = await service.saveLogo(
       owner.outcome.data,
-      owner.token,
       Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"/>'),
     );
     expect(svg.ok).toBe(false);
     if (!svg.ok) expect(svg.error.code).toBe('UNSUPPORTED_MEDIA');
     const psy = await contextFor(PERSONAS.psyA);
     if (!psy.outcome.ok) throw new Error('no context');
-    const denied = await service.saveLogo(psy.outcome.data, psy.token, png(12));
+    const denied = await service.saveLogo(psy.outcome.data, png(12));
     expect(denied.ok).toBe(false);
     if (!denied.ok) expect(denied.error.code).toBe('FORBIDDEN');
   });
 
-  describe('storage policy (Storage API with real persona JWTs)', () => {
+  describe('storage: no user write path (Storage API with real persona JWTs, P1-16)', () => {
     async function put(token: string, path: string, contentType: string, body: Uint8Array) {
       const res = await fetch(`${supabaseUrl}/storage/v1/object/branding/${path}`, {
         method: 'POST',
@@ -274,10 +324,11 @@ describe.skipIf(!stack.available)('organization branding (workstream 1.7)', () =
     const name = (org: string, n: number) => `${org}/logo-${n.toString(16).padStart(32, '0')}.png`;
     const bytes = () => new Uint8Array(png(21));
 
-    it('owner of the path org: allowed; same for aal2 only', async () => {
+    it('denied even for the aal2 owner of the path org (writes are server-only)', async () => {
       const token = await signIn(PERSONAS.ownerA, 'aal2');
       const res = await put(token, name(ORGS.A.id, Date.now() % 1e9), 'image/png', bytes());
-      expect(res.status).toBe(200);
+      expect(res.status).toBeGreaterThanOrEqual(400);
+      expect(res.json.statusCode).toBe('403');
     });
 
     it('denied: psychologist, owner of another org, aal1 owner, anon', async () => {
@@ -358,6 +409,33 @@ describe.skipIf(!stack.available)('organization branding (workstream 1.7)', () =
         del.status === 200 ? ((await del.json()) as { message?: string }).message : '',
       ).not.toBe('Successfully deleted');
     });
+  });
+
+  it('P1-18: removing the logo clears logo_path, deletes the objects and is audited', async () => {
+    const { outcome } = await contextFor(PERSONAS.ownerA);
+    if (!outcome.ok) throw new Error('no context');
+    const saved = await service.saveLogo(outcome.data, png(16));
+    if (!saved.ok) throw new Error('upload failed');
+    const psy = await contextFor(PERSONAS.psyA);
+    if (!psy.outcome.ok) throw new Error('no context');
+    const denied = await service.clearLogo(psy.outcome.data);
+    expect(denied.ok).toBe(false);
+    expect((await fetch(saved.data.logoUrl as string)).status).toBe(200);
+
+    const removed = await service.clearLogo(outcome.data);
+    expect(removed.ok).toBe(true);
+    expect((await fetch(saved.data.logoUrl as string)).status).not.toBe(200);
+    const [row] = await admin<{ logo_path: string | null }[]>`
+      select logo_path from public.organization_branding where organization_id = ${ORGS.A.id}`;
+    expect(row?.logo_path).toBeNull();
+    const left = await admin`
+      select 1 from storage.objects where bucket_id = 'branding' and name like ${`${ORGS.A.id}/%`}`;
+    expect(left).toHaveLength(0);
+    const [audit] = await admin<{ metadata: Record<string, unknown> }[]>`
+      select metadata from public.audit_logs
+      where event_type = 'organization_branding.logo_removed' and organization_id = ${ORGS.A.id}
+      order by occurred_at desc limit 1`;
+    expect(audit?.metadata).toEqual({ had_logo: true });
   });
 
   it('the theming pipeline resolves each organization from its own row (A != B)', async () => {

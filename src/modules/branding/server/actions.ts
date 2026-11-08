@@ -3,11 +3,9 @@
 import { revalidatePath } from 'next/cache';
 import { updateBrandingSchema, type UpdateBrandingInput } from '@/modules/branding/schemas';
 import { getRequestMeta } from '@/server/auth/request-meta';
-import { createRequestAuthClient } from '@/server/auth/supabase';
 import { getAuthzContext, type AuthzContext } from '@/server/authz';
 import {
   fail,
-  failure,
   toAppError,
   toErrorPayload,
   toResult,
@@ -68,15 +66,10 @@ export async function uploadLogoAction(formData: FormData): Promise<Result<Saved
       messageKey: 'branding.errors.logoTooLarge',
     });
   }
-  return run(async (ctx) => {
-    const client = await createRequestAuthClient();
-    const { data } = await client.auth.getSession();
-    const accessToken = data.session?.access_token;
-    if (!accessToken) return failure('UNAUTHENTICATED');
-    return saveLogo(ctx, accessToken, new Uint8Array(await file.arrayBuffer()));
-  });
+  return run(async (ctx) => saveLogo(ctx, new Uint8Array(await file.arrayBuffer())));
 }
 
+/** P1-18: clears the logo and deletes its objects from the public bucket (audited). */
 export async function removeLogoAction(): Promise<Result<Saved>> {
   return run((ctx) => clearLogo(ctx));
 }

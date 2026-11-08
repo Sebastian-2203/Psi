@@ -6,6 +6,16 @@ import { PracticeName } from '@/components/shared/practice-name';
 import { Alert } from '@/components/ui/alert';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { LOGO_ACCEPT } from '@/modules/branding/schemas';
@@ -30,6 +40,8 @@ export function LogoPanel({
   onChanged: (next: SavedBranding) => void;
 }) {
   const t = useTranslations('branding.logo');
+  const tCommon = useTranslations('common');
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const message = useMessage();
   const input = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState<'upload' | 'remove' | null>(null);
@@ -137,15 +149,42 @@ export function LogoPanel({
           {t('upload')}
         </Button>
         {logoUrl ? (
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => void run('remove', removeAction)}
-            loading={busy === 'remove'}
-            disabled={busy !== null}
-          >
-            {t('remove')}
-          </Button>
+          // P1-18: removal deletes the stored image, so it is confirmed first.
+          <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+            <DialogTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                loading={busy === 'remove'}
+                disabled={busy !== null}
+              >
+                {t('remove')}
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>{t('removeConfirmTitle')}</DialogTitle>
+                <DialogDescription>{t('removeConfirmBody')}</DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <DialogClose asChild>
+                  <Button type="button" variant="outline">
+                    {tCommon('cancel')}
+                  </Button>
+                </DialogClose>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  onClick={() => {
+                    setConfirmOpen(false);
+                    void run('remove', removeAction);
+                  }}
+                >
+                  {t('removeConfirm')}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         ) : null}
       </div>
     </Card>

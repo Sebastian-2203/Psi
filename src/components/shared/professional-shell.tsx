@@ -158,10 +158,12 @@ function UserMenu({ signOutAction }: { signOutAction?: () => Promise<void> }) {
 export function ProfessionalShell({
   children,
   signOutAction,
+  rememberLocaleAction,
 }: {
   children: ReactNode;
   /** Server action (auth module) passed from the layout; components never import server code. */
   signOutAction?: () => Promise<void>;
+  rememberLocaleAction?: (input: { locale: 'es' | 'en' }) => Promise<void>;
 }) {
   const t = useTranslations('shell.professional');
   const tc = useTranslations('common');
@@ -225,7 +227,7 @@ export function ProfessionalShell({
           </Sheet>
           <PracticeName className="truncate lg:sr-only" />
           <div className="ml-auto flex items-center gap-1">
-            <LocaleSwitcher />
+            <LocaleSwitcher onSelectLocale={rememberLocaleAction} />
             <UserMenu signOutAction={signOutAction} />
           </div>
         </header>

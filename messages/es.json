@@ -316,7 +316,10 @@
       "upload": "Subir logo",
       "remove": "Quitar logo",
       "uploaded": "Subimos tu logo.",
-      "removed": "Quitamos tu logo."
+      "removed": "Quitamos tu logo.",
+      "removeConfirmTitle": "¿Quitar tu logo?",
+      "removeConfirmBody": "Tu logo dejará de verse en tu panel y en el portal, y borraremos la imagen guardada. Puedes subir uno nuevo cuando quieras.",
+      "removeConfirm": "Sí, quitar logo"
     },
     "preview": {
       "title": "Vista previa",
@@ -340,7 +343,8 @@
       "logoUnsupported": "Solo se admiten imágenes PNG, JPEG o WebP (no SVG).",
       "logoCorrupt": "No pudimos leer esa imagen. Prueba con otro archivo.",
       "logoDimensions": "El logo debe medir entre 16 y 2048 píxeles por lado.",
-      "logoMissing": "Elige un archivo para subir."
+      "logoMissing": "Elige un archivo para subir.",
+      "logoRateLimited": "Subiste muchos logos en poco tiempo. Espera una hora e inténtalo de nuevo."
     }
   }
 }

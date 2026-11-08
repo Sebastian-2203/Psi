@@ -51,7 +51,9 @@ pnpm db:stop
 - `SESSION_ACTIVITY_SECRET` (>= 32 random chars, per environment) signs the idle-timeout cookie;
   the app refuses to start without it. Generate: `node -e "console.log(require('node:crypto').randomBytes(32).toString('base64url'))"`.
 - `TRUSTED_PROXY` / `TRUSTED_PROXY_HOPS` pick the client-IP source (default `vercel` on Vercel,
-  else rightmost X-Forwarded-For hop). **Verify per deployment** (SECURITY.md §14 P1-03).
+  else rightmost X-Forwarded-For hop in development/test). **Required** for `next start` in
+  production off Vercel: the server refuses to start without it (P1-21). **Verify per
+  deployment** (SECURITY.md §14 P1-03).
 - `DATABASE_URL` must use `app_server` (the pool refuses `postgres`/`service_role`). Its password
   is never in migrations; `pnpm db:app-password` sets it from `APP_DB_PASSWORD` (local hosts only).
 - Seeded personas (all fictional, `@example.test`, password `Psi-Local-Fictional-2026`, TOTP

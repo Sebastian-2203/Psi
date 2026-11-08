@@ -6,8 +6,18 @@ import { Link, usePathname } from '@/i18n/navigation';
 import { routing, type Locale } from '@/i18n/routing';
 import { cn } from '@/lib/utils';
 
-/** Two plain links (works without JS, keyboard friendly). Each link carries its own `lang`. */
-export function LocaleSwitcher({ className }: { className?: string }) {
+/**
+ * Two plain links (works without JS, keyboard friendly). Each link carries its own `lang`.
+ * With JS, the choice is also stored on the signed-in user's profile.
+ */
+export function LocaleSwitcher({
+  className,
+  onSelectLocale,
+}: {
+  className?: string;
+  /** Server action passed down by a server component; stores the choice for signed-in users. */
+  onSelectLocale?: (input: { locale: Locale }) => Promise<void>;
+}) {
   const t = useTranslations('locale');
   const current = useLocale() as Locale;
   const pathname = usePathname();
@@ -26,6 +36,11 @@ export function LocaleSwitcher({ className }: { className?: string }) {
                 lang={locale}
                 hrefLang={locale}
                 aria-current={active ? 'true' : undefined}
+                onClick={() => {
+                  // Persist for signed-in users (I18N-02); a no-op when signed out.
+                  if (!active && onSelectLocale)
+                    void onSelectLocale({ locale }).catch(() => undefined);
+                }}
                 aria-label={active ? undefined : t('switchTo', { language: t(locale) })}
                 className={cn(
                   'inline-flex min-h-(--target-min) min-w-(--target-min) items-center justify-center rounded-md px-2 text-sm uppercase',

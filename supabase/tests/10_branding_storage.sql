@@ -2,7 +2,7 @@
 begin;
 \ir _helpers.psql
 
-select plan(20);
+select plan(22);
 
 -- Bucket configuration -----------------------------------------------------------------------
 select is((select public from storage.buckets where id = 'branding'), true, 'branding bucket is public-read');
@@ -28,34 +28,42 @@ select is(app.branding_object_org('c1000000-0000-4000-8000-000000000001/x/logo-0
 select is(app.branding_object_org('not-a-uuid/logo-0123456789abcdef0123456789abcdef.png')::text, null::text, 'non-uuid org rejected without a cast error');
 select is(app.branding_object_org('c1000000-0000-4000-8000-000000000001/logo-0123456789ABCDEF0123456789abcdef.png')::text, null::text, 'uppercase hash rejected');
 
--- Policy: INSERT only for the owner of the path's org, aal2 ------------------------------------
+-- No direct writes (P1-16): only the server (service role) writes branding objects ------------
+select is((select count(*) from pg_policies where schemaname = 'storage' and tablename = 'objects'
+           and policyname like 'branding%'), 0::bigint,
+  'no storage policy for branding objects at all (writes are server-only)');
+select ok(not has_function_privilege('authenticated', 'app.branding_object_org(text)', 'execute'),
+  'authenticated cannot call the (unused) path helper');
+select is((select count(*) from pg_policies where schemaname = 'storage' and tablename = 'objects'
+           and cmd in ('INSERT', 'ALL') and 'authenticated' = any(roles)
+           and (with_check ilike '%branding%' or qual ilike '%branding%')), 0::bigint,
+  'no INSERT/ALL policy for authenticated mentions the branding bucket');
+
 select tests.as_user('c0000000-0000-4000-8000-000000000001');
-select lives_ok(
+select throws_ok(
   $$ insert into storage.objects (bucket_id, name) values ('branding', 'c1000000-0000-4000-8000-000000000001/logo-0123456789abcdef0123456789abcdef.png') $$,
-  'owner X can add a logo for X');
+  '42501', null, 'owner X (aal2) cannot insert a logo object for X directly');
 select throws_ok(
   $$ insert into storage.objects (bucket_id, name) values ('branding', 'd1000000-0000-4000-8000-000000000001/logo-0123456789abcdef0123456789abcdef.png') $$,
-  '42501', null, 'owner X cannot add a logo for Y');
-select throws_ok(
-  $$ insert into storage.objects (bucket_id, name) values ('branding', 'c1000000-0000-4000-8000-000000000001/logo-0123456789abcdef0123456789abcdef.svg') $$,
-  '42501', null, 'owner X cannot add an svg');
-select throws_ok(
-  $$ insert into storage.objects (bucket_id, name) values ('other-bucket', 'c1000000-0000-4000-8000-000000000001/logo-0123456789abcdef0123456789abcdef.png') $$,
-  '42501', null, 'the policy does not open other buckets');
-select throws_ok(
-  $$ insert into storage.objects (bucket_id, name) values ('branding', 'c1000000-0000-4000-8000-0000000000aa/logo-0123456789abcdef0123456789abcdef.png') $$,
-  '42501', null, 'owner of a read_only org cannot add a logo (org must be active)');
+  '42501', null, 'owner X cannot insert a logo object for Y');
+select is(tests.affected($$ update storage.objects set name = name where bucket_id = 'branding' $$), 0,
+  'owner X cannot update branding objects');
 select is((select count(*) from storage.objects where bucket_id = 'branding'), 0::bigint, 'owner cannot SELECT objects (no listing)');
 
 select tests.as_user('c0000000-0000-4000-8000-000000000003');
 select throws_ok(
   $$ insert into storage.objects (bucket_id, name) values ('branding', 'c1000000-0000-4000-8000-000000000001/logo-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.png') $$,
-  '42501', null, 'psychologist X cannot add a logo');
+  '42501', null, 'psychologist X cannot insert a logo object');
 
 select tests.as_user('c0000000-0000-4000-8000-000000000001', 'aal1');
 select throws_ok(
   $$ insert into storage.objects (bucket_id, name) values ('branding', 'c1000000-0000-4000-8000-000000000001/logo-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.png') $$,
-  '42501', null, 'owner at aal1 cannot add a logo');
+  '42501', null, 'owner at aal1 cannot insert a logo object');
+
+-- Audit event for takedown (P1-18).
+select tests.as_admin();
+select is((select writer from app.audit_event_types where event_type = 'organization_branding.logo_removed'),
+  'user', 'organization_branding.logo_removed is a user-written audit event');
 
 -- logo_path column ------------------------------------------------------------------------------
 select tests.as_user('c0000000-0000-4000-8000-000000000001');

@@ -161,6 +161,12 @@ export const AUDIT_EVENTS = {
       })
       .strict(),
   ),
+  'organization_branding.logo_removed': event(
+    'branding',
+    'user',
+    false,
+    z.object({ had_logo: z.boolean() }).strict(),
+  ),
   // membership
   'membership.created': event(
     'membership',

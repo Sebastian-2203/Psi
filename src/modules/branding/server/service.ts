@@ -3,8 +3,11 @@ import { encodeContrastIssue, evaluateBrandColors } from '@/modules/branding/lib
 import type { UpdateBrandingOutput } from '@/modules/branding/schemas';
 import { recordAudit } from '@/server/audit';
 import { requirePermission, type AuthzContext } from '@/server/authz';
-import { withUserTransaction } from '@/server/db/server';
-import { env } from '@/server/env';
+import { withUserTransaction, type UserTransaction } from '@/server/db/server';
+import {
+  serviceRoleDeleteBrandingObjects,
+  serviceRoleUploadBrandingLogo,
+} from '@/server/db/service-role';
 import { AppError, failure, ok, toAppError, type Outcome } from '@/server/errors';
 import { LogoError, logoObjectPath, sanitizeLogo, type SanitizedLogo } from './logo';
 import { logoPublicUrl } from './queries';
@@ -100,32 +103,46 @@ export async function saveBranding(
 }
 
 /**
- * Uploads the sanitised bytes with the CALLER'S OWN JWT; the storage INSERT policy
- * (branding_logos_insert_owner) decides: owner of the path's organization, aal2, org active.
+ * Upload rate limit (P1-18, ADR-020 counters via the user-context `app.consume_rate_limit`,
+ * keyed per acting profile). Product constant, not a legal value. Consumed in its own
+ * transaction so rejected/failed uploads still count; fails closed.
  */
-async function uploadToBucket(accessToken: string, path: string, logo: SanitizedLogo) {
-  const response = await fetch(
-    `${env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/branding/${path}`,
-    {
-      method: 'POST',
-      headers: {
-        authorization: `Bearer ${accessToken}`,
-        apikey: env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-        'content-type': logo.contentType,
-        'cache-control': 'max-age=31536000',
-        'x-upsert': 'false',
-      },
-      body: new Uint8Array(logo.bytes),
-      signal: AbortSignal.timeout(15_000),
-    },
-  );
-  if (response.ok) return;
-  const body = (await response.json().catch(() => ({}))) as { statusCode?: string | number };
-  const status = String(body.statusCode ?? response.status);
-  // Content-addressed name: an existing object with this name has these exact bytes.
-  if (status === '409') return;
-  if (status === '401' || status === '403') throw new AppError('FORBIDDEN');
-  throw new AppError('INTERNAL', { detail: `storage_upload_${status}` });
+export const LOGO_UPLOAD_LIMIT = { limit: 10, windowSeconds: 60 * 60 } as const;
+
+async function consumeLogoUploadLimit(ctx: AuthzContext): Promise<boolean> {
+  try {
+    const [row] = await withUserTransaction(
+      ctx.claims,
+      (tx) => tx<{ allowed: boolean }[]>`
+        select app.consume_rate_limit('branding.logo_upload', ${LOGO_UPLOAD_LIMIT.limit}::int,
+                                      make_interval(secs => ${LOGO_UPLOAD_LIMIT.windowSeconds})) as allowed
+      `,
+    );
+    return row?.allowed === true;
+  } catch {
+    return false;
+  }
+}
+
+/** Locks the branding row; RLS on the UPDATE re-checks owner + aal2 + active org in SQL. */
+async function lockAndSetLogoPath(
+  tx: UserTransaction,
+  organizationId: string,
+  path: string | null,
+) {
+  const [current] = await tx<{ logo_path: string | null }[]>`
+    select logo_path from public.organization_branding
+    where organization_id = ${organizationId}
+    for update
+  `;
+  if (!current) throw new AppError('FORBIDDEN');
+  const [updated] = await tx<{ updated_at: string }[]>`
+    update public.organization_branding set logo_path = ${path}
+    where organization_id = ${organizationId}
+    returning updated_at::text as updated_at
+  `;
+  if (!updated) throw new AppError('FORBIDDEN'); // RLS filtered the row: not owner/aal2/active
+  return { previousPath: current.logo_path, updatedAt: updated.updated_at };
 }
 
 const LOGO_ERROR = {
@@ -135,14 +152,19 @@ const LOGO_ERROR = {
   dimensions: ['VALIDATION_FAILED', 'branding.errors.logoDimensions'],
 } as const;
 
-export async function saveLogo(
-  ctx: AuthzContext,
-  accessToken: string,
-  bytes: Uint8Array,
-): Promise<Outcome<Saved>> {
+/**
+ * P1-16: users have NO write access to the bucket. Order inside ONE user transaction:
+ * lock row -> RLS-bound UPDATE (owner + aal2 + active org) -> audit -> service-role upload of the
+ * SANITISED bytes (upsert) -> best-effort delete of superseded objects -> commit. Any failure
+ * before commit rolls back logo_path and the audit row.
+ */
+export async function saveLogo(ctx: AuthzContext, bytes: Uint8Array): Promise<Outcome<Saved>> {
   const permitted = await requirePermission(ctx, 'org.branding.manage');
   if (!permitted.ok) return permitted;
   const organizationId = ctx.organizationId as string;
+  if (!(await consumeLogoUploadLimit(ctx))) {
+    return failure('RATE_LIMITED', { messageKey: 'branding.errors.logoRateLimited' });
+  }
 
   let logo: SanitizedLogo;
   try {
@@ -157,50 +179,50 @@ export async function saveLogo(
   const path = logoObjectPath(organizationId, logo);
 
   try {
-    await uploadToBucket(accessToken, path, logo);
     const row = await withUserTransaction(ctx.claims, async (tx) => {
-      const [updated] = await tx<{ updated_at: string }[]>`
-        update public.organization_branding set logo_path = ${path}
-        where organization_id = ${organizationId}
-        returning updated_at::text as updated_at
-      `;
-      if (!updated) throw new AppError('FORBIDDEN');
+      const locked = await lockAndSetLogoPath(tx, organizationId, path);
       await recordAudit(
         tx,
         'organization_branding.logo_uploaded',
         { media_type: logo.contentType, size_bytes: logo.bytes.length },
         auditTarget(ctx),
       );
-      return updated;
+      await serviceRoleUploadBrandingLogo(path, new Uint8Array(logo.bytes), logo.contentType);
+      // P1-18: superseded logos (and orphans of failed attempts) leave the public bucket. Under
+      // the row lock, so no concurrent upload for this org is in flight. Best effort: a failure
+      // leaves orphans that the next upload/removal deletes; the new logo is still published.
+      await serviceRoleDeleteBrandingObjects(organizationId, path).catch(() => 0);
+      return locked;
     });
-    return ok({ updatedAt: row.updated_at, logoUrl: logoPublicUrl(path) });
+    return ok({ updatedAt: row.updatedAt, logoUrl: logoPublicUrl(path) });
   } catch (error) {
     return { ok: false, error: toAppError(error) };
   }
 }
 
-/** Detaches the logo (objects are immutable; they stay in the bucket until the cleanup job). */
+/**
+ * P1-18 takedown: clears logo_path AND deletes every object in the organization's branding folder
+ * (service role, after the RLS-bound owner check, under the row lock). If the deletion fails the
+ * transaction rolls back, so the owner sees an error and can retry; never "removed" while the
+ * object is still public. Audited as `organization_branding.logo_removed`. Not rate limited.
+ */
 export async function clearLogo(ctx: AuthzContext): Promise<Outcome<Saved>> {
   const permitted = await requirePermission(ctx, 'org.branding.manage');
   if (!permitted.ok) return permitted;
   const organizationId = ctx.organizationId as string;
   try {
     const row = await withUserTransaction(ctx.claims, async (tx) => {
-      const [updated] = await tx<{ updated_at: string }[]>`
-        update public.organization_branding set logo_path = null
-        where organization_id = ${organizationId}
-        returning updated_at::text as updated_at
-      `;
-      if (!updated) throw new AppError('FORBIDDEN');
+      const locked = await lockAndSetLogoPath(tx, organizationId, null);
       await recordAudit(
         tx,
-        'organization_branding.updated',
-        { changed_fields: ['logo_path'] },
+        'organization_branding.logo_removed',
+        { had_logo: locked.previousPath !== null },
         auditTarget(ctx),
       );
-      return updated;
+      await serviceRoleDeleteBrandingObjects(organizationId, null);
+      return locked;
     });
-    return ok({ updatedAt: row.updated_at, logoUrl: null });
+    return ok({ updatedAt: row.updatedAt, logoUrl: null });
   } catch (error) {
     return { ok: false, error: toAppError(error) };
   }

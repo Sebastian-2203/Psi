@@ -1,5 +1,6 @@
 import { setRequestLocale } from 'next-intl/server';
 import type { ReactNode } from 'react';
+import { rememberLocaleAction } from '@/modules/profiles/server/actions';
 import { ProfessionalShell } from '@/components/shared/professional-shell';
 import { getRouteLocale } from '@/i18n/route-locale';
 import { AccessDenied } from '@/modules/auth';
@@ -24,5 +25,9 @@ export default async function ProfessionalLayout({
   setRequestLocale(locale);
   const access = await requireStaffAccess(locale);
   if (!access.ok) return <AccessDenied reason={access.reason} signOutAction={signOutAction} />;
-  return <ProfessionalShell signOutAction={signOutAction}>{children}</ProfessionalShell>;
+  return (
+    <ProfessionalShell signOutAction={signOutAction} rememberLocaleAction={rememberLocaleAction}>
+      {children}
+    </ProfessionalShell>
+  );
 }
