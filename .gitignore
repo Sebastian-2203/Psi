@@ -10,3 +10,7 @@ supabase/.temp/
 .DS_Store
 *.log
 .claude/settings.local.json
+playwright-report/
+test-results/
+*.tsbuildinfo
+next-env.d.ts
