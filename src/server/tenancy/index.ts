@@ -7,3 +7,9 @@ export {
   resolveOrganizationIdByHost,
   type PublicBranding,
 } from './host';
+export {
+  combineHostScopes,
+  getRequestHostScope,
+  resolveHostScope,
+  type HostScope,
+} from './request';

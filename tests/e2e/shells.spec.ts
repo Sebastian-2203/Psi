@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { STORAGE_OWNER_PSY_A } from './support/auth';
 
 test.describe('i18n', () => {
   test('es and en render with the right lang and copy', async ({ page }) => {
@@ -10,14 +11,6 @@ test.describe('i18n', () => {
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Welcome');
   });
 
-  test('locale switcher keeps the current page', async ({ page }) => {
-    await page.goto('/es/dashboard');
-    await page.getByRole('link', { name: /Cambiar el idioma a English/ }).click();
-    await expect(page).toHaveURL(/\/en\/dashboard$/);
-    await expect(page.locator('html')).toHaveAttribute('lang', 'en');
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Practice home');
-  });
-
   test('unknown paths render the localized not-found page', async ({ page }) => {
     await page.goto('/en/does-not-exist');
     await expect(page.getByText('We could not find this page')).toBeVisible();
@@ -26,18 +19,28 @@ test.describe('i18n', () => {
   });
 });
 
-test.describe('auth placeholder', () => {
-  test('sign-in has disabled fields, the practice name and the SyV footer', async ({ page }) => {
+test.describe('auth pages', () => {
+  test('sign-in has the form, the practice name and the SyV footer', async ({ page }) => {
     await page.goto('/es/sign-in');
-    await expect(page.getByLabel('Correo electrónico')).toBeDisabled();
-    await expect(page.getByLabel('Contraseña')).toBeDisabled();
+    await expect(page.getByLabel('Correo electrónico')).toBeEnabled();
+    await expect(page.getByLabel('Contraseña')).toBeEnabled();
     await expect(page.getByText('Psicóloga Daniela Ortega')).toBeVisible();
     await expect(page.getByText('Con tecnología de SyV Solutions')).toBeVisible();
     await expect(page.locator('[data-context="portal-adult"]')).toHaveCount(1);
   });
 });
 
-test.describe('professional shell', () => {
+test.describe('professional shell (signed in: owner + psychologist A, aal2)', () => {
+  test.use({ storageState: STORAGE_OWNER_PSY_A });
+
+  test('locale switcher keeps the current page', async ({ page }) => {
+    await page.goto('/es/dashboard');
+    await page.getByRole('link', { name: /Cambiar el idioma a English/ }).click();
+    await expect(page).toHaveURL(/\/en\/dashboard$/);
+    await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Practice home');
+  });
+
   test('desktop: sidebar visible, context professional, skip link first', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto('/es/dashboard');

@@ -13,7 +13,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { useState, type ReactNode } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -41,11 +41,11 @@ import { SkipLink } from './skip-link';
 
 type NavKey = 'dashboard' | 'patients' | 'activities' | 'settings';
 // `href` only for routes that exist. Phase 2 routes are listed disabled so the shell shows the final structure.
-const NAV: { key: NavKey; icon: LucideIcon; href?: '/dashboard' }[] = [
+const NAV: { key: NavKey; icon: LucideIcon; href?: '/dashboard' | '/settings' }[] = [
   { key: 'dashboard', icon: Home, href: '/dashboard' },
   { key: 'patients', icon: Users },
   { key: 'activities', icon: Shapes },
-  { key: 'settings', icon: Settings },
+  { key: 'settings', icon: Settings, href: '/settings' },
 ];
 
 function NavList({
@@ -118,28 +118,36 @@ function NavList({
   );
 }
 
-function UserMenu() {
+function UserMenu({ signOutAction }: { signOutAction?: () => Promise<void> }) {
   const t = useTranslations('shell.professional');
+  // The form lives outside the menu: Radix unmounts the menu content on select, which would
+  // cancel a submit fired from inside it.
+  const signOutForm = useRef<HTMLFormElement>(null);
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" aria-label={t('userMenu')}>
-          <User aria-hidden />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        {/* Placeholder items: wired in the auth workstream. */}
-        <DropdownMenuItem disabled>
-          <User aria-hidden />
-          {t('profile')}
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem disabled>
-          <LogOut aria-hidden />
-          {t('signOut')}
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <>
+      {signOutAction ? <form ref={signOutForm} action={signOutAction} hidden /> : null}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="icon" aria-label={t('userMenu')}>
+            <User aria-hidden />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem disabled>
+            <User aria-hidden />
+            {t('profile')}
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            disabled={!signOutAction}
+            onSelect={() => signOutForm.current?.requestSubmit()}
+          >
+            <LogOut aria-hidden />
+            {t('signOut')}
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </>
   );
 }
 
@@ -147,7 +155,14 @@ function UserMenu() {
  * Professional dashboard shell (context `professional`). >= lg: collapsible sidebar (264px / 72px);
  * < lg: top bar + sheet drawer (DESIGN_SYSTEM §6.6).
  */
-export function ProfessionalShell({ children }: { children: ReactNode }) {
+export function ProfessionalShell({
+  children,
+  signOutAction,
+}: {
+  children: ReactNode;
+  /** Server action (auth module) passed from the layout; components never import server code. */
+  signOutAction?: () => Promise<void>;
+}) {
   const t = useTranslations('shell.professional');
   const tc = useTranslations('common');
   const [collapsed, setCollapsed] = useState(false);
@@ -207,7 +222,7 @@ export function ProfessionalShell({ children }: { children: ReactNode }) {
           <PracticeName className="truncate lg:sr-only" />
           <div className="ml-auto flex items-center gap-1">
             <LocaleSwitcher />
-            <UserMenu />
+            <UserMenu signOutAction={signOutAction} />
           </div>
         </header>
         <main

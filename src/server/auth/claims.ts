@@ -1,10 +1,9 @@
 import 'server-only';
-import { createServerClient } from '@supabase/ssr';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import { cookies } from 'next/headers';
 import { cache } from 'react';
 import { z } from 'zod';
 import { env } from '@/server/env';
+import { createRequestAuthClient } from './supabase';
 
 /**
  * The ONLY producer of verified JWT claims (ADR-019 Option A). The DB layer accepts claims
@@ -121,27 +120,11 @@ export async function verifyAccessToken(accessToken: string): Promise<VerifiedCl
 /**
  * Verified claims for the current request, from the Supabase SSR cookie session.
  * Memoized per request with React `cache()`. Returns null when signed out or invalid.
- * Session refresh/cookie writing is the proxy's job (frontend workstream); in Server
- * Components cookie writes are ignored here.
+ * Session refresh is done by src/proxy.ts before rendering; the cookie client below uses the
+ * shared httpOnly cookie options so any write (Server Actions) keeps the same attributes.
  */
 export const getVerifiedClaims = cache(async (): Promise<VerifiedClaims | null> => {
-  const cookieStore = await cookies();
-  const supabase = createServerClient(
-    env.NEXT_PUBLIC_SUPABASE_URL,
-    env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-    {
-      cookies: {
-        getAll: () => cookieStore.getAll(),
-        setAll: (toSet) => {
-          try {
-            for (const { name, value, options } of toSet) cookieStore.set(name, value, options);
-          } catch {
-            // Called from a Server Component: cookies are read-only there.
-          }
-        },
-      },
-    },
-  );
+  const supabase = await createRequestAuthClient();
   // getSession() only reads (and may refresh) the cookie; the token is then verified above.
   const { data } = await supabase.auth.getSession();
   const token = data.session?.access_token;

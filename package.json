@@ -18,7 +18,7 @@
     "test:watch": "vitest",
     "e2e": "playwright test --trace off",
     "i18n:check": "node scripts/check-i18n.mjs",
-    "db:start": "supabase start -x studio,imgproxy,vector,logflare,realtime,edge-runtime,mailpit,postgres-meta,supavisor",
+    "db:start": "supabase start -x studio,imgproxy,vector,logflare,realtime,edge-runtime,postgres-meta,supavisor",
     "db:stop": "supabase stop",
     "db:reset": "supabase db reset && node scripts/db-app-password.mjs",
     "db:app-password": "node scripts/db-app-password.mjs",

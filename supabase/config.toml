@@ -172,7 +172,17 @@ site_url = "http://localhost:3000"
 # external_url = ""
 # A list of *exact* URLs that auth providers are permitted to redirect to post authentication.
 # Exact URLs only, no wildcards (SECURITY.md §3.1, F-19).
-additional_redirect_urls = ["http://localhost:3000/api/auth/callback", "http://127.0.0.1:3000/api/auth/callback"]
+# Workstream 1.3: only the email-confirmation handler (recovery links), per host and locale.
+additional_redirect_urls = [
+  "http://localhost:3000/api/auth/confirm/es",
+  "http://localhost:3000/api/auth/confirm/en",
+  "http://127.0.0.1:3000/api/auth/confirm/es",
+  "http://127.0.0.1:3000/api/auth/confirm/en",
+  "http://demo-a.localhost:3000/api/auth/confirm/es",
+  "http://demo-a.localhost:3000/api/auth/confirm/en",
+  "http://demo-b.localhost:3000/api/auth/confirm/es",
+  "http://demo-b.localhost:3000/api/auth/confirm/en",
+]
 # How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (1 week).
 # SECURITY.md §3.1: 900 s access tokens.
 jwt_expiry = 900
@@ -209,7 +219,9 @@ password_requirements = ""
 
 [auth.rate_limit]
 # Number of emails that can be sent per hour. Requires auth.email.smtp to be enabled.
-email_sent = 2
+# LOCAL ONLY: raised so the recovery E2E/integration tests can run repeatedly against Mailpit.
+# Hosted values are set per environment (SECURITY.md §3.6).
+email_sent = 30
 # Number of SMS messages that can be sent per hour. Requires auth.sms to be enabled.
 sms_sent = 30
 # Number of anonymous sign-ins that can be made per hour per IP address. Requires enable_anonymous_sign_ins = true.
@@ -257,10 +269,11 @@ otp_expiry = 3600
 # admin_email = "admin@email.com"
 # sender_name = "Admin"
 
-# Uncomment to customize email template
-# [auth.email.template.invite]
-# subject = "You have been invited"
-# content_path = "./supabase/templates/invite.html"
+# Recovery email (workstream 1.3): server-side token_hash link to /api/auth/confirm/<locale>
+# (verifyOtp on the server, httpOnly cookies). Bilingual by user metadata locale; no clinical content.
+[auth.email.template.recovery]
+subject = "Restablece tu contraseña / Reset your password"
+content_path = "./supabase/templates/recovery.html"
 
 # Uncomment to customize notification email template
 # [auth.email.notification.password_changed]
@@ -284,11 +297,13 @@ max_frequency = "5s"
 # 14152127777 = "123456"
 
 # Configure logged in session timeouts.
-# [auth.sessions]
-# Force log out after the specified duration.
-# timebox = "24h"
-# Force log out if the user has been inactive longer than the specified duration.
-# inactivity_timeout = "8h"
+# SECURITY.md §3.5 (staff): absolute 12 h, idle 15 min. The app enforces both in src/proxy.ts
+# (src/lib/session-policy.ts); these Auth settings are a backstop (hosted: plan-dependent, verify).
+# inactivity_timeout must exceed jwt_expiry (refreshes only happen when the token expires).
+# Phase 2 portal limits (idle 30 min / absolute 7 days) need a per-capacity policy before go-live.
+[auth.sessions]
+timebox = "12h"
+inactivity_timeout = "30m"
 
 # This hook runs before a new user is created and allows developers to reject the request based on the incoming user object.
 # [auth.hook.before_user_created]

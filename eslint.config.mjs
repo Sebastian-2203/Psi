@@ -12,9 +12,32 @@ const ADMIN_DB_ALLOWLIST = [
   'src/server/db/admin.ts',
   // System audit writer for denied attempts (ARCHITECTURE §6.4 row 6). PENDING architect approval.
   'src/server/audit/**',
+  // Auth flows (workstream 1.3): pre-auth rate limits, invitation acceptance (create user),
+  // MFA factor reset after a recovery code (ADR-021). PENDING orchestrator/security approval.
+  'src/server/auth/**',
   'src/server/tenancy/**',
   'src/modules/platform/server/**',
   'tests/**',
+];
+
+// ADR-019 Option A: claim-setting and role switching are the security boundary and live ONLY in
+// src/server/db. Elsewhere: no `sql.unsafe(...)` and no SQL text that switches role or sets
+// request settings (`set [local] role`, `reset role`, `set_config`, `request.jwt`).
+const RAW_IDENTITY_SQL =
+  /\b(set\s+(local\s+|session\s+)?role|reset\s+role|set_config|request\.jwt)\b/i;
+const DB_BOUNDARY_RULES = [
+  {
+    selector: "CallExpression[callee.property.name='unsafe']",
+    message: 'sql.unsafe is forbidden outside src/server/db (ADR-019; parameterize instead).',
+  },
+  {
+    selector: `TemplateElement[value.raw=${RAW_IDENTITY_SQL}]`,
+    message: 'Role/claim-setting SQL is only allowed in src/server/db (ADR-019).',
+  },
+  {
+    selector: `Literal[value=${RAW_IDENTITY_SQL}]`,
+    message: 'Role/claim-setting SQL is only allowed in src/server/db (ADR-019).',
+  },
 ];
 
 export default defineConfig([
@@ -34,6 +57,11 @@ export default defineConfig([
       '@typescript-eslint/no-explicit-any': 'error',
       'import/no-cycle': 'error',
     },
+  },
+  {
+    files: ['src/**/*.{ts,tsx}'],
+    ignores: ['src/server/db/**'],
+    rules: { 'no-restricted-syntax': ['error', ...DB_BOUNDARY_RULES] },
   },
   {
     // Everything except the allowlist may not import the service-role client.

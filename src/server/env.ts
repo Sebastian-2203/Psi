@@ -9,6 +9,10 @@ const serverEnvSchema = z.object({
   // App login role via the pooler (ADR-019).
   DATABASE_URL: z.string().min(1),
   APP_BASE_DOMAIN: z.string().min(1),
+  // Transactional mail (invitations, MFA-reset notices). LOCAL/TEST ONLY: Mailpit HTTP send API
+  // of the Supabase CLI stack. Production provider pending (SECURITY.md §3.1 SMTP, new subprocessor).
+  MAIL_DEV_HTTP_URL: z.url().optional(),
+  MAIL_FROM: z.email().default('no-reply@example.test'),
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
 });
 

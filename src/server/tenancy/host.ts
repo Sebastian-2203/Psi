@@ -8,7 +8,9 @@ import {
 /**
  * Host-based tenant resolution (ADR-017), DB side only.
  *
- * Integration point for the proxy (frontend workstream, src/proxy.ts):
+ * Integration (workstream 1.3): the proxy strips inbound `x-org-*` (F-16); the server resolves
+ * the host itself in ./request.ts (`getRequestHostScope`), so no org hint header is forwarded.
+ * Original proxy contract, kept for reference:
  *   1. delete every inbound `x-org-*` header (F-16);
  *   2. `const orgId = await resolveOrganizationIdByHost(request.headers.get('host'))`;
  *   3. if orgId, set `x-org-hint: <orgId>` on the forwarded request.

@@ -3,6 +3,7 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { getRouteLocale } from '@/i18n/route-locale';
 import { EmptyState } from '@/components/shared/empty-state';
 import { Card, CardHeader, CardTitle } from '@/components/ui/card';
+import { getStaffPageContext } from '@/modules/auth/server/guards';
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }) {
   const locale = await getRouteLocale(params);
@@ -13,6 +14,7 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
 export default async function DashboardPage({ params }: { params: Promise<{ locale: string }> }) {
   const locale = await getRouteLocale(params);
   setRequestLocale(locale);
+  if (!(await getStaffPageContext(locale))) return null;
   const t = await getTranslations('shell.professional.dashboard');
 
   const cards = [

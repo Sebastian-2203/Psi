@@ -934,6 +934,7 @@ privileges, explicit column grants for `authenticated`; pgTAP coverage in `supab
 | `20261108120300_audit.sql` | `app.audit_event_types` allowlist, `audit_logs` (append-only triggers incl. TRUNCATE), `app.write_audit`, `app.write_system_audit`, self-grant audit trigger |
 | `20261108120400_system_functions.sql` | `app.resolve_organization_by_host`, `app.get_public_branding`, `app.accept_staff_invitation` (system path) |
 | `20261108120500_app_server_role.sql` | `app_server` login role (NOINHERIT, member of `authenticated` with SET only, no BYPASSRLS, owns nothing; password set outside migrations) |
+| `20261108130000_auth_flows.sql` | Workstream 1.3: `app.has_recent_mfa(seconds)` (aal2 + TOTP in `amr` within window); `app.replace_recovery_codes(text[])` (caller, recent MFA, exactly 10 codes, bcrypt cost 10 via pgcrypto, previous batch revoked, audited); `app.consume_recovery_code(text)` (caller, 5/15 min limiter fail-closed, single use, audits `auth.recovery_code_used` / `auth.mfa_failed` / `auth.rate_limited`); `app.my_recovery_codes_status()`; `app.peek_staff_invitation(bytea)` (system path, app_server only) |
 
 Deviations from the logical model above (to be confirmed by architect/security):
 
@@ -946,6 +947,6 @@ Deviations from the logical model above (to be confirmed by architect/security):
 - **Helpers not yet implemented** (need Phase 2/3 tables): `can_read_clinical`, `can_write_clinical`, `is_patient_self`, `guardian_can`, `is_minor`, `can_read_file`.
 - **`app.my_capacities()`** returns rows (caller's own capacities, independent of aal) so the server can answer `MFA_REQUIRED` — an intentional exception to "helpers return boolean".
 - **SECURITY DEFINER helpers are owned by `postgres`** (which has BYPASSRLS in Supabase); a dedicated non-BYPASSRLS owner role (SECURITY.md §4.3 "where feasible") is not done yet.
-- **`mfa_recovery_codes`**: GoTrue v2.197 ships native MFA recovery codes (`auth.mfa_recovery_code_sets`, auth-js `mfa.recoveryCodes.*` behind a flag). ADR-021 says to prefer native support; the table may be superseded.
-- Auth (`config.toml`): sign-ups disabled (email provider stays enabled), 900 s JWTs, password ≥ 12, email confirmation on, secure password change, TOTP enroll/verify on, exact redirect URLs.
+- **`mfa_recovery_codes`**: GoTrue v2.197 ships native MFA recovery codes (`auth.mfa_recovery_code_sets`, auth-js `mfa.recoveryCodes.*` behind a flag). ADR-021 says to prefer native support; workstream 1.3 keeps the app-managed table (bcrypt hashes compared in SQL, no direct grants) until architect/security decide to supersede it.
+- Auth (`config.toml`): sign-ups disabled (email provider stays enabled), 900 s JWTs, password ≥ 12, email confirmation on, secure password change, TOTP enroll/verify on, exact redirect URLs (only `/api/auth/confirm/{es,en}` per local host), recovery email template `supabase/templates/recovery.html` (token_hash link), `[auth.sessions]` timebox 12 h / inactivity 30 min as backstop (app enforces 12 h / 15 min), local `email_sent` raised to 30/h for tests.
 

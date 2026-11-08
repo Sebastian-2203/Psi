@@ -194,3 +194,24 @@ export async function signIn(
   if (!options.fresh) writeCache(cache);
   return result;
 }
+
+/**
+ * Removes a FICTIONAL throwaway user created by a test, including staff rows that block the
+ * auth user deletion (memberships/invitations reference profiles ON DELETE RESTRICT). Local only.
+ */
+export async function deleteFictionalUser(userId: string): Promise<void> {
+  const sql = adminSql();
+  try {
+    const [user] = await sql<
+      { email: string }[]
+    >`select email from auth.users where id = ${userId}`;
+    if (!user || !user.email.endsWith('@example.test')) return;
+    await sql`delete from public.membership_roles where membership_id in (select id from public.memberships where profile_id = ${userId})`;
+    await sql`delete from public.professional_profiles where membership_id in (select id from public.memberships where profile_id = ${userId})`;
+    await sql`delete from public.memberships where profile_id = ${userId}`;
+    await sql`delete from public.invitations where accepted_by_profile_id = ${userId}`;
+  } finally {
+    await sql.end();
+  }
+  await serviceClient().auth.admin.deleteUser(userId);
+}

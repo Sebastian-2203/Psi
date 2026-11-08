@@ -7,13 +7,26 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? 'github' : 'list',
   use: { baseURL: 'http://localhost:3000', trace: 'off' },
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  projects: [
+    // Signs in a fictional persona once (password + TOTP) and stores the session for shell tests.
+    { name: 'setup', testMatch: /auth\.setup\.ts/ },
+    {
+      name: 'chromium',
+      use: { ...devices['Desktop Chrome'] },
+      dependencies: ['setup'],
+      testIgnore: /auth\.setup\.ts/,
+    },
+  ],
   webServer: {
     command: 'pnpm build && pnpm start',
     url: 'http://localhost:3000',
     reuseExistingServer: !process.env.CI,
     timeout: 180_000,
-    // Enables the dev-only portal mode preview (?mode=child) on the production build.
-    env: { PORTAL_MODE_PREVIEW: '1' },
+    env: {
+      // Enables the dev-only portal mode preview (?mode=child) on the production build.
+      PORTAL_MODE_PREVIEW: '1',
+      // Lets the production build deliver app emails to the LOCAL Mailpit (loopback only).
+      E2E_LOCAL_MAIL: '1',
+    },
   },
 });

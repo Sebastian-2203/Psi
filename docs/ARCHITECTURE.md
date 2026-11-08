@@ -350,6 +350,31 @@ Rules:
 7. **Respond** with a `Result<T>` (see API_CONTRACTS.md); never throw raw DB errors to the
    client.
 
+### Auth implementation notes (Phase 1.3)
+
+- **No browser Supabase client.** Sign-in, MFA, recovery and invitation acceptance are server
+  actions (`src/modules/auth/server/actions.ts` → `src/server/auth/*`); session cookies are
+  `httpOnly`, `SameSite=Lax`, host-only, `Secure` in production (`src/lib/auth-cookies.ts`).
+- **Proxy (`src/proxy.ts`, no DB):** strips inbound `x-org-*`/`x-request-id`/`x-next-intl-locale`,
+  sets `x-request-id`; when an auth cookie exists, `getClaims()` (local JWKS check, refresh when
+  expired) writes refreshed cookies onto the forwarded request and the response; enforces the
+  session policy (absolute 12 h from `amr`, idle 15 min via an httpOnly activity cookie →
+  `signOut` + redirect); then next-intl. Full verification (`getUser`) stays in
+  `src/server/auth/claims.ts`.
+- **Tenant host** is resolved on the server (`src/server/tenancy/request.ts`) from
+  `x-forwarded-host` and `Host`, keeping the more restrictive scope; it only narrows the caller's
+  capacities (tenant host → that org only, no platform capacity; unknown host → none). No org
+  header is forwarded.
+- **Guards:** `(professional)` layout + every page (`src/modules/auth/server/guards.ts`):
+  no session → sign-in; aal1 with any staff/platform capacity → `/mfa` (or `/mfa/enroll`);
+  not acting as staff (incl. `platform_admin`) → access-denied screen. `(portal)`: Phase 1 denies
+  every session (no portal identities exist); signed-out users see only the dev static preview
+  when `isPortalPreviewEnabled()`.
+- **Recovery:** Supabase recovery email (token_hash) → `/api/auth/confirm/<locale>` (server
+  `verifyOtp`) → `/reset-password`; MFA users must reach aal2 first (Supabase Auth enforces it).
+- **App-sent email** (invitations, MFA-reset notice): `src/server/auth/mailer.ts`, local Mailpit
+  only; production provider pending (fails closed).
+
 ---
 
 ## 8. Tenancy resolution

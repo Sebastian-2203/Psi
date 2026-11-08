@@ -1,5 +1,7 @@
 import 'server-only';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import type postgres from 'postgres';
+import { env } from '@/server/env';
 import { getSql } from './pool';
 
 /**
@@ -13,7 +15,8 @@ import { getSql } from './pool';
  * user claims are present, and they write their own audit rows where relevant.
  *
  * Supabase Auth admin operations (create invited user, revoke sessions, MFA reset — ADR-021)
- * use the service-role key against the Auth API and are added here by workstream 1.3.
+ * use the service-role key against the Auth API (bottom of this file). The key never leaves
+ * this module; callers get narrow functions only.
  */
 
 async function withSystemTransaction<T>(
@@ -150,4 +153,110 @@ export async function systemAcceptStaffInvitation(
     if (!row) throw new Error('accept_staff_invitation returned no row');
     return { organizationId: row.organization_id, membershipId: row.membership_id };
   });
+}
+
+export type StaffInvitationPreviewRow = {
+  invitationId: string;
+  organizationId: string;
+  organizationDisplayName: string;
+  email: string;
+  roles: Array<'organization_owner' | 'psychologist'>;
+  expiresAt: string;
+  /** Server-internal: never returned to the browser (SECURITY.md §3.7). */
+  existingProfileId: string | null;
+};
+
+/** SECURITY.md §3.8: pending + unexpired staff invitation for sha256(token), or null. */
+export async function systemPeekStaffInvitation(
+  tokenHash: Uint8Array,
+): Promise<StaffInvitationPreviewRow | null> {
+  return withSystemTransaction(async (tx) => {
+    const [row] = await tx<
+      {
+        invitation_id: string;
+        organization_id: string;
+        organization_display_name: string;
+        email: string;
+        roles: Array<'organization_owner' | 'psychologist'>;
+        expires_at: Date;
+        existing_profile_id: string | null;
+      }[]
+    >`select * from app.peek_staff_invitation(${Buffer.from(tokenHash)})`;
+    if (!row) return null;
+    return {
+      invitationId: row.invitation_id,
+      organizationId: row.organization_id,
+      organizationDisplayName: row.organization_display_name,
+      email: row.email,
+      roles: row.roles,
+      expiresAt: row.expires_at.toISOString(),
+      existingProfileId: row.existing_profile_id,
+    };
+  });
+}
+
+// -----------------------------------------------------------------------------
+// Supabase Auth admin API (service role). Workstream 1.3 — every caller audits the action.
+// -----------------------------------------------------------------------------
+
+let authAdmin: SupabaseClient | undefined;
+
+function getAuthAdmin(): SupabaseClient {
+  authAdmin ??= createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+  });
+  return authAdmin;
+}
+
+export type AdminCreateUserResult =
+  { ok: true; userId: string } | { ok: false; reason: 'weak_password' | 'exists' | 'error' };
+
+/**
+ * Invitation acceptance only: creates an auth user with a CONFIRMED email. Possession of the
+ * emailed single-use invitation token is the proof of mailbox control (SECURITY.md §3.8).
+ */
+export async function adminCreateInvitedUser(input: {
+  email: string;
+  password: string;
+  displayName: string;
+  locale: 'es' | 'en';
+}): Promise<AdminCreateUserResult> {
+  const { data, error } = await getAuthAdmin().auth.admin.createUser({
+    email: input.email,
+    password: input.password,
+    email_confirm: true,
+    user_metadata: { display_name: input.displayName, locale: input.locale },
+  });
+  if (error || !data.user) {
+    if (error?.code === 'weak_password') return { ok: false, reason: 'weak_password' };
+    if (error?.code === 'email_exists' || error?.code === 'user_already_exists') {
+      return { ok: false, reason: 'exists' };
+    }
+    return { ok: false, reason: 'error' };
+  }
+  return { ok: true, userId: data.user.id };
+}
+
+/** Compensation for a failed acceptance right after adminCreateInvitedUser. */
+export async function adminDeleteUnacceptedUser(userId: string): Promise<void> {
+  await getAuthAdmin().auth.admin.deleteUser(userId);
+}
+
+/**
+ * ADR-021 factor reset after a recovery code was consumed in the user's own transaction:
+ * removes every MFA factor of the user. Supabase Auth also ends ALL sessions of the user when
+ * a verified factor is deleted, so the user signs in again and enrolls a new factor.
+ * Returns the number of factors removed.
+ */
+export async function adminDeleteAllMfaFactors(userId: string): Promise<number> {
+  const admin = getAuthAdmin();
+  const { data, error } = await admin.auth.admin.mfa.listFactors({ userId });
+  if (error) throw new Error('mfa_list_factors_failed');
+  let removed = 0;
+  for (const factor of data.factors) {
+    const result = await admin.auth.admin.mfa.deleteFactor({ id: factor.id, userId });
+    if (result.error) throw new Error('mfa_delete_factor_failed');
+    removed += 1;
+  }
+  return removed;
 }

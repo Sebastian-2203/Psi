@@ -3,6 +3,7 @@ import 'server-only';
 export {
   getAuthzContext,
   resolveAuthzContext,
+  restrictCapacitiesToHost,
   selectCapacity,
   type AuthzContext,
   type Capacity,

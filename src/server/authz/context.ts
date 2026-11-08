@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { getVerifiedClaims, type VerifiedClaims } from '@/server/auth/claims';
 import { withUserTransaction } from '@/server/db/server';
 import { failure, ok, type Outcome } from '@/server/errors';
+import { getRequestHostScope, type HostScope } from '@/server/tenancy/request';
 import { ACTING_AS, type ActingAs, type MembershipRole } from './permissions';
 
 export type OrgStatus = 'active' | 'read_only' | 'suspended' | 'closed';
@@ -56,11 +57,27 @@ export type AuthzContext = {
 export type ContextHints = {
   requestId: string;
   locale: 'es' | 'en';
-  /** Untrusted: from the host mapping (x-org-hint) or the active_org cookie. */
+  /** Untrusted: from the active_org cookie. */
   organizationHint?: string | null;
   /** Untrusted: from the acting_as cookie. */
   actingAsHint?: ActingAs | null;
+  /**
+   * Server-resolved tenant scope of the request host (ADR-017). It only RESTRICTS the
+   * caller's capacities: on a tenant host, only capacities in that organization remain (no
+   * platform capacity); on an unknown host none remain. Absent = app host.
+   */
+  hostScope?: HostScope;
 };
+
+/** Pure: capacities usable on this host (never adds anything). */
+export function restrictCapacitiesToHost(
+  capacities: Capacity[],
+  hostScope: HostScope | undefined,
+): Capacity[] {
+  if (!hostScope || hostScope.kind === 'app') return capacities;
+  if (hostScope.kind === 'unknown') return [];
+  return capacities.filter((c) => c.organizationId === hostScope.organizationId);
+}
 
 type CapacityRow = {
   organization_id: string | null;
@@ -135,26 +152,28 @@ export function selectCapacity(
 }
 
 /**
- * Builds the AuthzContext for verified claims. Failures:
- * - MFA_REQUIRED: the selected capacity is staff/platform and the session is aal1.
+ * Builds the AuthzContext for verified claims. Failures, in this order:
+ * - FORBIDDEN (errors.noCapacity): no active capacity usable on this host.
+ * - MFA_REQUIRED: the session is aal1 and any usable capacity is staff/platform (checked
+ *   BEFORE capacity selection, so an aal1 multi-org user is sent to MFA, not to a picker).
  * - PRECONDITION_FAILED (errors.selectCapacity): several capacities, no valid hint.
- * - FORBIDDEN (errors.noCapacity): signed in but no active capacity.
  */
 export async function resolveAuthzContext(
   claims: VerifiedClaims,
   hints: ContextHints,
 ): Promise<Outcome<AuthzContext>> {
-  const capacities = await loadCapacities(claims);
+  const capacities = restrictCapacitiesToHost(await loadCapacities(claims), hints.hostScope);
+  if (capacities.length === 0) return failure('FORBIDDEN', { messageKey: 'errors.noCapacity' });
+  if (
+    claims.aal !== 'aal2' &&
+    capacities.some((c) => c.actingAs === 'staff' || c.actingAs === 'platform_admin')
+  ) {
+    return failure('MFA_REQUIRED');
+  }
   const selected = selectCapacity(capacities, hints.organizationHint, hints.actingAsHint);
   if (selected === 'none') return failure('FORBIDDEN', { messageKey: 'errors.noCapacity' });
   if (selected === 'ambiguous') {
     return failure('PRECONDITION_FAILED', { messageKey: 'errors.selectCapacity' });
-  }
-  if (
-    (selected.actingAs === 'staff' || selected.actingAs === 'platform_admin') &&
-    claims.aal !== 'aal2'
-  ) {
-    return failure('MFA_REQUIRED');
   }
 
   return ok({
@@ -184,9 +203,10 @@ const REQUEST_ID = /^[A-Za-z0-9-]{8,64}$/;
 
 /**
  * Request-scoped context for pages, actions and route handlers (memoized with `cache()`).
- * Integration points (frontend owns the proxy): the proxy strips inbound `x-org-*`, sets
- * `x-org-hint` from `resolveOrganizationIdByHost()` and `x-request-id`; the `active_org` and
- * `acting_as` cookies are host-only hints set by `selectCapacityAction` (workstream 1.3).
+ * The proxy strips inbound `x-org-*`/`x-request-id` and sets a fresh `x-request-id`; the
+ * tenant scope comes from the Host header resolved here on the server (getRequestHostScope);
+ * `active_org` / `acting_as` are host-only hint cookies (selectCapacityAction, pending:
+ * Phase 1 users have a single capacity per host).
  */
 export const getAuthzContext = cache(async (): Promise<Outcome<AuthzContext>> => {
   const claims = await getVerifiedClaims();
@@ -198,7 +218,8 @@ export const getAuthzContext = cache(async (): Promise<Outcome<AuthzContext>> =>
   return resolveAuthzContext(claims, {
     requestId: rawRequestId && REQUEST_ID.test(rawRequestId) ? rawRequestId : randomUUID(),
     locale: localeHeader === 'en' ? 'en' : 'es',
-    organizationHint: cookieStore.get('active_org')?.value ?? headerStore.get('x-org-hint'),
+    organizationHint: cookieStore.get('active_org')?.value ?? null,
     actingAsHint: (cookieStore.get('acting_as')?.value as ActingAs | undefined) ?? null,
+    hostScope: await getRequestHostScope(),
   });
 });

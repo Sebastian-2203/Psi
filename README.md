@@ -38,7 +38,7 @@ Postgres as the `app_server` login role and runs each request as `authenticated`
 JWT claims (`src/server/db`). Auth and Storage stay on the API gateway.
 
 ```bash
-pnpm db:start        # start Auth, Storage, gateway and Postgres (studio, realtime, … excluded)
+pnpm db:start        # start Auth, Storage, gateway, Mailpit and Postgres (studio, realtime, … excluded)
 cp .env.example .env.local   # values from `pnpm exec supabase status -o env`; set APP_DB_PASSWORD
 pnpm db:reset        # migrations from scratch + FICTIONAL seed + sets the app_server password
 pnpm db:test         # pgTAP RLS/trigger suite (supabase/tests)
@@ -54,6 +54,11 @@ pnpm db:stop
   secret `JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP`): see `supabase/seed.sql` and
   `tests/fixtures/personas.ts`. Tenant hosts: `demo-a.localhost`, `demo-b.localhost`.
 - Staff and platform access requires `aal2` (TOTP) in the database itself.
+- Emails (password recovery from Supabase Auth, invitations sent by the app) land in the local
+  Mailpit at `http://127.0.0.1:54324` (`MAIL_DEV_HTTP_URL`, local only).
+- E2E (`pnpm e2e`) signs in fictional personas with password + TOTP (RFC 6238 computed in
+  `tests/fixtures/totp.ts`) and uses the tenant hosts directly: Chromium resolves `*.localhost`
+  to loopback, no host-resolver rules needed. Local runs truncate `rate_limit_counters` first.
 
 ## Documentation
 

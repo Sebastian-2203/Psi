@@ -6,6 +6,7 @@ import { PortalShell, type PortalMode } from '@/components/shared/portal-shell';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { Link } from '@/i18n/navigation';
+import { isPortalPreviewEnabled } from '@/lib/portal-preview';
 
 /**
  * DEV-ONLY preview of the portal mode via `?mode=child|adult`.
@@ -14,8 +15,7 @@ import { Link } from '@/i18n/navigation';
  */
 export const dynamic = 'force-dynamic';
 
-const previewEnabled =
-  process.env.NODE_ENV !== 'production' || process.env.PORTAL_MODE_PREVIEW === '1';
+const previewEnabled = isPortalPreviewEnabled();
 
 export default async function PortalHomePage({
   params,
