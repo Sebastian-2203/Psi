@@ -1,4 +1,4 @@
-# Brand Guidelines — Psico D.O.H. / Daniela Ortega · Psicóloga
+# Brand Guidelines — Psicóloga Daniela Ortega
 
 > Status: **Phase 0 — evidence-based draft (v2).** The provisional sage palette of v1 is **withdrawn** and
 > replaced by a direction built on two client-supplied inputs (2026-11-08): the logo file (**OBSERVED**) and the
@@ -42,10 +42,11 @@ or supplied by the client may be attributed to this brand.
 
 - We now have **OBSERVED** logo evidence and a **REPORTED** palette/type direction. The v1 sage/clay palette,
   Inter/Fraunces fonts and text-wordmark placeholder are **retired**.
-- **Name discrepancy (open):** the project brief says "Daniela Ortega — Psicóloga"; the logo wordmark reads
-  **"Psico D.O.H."**. "D.O.H." *plausibly* stands for "Daniela Ortega Higuita", which would link the Doctoralia
-  listing (#5) to this brand — but this is **UNCONFIRMED**. Nothing in this document assumes it.
-  → Client must confirm (§16): practice name/wordmark to use in the product, and whether listing #5 is hers.
+- **Name decided by the client (2026-11-08):** the name shown to patients in the product is
+  **"Psicóloga Daniela Ortega"**. The logo file's wordmark reads "Psico D.O.H."; its tree + ψ symbol remains the
+  brand mark, but the product's displayed practice name is "Psicóloga Daniela Ortega" (rendered as live text in
+  Nunito Sans / Playfair Display next to the symbol, not by editing the logo file). Whether the Doctoralia listing (#5)
+  is hers remains **UNCONFIRMED** and unused. A new vector logo is coming from the client; final lockups wait for it.
 - The logo raster is **not production-ready** (low-res, upscaled). It may be used only in internal mock-ups
   until a vector master arrives. **Do not trace, redraw or "clean up" the logo** without the client's approval.
 
@@ -243,7 +244,7 @@ professional dashboard except possibly the empty-state flourish (PROVISIONAL, op
 REPORTED (client analysis): warm, educational, empathetic, professional. Captions were not read by the designer.
 PROVISIONAL microcopy rules:
 - Spanish (es) primary; English (en) natural, not literal.
-- Default **"tú"** in the patient portal; neutral impersonal forms in professional UI. *Pending: tú vs usted.*
+- **"Tú"** in the patient portal and all patient/guardian-facing copy (client decision, 2026-11-08); neutral impersonal forms in professional UI.
 - Short, clear, kind, explanatory (educational). No jargon to patients. Never blaming.
 
 | Context | Español | English |
@@ -313,7 +314,7 @@ Rules: never combine both logos in one lockup; never use Daniela's palette for S
 ## 15. Assets still required (checklist)
 
 - [ ] **Vector logo master (SVG**, plus AI/PDF/EPS if available) — current file is a low-res raster
-- [ ] **Confirmation of practice name/wordmark** for the product: "Psico D.O.H.", "Daniela Ortega — Psicóloga", or both (and where each appears)
+- [x] Practice name for the product: **"Psicóloga Daniela Ortega"** (client, 2026-11-08)
 - [ ] Meaning of "D.O.H." and whether the Doctoralia listing "Daniela Ortega Higuita" is hers
 - [ ] Logo variants if they exist (monochrome, reversed, symbol-only, horizontal)
 - [ ] Name of the wordmark typeface (if known)
@@ -323,7 +324,7 @@ Rules: never combine both logos in one lockup; never use Daniela's palette for S
 - [ ] 10–20 representative post screenshots + profile screenshot (to let the designer verify the client analysis)
 - [ ] Line-art / illustration source files and their author/licence
 - [ ] Professional photos with written usage rights
-- [ ] Tone examples (5–10 captions); tú vs usted
+- [ ] Tone examples (5–10 captions) · [x] "tú" confirmed
 - [ ] **SyV Solutions identity assets** (logo, colours, fonts) for "powered by" and platform admin
 - [ ] Things Daniela dislikes / wants to avoid visually
 
@@ -331,11 +332,14 @@ Rules: never combine both logos in one lockup; never use Daniela's palette for S
 
 ## 16. Pending decisions / open questions for the client
 
-1. Practice name/wordmark to use in the product ("Psico D.O.H." vs "Daniela Ortega — Psicóloga"); meaning of D.O.H.
+**Decided by the client (2026-11-08):** displayed name "Psicóloga Daniela Ortega" · `coral-700` `#A73C37` approved as
+the functional primary (`#D94A43` reserved for line art/display) · adolescents use the child portal (`portal-child`) ·
+"tú" for patient-facing copy · vector logo will be sent later.
+
+Still open:
+1. Vector logo master (pending from client) and final lockup with the name "Psicóloga Daniela Ortega".
 2. Is the Doctoralia listing "Daniela Ortega Higuita" hers? (UNCONFIRMED; not used until confirmed.)
-3. Approval of `coral-700` `#A73C37` (logo ink) as the functional primary, with `#D94A43` reserved for line art/display.
-4. Adolescents: child mode, adult mode, or a separate lighter "teen" variant?
-5. Child-mode trigger: age-based, professional toggle, or both.
-6. "Tú" vs "usted"; regional Spanish variant (Colombia assumed — unconfirmed).
-7. Dark mode deferred for the portal at launch (see `DESIGN_SYSTEM.md` §3.6) — confirm.
-8. SyV Solutions identity: timeline for assets.
+3. Child-mode trigger: age-based default, professional toggle, or both (PRD PAT-* proposes age default + override).
+4. Regional Spanish variant (Colombia assumed — unconfirmed).
+5. Dark mode deferred for the portal at launch (see `DESIGN_SYSTEM.md` §3.6) — confirm.
+6. SyV Solutions identity: timeline for assets.

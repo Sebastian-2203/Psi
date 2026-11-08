@@ -1,4 +1,4 @@
-# Design System — Psi (Psico D.O.H. / Daniela Ortega · Psicóloga, white-label ready)
+# Design System — Psi (Psicóloga Daniela Ortega, white-label ready)
 
 > Status: **Phase 0 — v2, documentation only.** Replaces the v1 provisional sage palette. Brand inputs:
 > logo file (**OBSERVED**, low-res) and the client's Instagram analysis (**REPORTED (client analysis)**; HEX and
@@ -473,9 +473,12 @@ error banner). Save disabled while any guard fails.
 
 ## 10. Pending decisions
 
-1. Client approval of coral-700 `#A73C37` (logo ink) as functional primary; exact brand HEX once vector/templates arrive.
-2. Practice name/wordmark for the product (BRAND §16).
-3. Adolescent mode: `portal-child`, `portal-adult`, or a third context.
+**Decided by the client (2026-11-08):** coral-700 `#A73C37` approved as functional primary · displayed practice name
+"Psicóloga Daniela Ortega" · **adolescents render with `portal-child`** (no third context; age-sensitive *copy*
+and privacy explanations still differ, see PRD GRD-07).
+
+Still open:
+1. Exact brand HEX once the vector logo/templates arrive.
 4. Dark mode deferral (§3.6).
 5. Tenant font allow-list size (proposal: 8 Google Fonts).
 6. shadcn version (HSL vs OKLCH variables) and tokens file path — frontend/architect in Phase 1.

@@ -329,7 +329,7 @@ Priority = MoSCoW for **MVP**. Must items carry Given/When/Then acceptance crite
   **AC:** Given assignments exist, when I log in, then I see them ordered by due date or recency with clear primary action; empty state is friendly.
 - **PRT-02 · Must** — As a patient, I want an activity player that renders all blocks accessibly on mobile first.
   **AC:** Given an activity, when I open it, then progress is visible, I can go back, I can save and exit, and all interactions work by keyboard, touch and screen reader.
-- **PRT-03 · Must** — As a patient, I want an interface adapted to my age (child, adolescent, adult), with the mode set by my psychologist.
+- **PRT-03 · Must** — As a patient, I want an interface adapted to my age, with the mode set by my psychologist. Client decision (2026-11-08): two visual modes — **child portal** (children *and* adolescents) and **adult portal**; the adolescent *profile* category is kept for privacy rules and copy.
   **AC:** Given an experience mode, when I use the portal, then typography, imagery, tone, and navigation density adapt; the mode never changes which content I am assigned.
 - **PRT-04 · Must** — As a patient, I want to watch/listen to assigned resources with captions/transcripts where provided.
   **AC:** Given a video/audio, when played, then controls are accessible, playback never autostarts with sound, and position is remembered.

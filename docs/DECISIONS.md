@@ -626,6 +626,16 @@ if native support exists, prefer it and supersede this ADR. The app also cannot 
 
 ---
 
+## Client decisions log
+
+| Date | Decision | Affects |
+|---|---|---|
+| 2026-11-08 | The name patients see is **"Psicóloga Daniela Ortega"** (logo symbol kept; wordmark text set as live type) | BRAND_GUIDELINES, DESIGN_SYSTEM |
+| 2026-11-08 | `#A73C37` (logo ink) approved as the functional primary; `#D94A43` reserved for line art/display | DESIGN_SYSTEM |
+| 2026-11-08 | Adolescents use the **child portal** (`portal-child`); no separate teen context | DESIGN_SYSTEM, PRD PRT-03 |
+| 2026-11-08 | Patient- and guardian-facing Spanish copy uses **"tú"** | BRAND_GUIDELINES, i18n catalogs |
+| 2026-11-08 | Vector logo to be supplied later by the client | BRAND_GUIDELINES |
+
 ## Open questions requiring client input
 
 | Id | Question | Default proposal |
