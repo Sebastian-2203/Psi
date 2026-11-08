@@ -1,0 +1,12 @@
+node_modules/
+.next/
+out/
+coverage/
+.env
+.env.*
+!.env.example
+.vercel/
+supabase/.temp/
+.DS_Store
+*.log
+.claude/settings.local.json
