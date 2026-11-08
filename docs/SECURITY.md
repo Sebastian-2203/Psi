@@ -1,6 +1,7 @@
 # Security Architecture & Review — Psi (SyV Solutions)
 
-> Status: **Phase 0 — Proposed / Review v0.1** (documentation only; nothing here is implemented).
+> Status: **Phase 0 design (Review v0.1) + Phase 1 implementation review (§14, 2026-11-08)**.
+> §1–§13 are the design baseline; §14 records what Phase 1 actually implements and the gate status.
 > Owner: security agent. Reviewed: ARCHITECTURE.md, DATABASE.md, API_CONTRACTS.md, DECISIONS.md
 > (ADR-001..018) against PRODUCT_REQUIREMENTS.md (§4, §5.1–5.3, §5.5, §5.6, §5.18, §5.20, §7)
 > and SAAS_STRATEGY.md §8 (support access).
@@ -217,7 +218,7 @@ on the care team gets the psychologist column). "Psy CT" = psychologist on activ
 
 ### 4.3 Helper SQL function guidelines
 - Live in schema `app`, **not exposed** through the Data API; `revoke all on schema app from public`; `revoke execute … from public, anon`; grant execute to `authenticated` only where used by policies.
-- `SECURITY DEFINER` only when a helper must read tables the caller cannot (membership, care team, grants) — and then: `set search_path = ''`, all names schema-qualified (`public.memberships`, `auth.uid()`), owner is a dedicated non-superuser role without `BYPASSRLS` where feasible, no dynamic SQL.
+- `SECURITY DEFINER` only when a helper must read tables the caller cannot (membership, care team, grants) — and then: `set search_path = ''`, all names schema-qualified (`public.memberships`, `auth.uid()`), owner is the dedicated `app_definer` role (NOLOGIN, NOBYPASSRLS; implemented in Phase 1, §14.2) with explicit grants and `to app_definer` policies, no dynamic SQL.
 - `STABLE`, `LANGUAGE sql` preferred (inlinable); wrap `auth.uid()`/`auth.jwt()` as `(select auth.uid())` for per-statement caching.
 - Identity is **always** derived inside the helper (`auth.uid()`, `auth.jwt()`); helpers never accept a profile id parameter.
 - Return `boolean` only; never return rows, names or reasons (no oracle beyond yes/no for ids the caller already supplied). Raise no errors that include data.
@@ -669,3 +670,121 @@ runtime for data access; `getUser()` over `getSession()`; block-based content wi
 - [ ] No real patient data until DPA accepted and `real_data_enabled` set (SAAS §7).
 
 Tests run for this document: none (Phase 0, documentation only; no code exists).
+
+---
+
+## 14. Phase 1 implementation review (2026-11-08)
+
+Reviewer: security agent. Scope: `supabase/migrations/*` (up to `20261108140000`), `supabase/tests/*`,
+`src/server/{auth,db,authz,audit,tenancy}/**`, `src/proxy.ts`, `src/modules/auth/**`,
+`eslint.config.mjs`, `supabase/config.toml`, `next.config.ts`. **Not reviewed:** the branding
+workstream in progress (`20261108131000_branding_storage.sql`, `src/modules/branding/**`) — it
+gets its own review when handed over (storage policy, magic bytes, SVG exclusion, F-18).
+No statement here is a claim of legal compliance.
+
+### 14.1 Summary
+- One **High** found and **fixed** (P1-01: SECURITY DEFINER functions owned by a BYPASSRLS role).
+- No Critical. Remaining findings are Medium/Low and assigned below; none blocks continuing
+  Phase 1 work, but P1-02, P1-04, P1-05 and P1-10 must be closed before the Phase 1 gate (§14.4).
+- Module status: **DB layer / RLS / helpers / audit writer — approved**; **auth flows
+  (sign-in, MFA, recovery codes, invitations, password reset) — approved with conditions**
+  (P1-02, P1-03, P1-05); **service-role boundary — approved with conditions** (P1-04);
+  **HTTP hardening — blocked for the gate** (P1-10).
+
+### 14.2 SECURITY DEFINER owner model (`20261108140000_definer_owner_hardening.sql`)
+- Role `app_definer`: NOLOGIN, NOINHERIT, NOBYPASSRLS, no superuser/createrole/createdb/
+  replication, member of no role, owns no relations. Only `postgres` (migration runner) is a
+  member (needed for `create or replace`/`alter owner`). `authenticated`, `anon`,
+  `service_role`, `app_server` cannot use it. RLS (forced) applies to it like any non-owner.
+- It owns every SECURITY DEFINER function in `app` (24 in Phase 1). Its privileges are exactly
+  what those bodies use, and every table it touches has `to app_definer` policies:
+
+| Table | app_definer privileges | Policy scope |
+|---|---|---|
+| organizations, organization_branding | SELECT | all rows (status gate / pre-auth tokens; callers gate) |
+| organization_domains | SELECT (organization_id, host, verified_at) | verified hosts only |
+| platform_admins, platform_access_grants | SELECT | caller's own rows (`app.request_uid()`) |
+| memberships | SELECT; INSERT/UPDATE(status) | read all (last-owner guards, directory); writes only with no user claims (invitation acceptance) |
+| membership_roles, professional_profiles | SELECT (key columns); INSERT | read all; insert only with no user claims |
+| profiles | SELECT (id, display_name); INSERT | insert only with no user claims (auth.users trigger) |
+| invitations | SELECT; UPDATE(status, accepted_by_profile_id) | system path only, staff only, pending → accepted only |
+| mfa_recovery_codes | SELECT; INSERT; UPDATE(used_at, revoked_at) | caller's own rows only |
+| rate_limit_counters | SELECT/INSERT/UPDATE(count) | **all rows — bypass-equivalent by design** (hashed keys, no tenant data; must count denied/pre-auth attempts) |
+| audit_logs | INSERT only (no SELECT/UPDATE/DELETE; hash-chain and break-glass columns not insertable) | **all inserts — bypass-equivalent by design** (denied/system events must be recorded; validation in `app.insert_audit_row`) |
+| app.audit_event_types | SELECT | — |
+
+- No DELETE/TRUNCATE/REFERENCES/TRIGGER anywhere; no access to `idempotency_keys`, `storage.*`
+  or any future table unless a migration grants it (clinical tables will need explicit review).
+- **Schema `auth` cannot be granted** by `postgres` (owner supabase_admin, USAGE without grant
+  option). Therefore: `app.request_uid()` / `app.request_jwt()` re-implement `auth.uid()` /
+  `auth.jwt()` from the same request GUCs (pgTAP 09 asserts equality in user/anon/system
+  contexts and the same GUC precedence — vendor drift check), and **two functions stay owned by
+  `postgres` (allowlisted)**: `app.auth_user_verified_email(uuid)` and
+  `app.auth_user_id_by_email(text)` — single-row `auth.users` lookups, EXECUTE for
+  `app_definer` only, used by invitation peek/accept.
+- Every definer function: `search_path = ''`, schema-qualified relations, no dynamic SQL, no
+  PUBLIC/anon/service_role EXECUTE. The migration ends with an assertion block (fails `db reset`
+  and deploy on violation) and pgTAP `09_definer_hardening.sql` repeats it as a CI test.
+- **Rule for new migrations:** every new SECURITY DEFINER function must be `alter function …
+  owner to app_definer` (transient `grant create on schema app to app_definer` … `revoke`),
+  with explicit grants + `to app_definer` policies for what it touches; anything else fails CI.
+
+### 14.3 Findings
+
+| ID | Sev | Location | Issue | Remediation | Status |
+|---|---|---|---|---|---|
+| P1-01 | **High** | migrations 120100/120200/120300/120400/130000 (all `security definer`) | All definer functions owned by `postgres` (BYPASSRLS + `pg_read_all_data`): any logic bug in a definer body could read/write any row, incl. future clinical tables. | §14.2 `app_definer` model. | **Fixed** (migration 20261108140000; pgTAP 09) |
+| P1-02 | Medium | `src/lib/session-policy.ts:30-39`, `src/proxy.ts:69-71`, `src/proxy.ts:106-108`, `src/server/auth/claims.ts:126-132` | Idle timeout relies on an unsigned httpOnly `psi_activity` cookie: a client can edit it or simply omit it (missing = "not idle"). The proxy matcher skips `/api/*`, so idle/absolute limits are not checked for route handlers, and `getVerifiedClaims()` does not re-check them. Backstop: Supabase `[auth.sessions]` timebox 12 h / inactivity 30 min (local config; hosted availability is plan-dependent — verify). | Server-side `last_activity_at` keyed by `session_id` (§3.5), or an HMAC-signed cookie bound to `session_id`; treat a missing cookie on an existing session as idle; enforce idle/absolute in `getVerifiedClaims()` so every server entry point is covered. | Open (backend) |
+| P1-03 | Medium | `src/server/auth/request-meta.ts:21-30` | Client IP = first `x-forwarded-for` hop (fallback `x-real-ip`). Correct only where the edge overwrites the header (stated for Vercel — verify against current Vercel docs per environment). Elsewhere per-IP pre-auth limits are bypassable and audit IPs forgeable (per-subject limits still hold). | Explicit `TRUSTED_PROXY` mode in env (e.g. `vercel` → platform header only; `none` → no IP); fail startup in production if unset. | Open; accepted for Vercel-only hosting pending verification |
+| P1-04 | Medium | `eslint.config.mjs:11-21` | Service-role import allowlist is directory-wide (`src/server/auth/**`, `src/server/audit/**`, `src/server/tenancy/**`) and includes the non-existent `src/modules/platform/server/**`: any new file there silently gets the Auth admin client. `src/server/db/admin.ts` mixes the low-privilege `app_server` system functions and the service-role Auth admin client behind one import. | File-level allowlist (actual importers: `audit/writer.ts`, `auth/{invitations,rate-limit,recovery-codes}.ts`, `tenancy/host.ts`); split `db/admin.ts` into `db/system.ts` (app_server) and `db/auth-admin.ts` (service role, narrower allowlist: invitations, recovery-codes); record architect approval. | Open (architect/backend) |
+| P1-05 | Medium | `src/server/auth/recovery-codes.ts:126-138`, `src/server/db/admin.ts:251-262` | Recovery code is consumed, then factors are deleted in a loop; a mid-loop failure leaves a partial reset with **no** `auth.mfa_reset` audit (the catch returns INTERNAL). If `signOut('global')` fails after factors were removed, sessions may survive while the user is told "error". Comments disagree on whether factor deletion already ends sessions (admin.ts:247 vs recovery-codes.ts:89-91). | Audit `auth.mfa_reset` in every outcome (`outcome: ok/partial/failed`, `factors_removed`); retry/alert on partial; verify GoTrue session behaviour and fix the comment; keep the global sign-out. | Open (backend) |
+| P1-06 | Low | `src/server/db/admin.ts:218-228` | Invited users are created with `email_confirm: true`. Acceptable: possession of the 256-bit, single-use, 72 h, hashed, fragment-only (`#token`, `no-referrer`), rate-limited token sent to that address is the mailbox proof; existing accounts must present their current password. Residual: an owner's typo hands an account to whoever controls the typo address (inherent to invitations). | None required. Keep tokens out of logs (PHI/secret canary scan). | Accepted |
+| P1-07 | Low | `src/server/auth/claims.ts:52-63` | `VerifiedClaims` branding via a process-local `WeakSet` + `Object.freeze`: forged or cast objects are rejected at the DB boundary, expiry re-checked. Residual: revocation (`getUser`) is checked at issuance only; a claims object reused beyond its request would stay usable until `exp` (≤ 900 s). | Never persist/cache claims beyond the request (`cache()` is per request today); review rule. | Accepted |
+| P1-08 | Info | `src/server/authz/context.ts:165-172` | aal1 on a foreign tenant host: capacities are restricted to the host **before** the MFA check, so the result is `FORBIDDEN (noCapacity)`, not `MFA_REQUIRED`. Fail-closed; does not reveal memberships elsewhere. | — | Accepted (by design) |
+| P1-09 | Info | `src/server/tenancy/request.ts:144-157`, `src/server/auth/password.ts:29` | Preview hosts (e.g. `*.vercel.app`) resolve to `unknown`: staff routes deny and no recovery link is issued. Fail-closed; consistent with F-19. Previews need `APP_BASE_DOMAIN` set per preview on the staging project only. | — | Accepted |
+| P1-10 | Medium | `next.config.ts:6-9` | No security headers: CSP (nonce, ADR-010 style), HSTS, `frame-ancestors`/X-Frame-Options, `nosniff`, Referrer-Policy (global), Permissions-Policy. `serverActions.allowedOrigins` not set (Next's same-origin check applies; verified tenant custom domains will need it). | Add headers in `next.config.ts`/proxy; header scan in CI (§13.1 Headers). | Open (frontend/architect) — gate blocker |
+| P1-11 | Low | `src/proxy.ts:106-108` | Proxy matcher excludes `/api/*`: inbound `x-request-id`/`x-next-intl-locale` are not stripped for route handlers, so `request_id` in audit rows written from route handlers is client-chosen (format-validated). | Run header hygiene for `/api/*` too (without i18n routing) or generate the id in route handlers. | Open (backend) |
+| P1-12 | Low | `src/app/api/auth/confirm/[locale]/route.ts:13-31` | Single-use recovery token is consumed on GET; mail-scanner prefetch can burn it (availability, not confidentiality). | Interstitial page that confirms via POST. | Open (backend) |
+| P1-13 | Low | `src/server/auth/request-meta.ts:36-37` | `x-forwarded-proto` is client-influenced; when not overwritten by the edge, emailed invitation links could be downgraded to `http`. Host part is safe (both `Host` and `x-forwarded-host` must resolve to the app or the caller's verified tenant). | In production always `https`. | Open (backend) |
+| P1-14 | Low | `supabase/tests/_helpers.psql:44-49` | `tests.as_admin()` did not clear `request.jwt.claim` (test isolation; `auth.jwt()` reads it first). | Clear it. | **Fixed** |
+| P1-15 | Info | `app.request_uid()` / `app.request_jwt()` | Duplicate of vendor `auth.uid()`/`auth.jwt()` semantics (required, §14.2). | pgTAP 09 drift test; re-check on Supabase upgrades. | Accepted |
+
+### 14.4 Phase 1 gate checklist status (§13.2)
+
+| Gate item | Status | Evidence / gap |
+|---|---|---|
+| ADR resolving F-01; ADR-014 rewritten | Partially | ADR-019 Option A accepted and implemented (`config.toml [api] enabled=false`, `pg_graphql` dropped, `app_server` role; `tests/integration/data-api-closed.test.ts`, pgTAP 01/09). ADR-014 rewritten; break-glass is deny-only stubs until Phase 3; formal re-review of ADR-014/020/021 still to be recorded in DECISIONS index. |
+| DATABASE.md (F-02, F-05, F-07, F-08, F-08b, F-09, F-12, F-13, F-20); API_CONTRACTS (F-06, F-21) | Met (docs) | References present in DATABASE.md / API_CONTRACTS.md; implementation lands in Phase 2/3. |
+| Supabase Auth §3.1 settings per environment | Partially | Local `config.toml`: sign-ups off, JWT 900 s, password ≥ 12, confirmations, exact redirect URLs, sessions backstop. Not done: CAPTCHA, custom SMTP, leaked-password protection, recorded settings for staging/production. |
+| MFA in app + RLS with tests; recovery codes + reset runbook | Partially | App: `context.ts` MFA_REQUIRED; RLS: `is_aal2` in helpers (pgTAP 03); recovery codes (pgTAP 08, integration auth-flows). Missing: support MFA-reset runbook; P1-05. |
+| Every table RLS enabled + forced, pgTAP, CI fails otherwise | Met | pgTAP 01 (all public tables forced RLS); CI `supabase` job runs `db:test`. |
+| Helper functions: app not exposed, `search_path=''`, minimal execute | Met | pgTAP 01 + 09; P1-01 fixed. |
+| Immutability triggers + tests (notes, addenda, assessments, consents, versions, responses, audit) | Partially | Audit append-only incl. TRUNCATE (pgTAP 06). Other tables are Phase 2/3. |
+| Audit writer non-forgeable; typed catalog; metadata schemas; daily digest | Partially | Actor from claims, allowlist, writer kinds, metadata deny-list + Zod (pgTAP 06, integration audit). Daily digest job not implemented. |
+| Storage RLS, path checks, magic bytes, pending-unreadable; AV decision | Not met (in progress) | Branding bucket in progress by frontend workstream, not yet reviewed; `file_objects` is Phase 2; AV decision open. |
+| CSP/headers, CSRF `allowedOrigins`, no PHI data cache, no `dangerouslySetInnerHTML`, AST validation | Partially | `react/no-danger` lint on; no `unstable_cache`/`force-cache` in `src`; P1-10 open; AST N/A until Phase 2. |
+| Service-role allowlist lint + audited calls; secrets scanning; dependency audit in CI | Partially | Lint allowlist exists (P1-04 too broad); no secret scanning or dependency audit step in `.github/workflows/ci.yml`. |
+| Infrastructure access policy (F-11) | Not met | Runbook outside repo not provided. |
+| Synthetic data only; PHI-canary log scan | Partially | Fictional seeds/tests only; canary scan not implemented. |
+| Legal items acknowledged by client | Not met | Client action `[NEEDS LEGAL VERIFICATION]`. |
+| Psychologist decisions recorded | Not met | `[NEEDS PSYCHOLOGIST INPUT]`. |
+| No real patient data until DPA + `real_data_enabled` | Partially | No real data present; `real_data_enabled` flag not yet implemented. |
+
+**Gate verdict: not passed** (expected at this point of Phase 1). Blocking for the gate:
+P1-10, storage review, Auth settings per environment, MFA reset runbook, F-11, legal and
+psychologist items. P1-02/P1-04/P1-05 should be fixed in the Phase 1 hardening pass.
+
+### 14.5 Items needing legal review
+- Whether session limits (idle/absolute) and audit retention for auth events satisfy applicable
+  Colombian requirements `[NEEDS LEGAL VERIFICATION]` (values remain product constants).
+- Storing client IP and user agent in `audit_logs` (personal data under Ley 1581/2012; purpose,
+  retention, disclosure in privacy notice) `[NEEDS LEGAL VERIFICATION]`.
+- Supabase/Vercel region and international transfer (Q-01) `[NEEDS LEGAL VERIFICATION]`.
+
+### 14.6 Tests run for this review (2026-11-08, local stack)
+`pnpm db:reset` (all migrations from scratch incl. branding 131000, seed OK) · `pnpm db:test` —
+10 files, 206 assertions, PASS (09_definer_hardening: 43; 10_branding_storage from the branding
+workstream also passes on top of the new owner model) · `pnpm test` — 15 files, 438 tests, PASS
+(integration project: 6 files / 52 tests against the live stack, incl. real GoTrue user creation
+and invitation acceptance) · `pnpm typecheck` — PASS · `pnpm lint` — PASS (final run) ·
+`pnpm gen:types` regenerated `src/server/db/types.gen.ts` (it was already stale for 1.3/1.7).
