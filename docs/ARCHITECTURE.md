@@ -48,8 +48,8 @@ flowchart LR
   OBS[Error tracking / logs<br/>PHI-scrubbed]
 
   PRO & PAT & GUA & PADM -->|HTTPS| NEXT
-  NEXT -->|user JWT| PG
-  NEXT -->|user JWT| ST
+  NEXT -->|"role authenticated + verified JWT claims<br/>(ADR-019, Proposed)"| PG
+  NEXT -->|signed URLs only| ST
   NEXT --> AUTH
   NEXT -->|restricted service role,<br/>allowlisted ops only| PG
   AUTH --> MAIL
@@ -59,14 +59,20 @@ flowchart LR
 
 Key properties:
 
-1. **The browser never talks to Postgres directly for domain data.** All reads and writes
-   go through server-only code (React Server Components, Server Actions, Route Handlers).
-   The Supabase browser client is used only for Auth session handling (sign-in, MFA
-   challenge, token refresh). See ADR-004.
-2. **RLS is the second line of defense**, not the only one. Every server call runs with the
-   user's JWT so RLS still applies even if an app-layer check is missing.
+1. **The browser never talks to Postgres directly for domain data** — and this must be
+   *enforced*, not just a convention. Any user's JWT plus the public key can otherwise call
+   the Supabase Data API (PostgREST) and Storage API directly (SECURITY.md A4, F-01). How we
+   close that surface is **ADR-019 (Proposed — awaiting client approval)**: Option A
+   (recommended) disables the Data API for domain schemas; Option B keeps it and splits
+   sensitive columns. Until ADR-019 is accepted, **RLS and grants must be sufficient on their
+   own** for confidentiality (§6.2).
+2. **RLS is the second line of defense**, not the only one. Every server query runs as the
+   user (role `authenticated` + the user's verified claims) so RLS still applies even if an
+   app-layer check is missing.
 3. **The service-role key is restricted** to a small, allowlisted set of server operations
    (see §6.4) and never reaches client bundles.
+4. **Auth flows run server-side where possible** (sign-in, MFA challenge/verify via server
+   actions) so session cookies can be `HttpOnly`; no browser Supabase client for domain data.
 
 ---
 
@@ -83,9 +89,9 @@ Key properties:
 | Backups | Supabase daily backups + PITR on production (paid add-on) | See §17. |
 
 Functions run in the **Node.js runtime** (not Edge) for anything touching the database,
-so we can use the full Supabase server client, crypto and structured logging. Middleware
+so we can use a Postgres connection (ADR-019), crypto and structured logging. Middleware
 (locale + tenant resolution) runs at the edge but performs **no data access beyond a
-cached host→organization lookup** (see §8).
+cached host→organization lookup** (see §8) and is **never an authorization boundary**.
 
 ---
 
@@ -126,7 +132,7 @@ cached host→organization lookup** (see §8).
 │  │  └─ shared/                 # cross-domain presentational components
 │  ├─ server/
 │  │  ├─ auth/                   # session retrieval, AAL/MFA checks, current profile
-│  │  ├─ db/                     # Supabase server client factory, admin client (restricted)
+│  │  ├─ db/                     # request-bound DB handle (ADR-019), admin client (restricted)
 │  │  ├─ authz/                  # AuthzContext, permission registry, requirePermission()
 │  │  ├─ audit/                  # audit event writer + event catalog
 │  │  ├─ tenancy/                # organization resolution
@@ -208,46 +214,75 @@ be justified in Phase 1):
 
 | Actor | How represented | Clinical access |
 |---|---|---|
-| `platform_admin` | Row in `platform_admins` (not a membership) | **None implicit.** Break-glass only (time-boxed, reasoned, audited, ADR-014). |
+| `platform_admin` | Row in `platform_admins` (not a membership) | **None implicit.** Break-glass only: read-only, approved by the org owner (+ treating psychologist) and a second SyV admin, ≤ 4 h, audited (ADR-014). |
 | `organization_owner` | `membership_roles.role = organization_owner` | Administrative only. Clinical access only if also `psychologist` **and** on the patient's care team (open decision Q-03). |
 | `psychologist` | `membership_roles.role = psychologist` | Patients where the membership is an active `care_team_members` row. |
 | `patient` | `patients.profile_id` linked to an auth user | Own assignments, own responses, shared resources, own consents. **Never** clinical notes, record sections, diagnoses. |
 | `guardian` | `guardians` row (optionally linked to a profile) + `patient_guardians` relationship + `patient_guardian_permissions` | Only what each granted permission allows, for that specific patient, while the relationship is active. |
 
-Detailed permission matrix: owned by security (`docs/SECURITY.md`, to be written). The
-permission registry in `src/server/authz/permissions.ts` is the single source of truth in
-code; tests are generated from it (§14).
+Detailed permission matrix: SECURITY.md §4.1. The permission registry in
+`src/server/authz/permissions.ts` is the single source of truth in code; tests are generated
+from it (§14) and assert that the TS policy and the real-JWT database result agree.
+
+**One profile, several capacities.** A profile can be guardian and patient in the same org (an
+adult patient whose child is also treated), or staff in one org and patient/guardian in another.
+Each request runs in exactly one explicit **acting-as** capacity chosen per session
+(API_CONTRACTS §4). Staff ↔ patient and staff ↔ guardian in the **same** org are forbidden by
+DB triggers in MVP (F-21) `[NEEDS PSYCHOLOGIST INPUT]`.
 
 ---
 
 ## 6. Data access
 
+### 6.0 Access path — ADR-019 (Proposed, awaiting client approval)
+
+| | Option A (recommended) | Option B |
+|---|---|---|
+| Browser query surface | None: Data API (PostgREST) and GraphQL disabled for domain schemas | PostgREST reachable with any user JWT |
+| Server → Postgres | Pooled Postgres connection as a non-privileged login role; per transaction `set local role authenticated` + `set_config('request.jwt.claims', <verified claims>, true)` → `auth.uid()`/`auth.jwt()` and RLS behave exactly as for PostgREST | supabase-js with the user's JWT |
+| Column confidentiality | DAL chooses columns (DTOs); RLS controls rows | Sensitive columns moved to care-team-only tables; portal reads via audited `SECURITY DEFINER` functions |
+| Read auditing | Complete (all reads go through the DAL) | Direct reads unaudited unless Postgres-side logging |
+
+Details, trade-offs and Supabase implications (Realtime, Storage, tooling) are in ADR-019. The
+rest of this section is written so that it holds under either option; the DB model marks the
+Option-B-only splits with **[B]** (DATABASE.md §1 rule 10).
+
 ### 6.1 Server-only Data Access Layer (DAL)
 
 - Every query lives in `modules/<domain>/server/queries.ts` and receives an
   `AuthzContext` as its first argument. No query function exists without one.
-- The DAL uses `createServerClient()` from `src/server/db/server.ts`, bound to the
-  request's cookies → user JWT → RLS applies.
+- The DAL obtains its database handle from `src/server/db/server.ts`, which binds the
+  **verified** identity of the request (Option A: a transaction with role + claims taken only
+  from a token verified server-side; Option B: the cookie-bound Supabase server client).
 - DAL functions **always filter by `organization_id` explicitly**, even though RLS would
   also enforce it. This makes intent obvious and keeps query plans index-friendly.
 - DAL returns DTOs (mapped, typed) — never raw rows with columns the caller should not
-  see (e.g. a portal DTO for an assignment never includes psychologist-only fields).
+  see. DTOs are a least-data measure, **not** a confidentiality control under Option B.
 
-### 6.2 RLS as second line
+### 6.2 RLS as second line (and the only line for direct access)
 
-- RLS enabled + `FORCE ROW LEVEL SECURITY` on every table in `public`.
-- Policies call `SECURITY DEFINER` helper functions in a dedicated `app` schema with fixed
-  `search_path` (e.g. `app.is_org_member(org_id)`, `app.has_clinical_access(patient_id)`,
-  `app.guardian_can(patient_id, permission)`). Helpers are `STABLE` and indexed paths.
-- Default deny: no policy → no access. `anon` role has no policies on domain tables.
+- RLS enabled + `FORCE ROW LEVEL SECURITY` on every table in `public`; `anon` has no grants
+  on domain tables; DELETE revoked on clinical/consent/audit/published tables.
+- Policies call helper functions in a dedicated, **non-exposed** `app` schema with
+  `set search_path = ''`: `app.is_org_member(org)`, `app.can_read_clinical(org, patient)`,
+  `app.can_write_clinical(org, patient)`, `app.guardian_can(org, patient, permission)`,
+  `app.is_patient_self(org, patient, need)`. Helpers are `STABLE`, use indexed paths, and
+  **require `aal2`** for every staff, clinical and platform check (F-03), so an aal1 session
+  cannot read clinical rows even if it reaches Postgres.
+- Helpers deny when the organization status does not allow the operation (DATABASE.md §5.1).
+- Views are `security_invoker = true`; column-restricted projections are `SECURITY DEFINER`
+  functions with explicit checks, never views (F-05).
+- Integrity rules that protect clinical or consent meaning (response submission, consent
+  signing, status transitions) are enforced in the database (F-10), not only in Zod.
+- Default deny: no policy → no access.
 
 ### 6.3 Atomic multi-step writes
 
-Supabase JS does not offer client-side transactions. Mutations that must be atomic
-(e.g. finalize note + audit, create activity version + blocks, publish version, accept
-consent + evidence) are implemented as **Postgres functions** (`SECURITY INVOKER`, so RLS
-still applies) called via `rpc()`. The function writes the domain rows and the audit row in
-one transaction.
+Mutations that must be atomic (finalize note + audit, create activity version + blocks,
+publish version, sign consent + evidence, submit response) are **Postgres functions**
+(`SECURITY INVOKER` by default so RLS applies; `SECURITY DEFINER` only where an invariant needs
+rows the caller cannot read). Under Option A they are called inside the request transaction;
+under Option B via `rpc()`. Each writes its domain rows and its audit row in one transaction.
 
 ### 6.4 Restricted service role
 
@@ -256,10 +291,11 @@ one transaction.
 | Allowed use | Why it needs elevated rights |
 |---|---|
 | Invitation acceptance (link new auth user to membership / patient / guardian) | Caller has no membership yet |
-| Auth admin operations (create user for invitation, revoke sessions) | Supabase Auth admin API |
+| Auth admin operations (create user for invitation, revoke sessions, MFA factor reset after recovery-code use, ADR-021) | Supabase Auth admin API |
 | Platform org provisioning | Creates first org + owner membership |
-| Scheduled jobs (expire invitations, expire break-glass grants, signed-export cleanup) | No user context |
-| Writing audit rows for **failed/denied** access attempts | User may lack insert rights for that org |
+| Scheduled jobs (expire invitations/grants, majority transition, export cleanup, rate-limit purge) | No user context |
+| Signed URL creation **after** `app.can_read_file()` returned true in the user's RLS-bound transaction | Storage RLS denies direct reads to `authenticated` (§12) |
+| Writing audit rows for **failed/denied** access attempts (`app.write_system_audit`) | User may lack rights for that org |
 
 Every service-role call logs an audit event with `actor_type = 'system'` or the
 initiating user, and is covered by an integration test.
@@ -279,12 +315,12 @@ sequenceDiagram
   participant AU as audit
 
   B->>MW: request /es/patients/123
-  MW->>MW: next-intl locale; resolve tenant hint (host→org)
-  MW->>RSC: forward (headers: x-request-id, x-org-hint)
+  MW->>MW: strip inbound x-org-* / x-request-id; next-intl locale; tenant hint (host→org)
+  MW->>RSC: forward (headers: x-request-id, x-org-hint — untrusted hint)
   RSC->>AZ: getAuthzContext()
   AZ->>AZ: verify session (getUser, not getSession), AAL level
   AZ->>PG: load memberships/roles/patient+guardian links (cached per request)
-  AZ-->>RSC: AuthzContext {profileId, orgId, roles, actorKind, aal}
+  AZ-->>RSC: AuthzContext {profileId, orgId, actingAs, roles, aal}
   RSC->>RSC: Zod-parse input
   RSC->>AZ: requirePermission(ctx, 'clinical.note.read', {patientId})
   AZ-->>RSC: ok | AppError(FORBIDDEN/NOT_FOUND)
@@ -300,13 +336,16 @@ Rules:
 
 1. **Authenticate** with `supabase.auth.getUser()` (server-verified), never trust
    `getSession()` alone.
-2. **MFA**: professional and platform routes require `aal2` (TOTP). Portal MFA optional
-   (open decision Q-07).
-3. **Validate** all input with Zod before any I/O.
+2. **MFA**: professional and platform routes require `aal2` (TOTP); the same check is
+   repeated inside the RLS helpers (§6.2). High-risk actions (finalize, export, role change,
+   grant approval) require an MFA verification within the last 15 min. Recovery: ADR-021.
+   Portal MFA optional (Q-07).
+3. **Validate** all input with Zod before any I/O; **rate-limit** per ADR-020.
 4. **Authorize** via `requirePermission()` with the resource scope (org, patient,
    assignment). Unauthorized access to an existing resource in another tenant returns
    `NOT_FOUND` (no enumeration).
-5. **Execute** through the DAL (RLS applies).
+5. **Execute** through the DAL (RLS applies). Authorization in a layout is never sufficient
+   (layouts do not wrap server actions); every page, action and route handler checks itself.
 6. **Audit** clinical reads and all mutations (§13).
 7. **Respond** with a `Result<T>` (see API_CONTRACTS.md); never throw raw DB errors to the
    client.
@@ -317,9 +356,10 @@ Rules:
 
 The organization is the tenant (ADR-002). Resolution order:
 
-1. **Host mapping** — `organization_domains` maps a host (custom domain or
-   `<slug>.<app-domain>`) to an organization. Used primarily by the portal for white-label.
-   Middleware reads a short-lived cached map; it only sets an `x-org-hint` header.
+1. **Host mapping** — `organization_domains` maps a host (`<slug>.<app-domain>`; custom
+   domains post-MVP, Q-02) to an organization. Used primarily by the portal for white-label.
+   Middleware reads a short-lived cached map; it **first deletes any inbound `x-org-*`
+   header** (F-16), then sets `x-org-hint`. The hint is untrusted input.
 2. **Active organization cookie** — for professional users with several memberships, an
    `active_org` cookie selects the org. It is a *hint*.
 3. **Server validation** — `getAuthzContext()` always verifies that the user actually
@@ -328,6 +368,15 @@ The organization is the tenant (ADR-002). Resolution order:
 
 The URL path deliberately **does not** contain the org id (`/[locale]/...` only): it keeps
 links shareable across white-label hosts and prevents treating the URL as an authority.
+
+Cross-host rules: cookies are **host-only** (no `Domain=` attribute spanning tenant
+subdomains); Supabase Auth redirect URLs are listed per host; `next.config`
+`experimental.serverActions.allowedOrigins` lists the app host and the tenant subdomain
+pattern explicitly (no broader wildcard) so the Next.js Origin check protects server actions
+against CSRF; side-effecting route handlers verify `Origin` and use POST.
+
+**Organization status** (`active`, `read_only`, `suspended`, `closed`) is enforced in the DB
+helpers (DATABASE.md §5.1); the app shows a neutral notice page for denied states.
 
 Portal users (patient/guardian) usually belong to exactly one org; a guardian could be
 linked to patients in two orgs, so the same validation applies.
@@ -368,7 +417,8 @@ ADR-010. Per organization branding is data, not code.
    of **semantic color tokens** (primary, primary-foreground, accent, radius scale…),
    optional font choice from an allowlist, portal welcome copy per locale.
 2. On request, the root layout loads branding for the resolved org (cached, tag-revalidated
-   on change) and emits a `<style>` block of CSS variables on `:root`
+   on change — branding is the **only** tenant data allowed in the Next.js data cache) and
+   emits a nonce-bearing `<style>` block of CSS variables on `:root`
    (`--brand-primary: 222 47% 31%;` in shadcn HSL format). Tailwind config maps
    `colors.primary` etc. to these variables. shadcn components consume them unchanged.
 3. Values are **validated server-side** (Zod: color formats, allowlisted fonts, max
@@ -376,9 +426,10 @@ ADR-010. Per organization branding is data, not code.
    palettes are rejected rather than rendered. No arbitrary CSS input is accepted.
 4. Child-mode portal uses an additional token set (larger radius, playful palette
    variants) derived from the brand tokens by the designer's rules — not free CSS.
-5. Logos are served from the `branding` bucket (non-PHI). Whether that bucket is public
-   is open decision Q-09; default proposal: public-read for logos only, because login
-   pages render before authentication.
+5. Logos are served from the `branding` bucket (non-PHI), public-read for logos/favicons
+   only (Q-09, approved by security with conditions): PNG/WebP/ICO only — **no SVG** (F-18) —
+   re-encoded server-side, random object names, object listing disabled, writes only via an
+   owner server action, no staff or patient photos.
 6. Emails use the org display name and logo URL; no clinical content.
 
 ---
@@ -423,7 +474,7 @@ ADR-011.
 | `clinical-documents` | Clinical documents, signed consent scans, exports | Private; care team only |
 | `activity-media` | Images/audio/video used in activity blocks | Private; org members + assigned patients/guardians |
 | `resources` | Resource library files | Private; org members + patients with a share |
-| `branding` | Logos, favicons | Public-read proposed (Q-09); write by org owner |
+| `branding` | Logos, favicons (PNG/WebP/ICO, no SVG) | Public-read, no listing (Q-09); write by org owner via server action |
 | `exports` | Generated record exports / DSR packages | Private; requester only; auto-expire |
 
 **Path convention** (enforced by storage RLS on `storage.objects` using path segments):
@@ -441,9 +492,15 @@ e.g. clinical-documents/org/9f…/patients/41…/c2….pdf
   clinical documents and exports **60 s**; activity media and resources **10 min** (long
   enough for an audio/video session); signed upload URLs **2 min**.
 - Signed URLs are issued only by route handlers / server actions after authorization, and
-  each issuance for clinical content is audited.
-- Max sizes and mime allowlists per bucket (e.g. PDF/JPEG/PNG/WebP/MP3/M4A/MP4).
-  Antivirus scanning: open decision Q-10.
+  each issuance for clinical content is audited and rate-limited.
+- **Storage RLS is complete on its own** (the Storage API is reachable with a user JWT under
+  both ADR-019 options): `authenticated` has no direct SELECT on private buckets; uploads only
+  into a path with a matching `pending_upload` `file_objects` row created by the same profile.
+- Files stay `pending_upload`/`quarantined` and unreadable until server-side validation
+  (magic-byte sniffing, size, sha256, EXIF stripping for images) and AV scan pass → `ready`.
+- Max sizes and mime allowlists per bucket: SECURITY.md §8. AV (SEC-04 Must) is required
+  before real data (Q-10); until then patient uploads are disabled.
+- Signed URLs remain valid until TTL after a revocation — accepted residual risk (F-25).
 
 ---
 
@@ -470,6 +527,17 @@ e.g. clinical-documents/org/9f…/patients/41…/c2….pdf
 - Audit log (DB, append-only) is separate from operational logs and is the place for
   "who accessed what" (ADR-012).
 
+### Caching (F-17)
+- Tenant, patient and clinical data are rendered dynamically with **no shared cache**:
+  `unstable_cache`, fetch-cache and `revalidateTag` are forbidden for them; React `cache()`
+  (per request) is the only memoization. Responses carry `Cache-Control: private, no-store`.
+- Cacheable: branding, the host→org map (ids only), static catalogs. Lint/review rule enforces this.
+
+### Rate limiting
+App-level limits (invitation acceptance, signed URLs, uploads, exports, consent signing, DSR
+creation, server actions per profile/IP) use the mechanism chosen in ADR-020, on top of
+Supabase Auth's built-in limits. Hits return `RATE_LIMITED` and are audited.
+
 ### Observability
 - Request id propagated from middleware into logs and audit rows.
 - Basic metrics: action latency, error rate by code, RLS-denied counts, signed URL
@@ -491,9 +559,12 @@ e.g. clinical-documents/org/9f…/patients/41…/c2….pdf
 
 Personas (synthetic): two orgs (A, B); per org an owner-only, an owner+psychologist, a
 psychologist on care team, a psychologist off care team, an adult patient, a child
-patient, two guardians with different permissions, one revoked guardian; one
-platform_admin with and without break-glass. **No real patient data in any non-production
-environment.**
+patient, an adolescent, a patient who just turned 18, two guardians with different
+permissions, one revoked and one unverified guardian, a profile that is both guardian and
+patient; staff sessions at `aal1` and `aal2`; a `read_only` and a `suspended` org; one
+platform_admin with no / pending / approved / expired / revoked grant. A **direct-API abuse**
+suite calls the Data API and Storage API with persona JWTs (or asserts they are disabled,
+ADR-019). **No real patient data in any non-production environment.**
 
 ---
 
@@ -530,14 +601,24 @@ approval gate.
 
 - Production data is never copied down. Support debugging uses synthetic reproductions.
 - Env vars validated at boot with Zod (`src/server/env.ts`); missing/invalid → fail fast.
-- Auth redirect URLs and allowed hosts configured per environment.
+- Auth redirect URLs and allowed hosts configured per environment, exact-match. The only
+  wildcard is on the **staging** project, scoped to the SyV team's Vercel preview domain
+  pattern (e.g. `https://psi-*-<syv-team>.vercel.app/**`), with PKCE; production has no
+  redirect wildcards (F-19). Previews never receive production keys.
+- Production console access (Supabase/Vercel dashboards, SQL editor, backups) bypasses RLS:
+  named SyV individuals only, MFA, no routine SQL, T3-style approval for any data access,
+  quarterly review (SECURITY.md §6, F-11).
 
 ---
 
 ## 17. Backup & recovery considerations
 
 - Production: daily automated backups + **Point-in-Time Recovery** (Supabase add-on).
-  Target RPO ≤ 5 min (PITR), RTO ≤ 4 h — to be confirmed with client.
+- **RPO/RTO (reconciled with PRD SEC-07, F-22):** the committed, contractual baseline is the
+  PRD hypothesis — **RPO ≤ 24 h, RTO ≤ 8 h** — for database *and* storage. With PITR the
+  database is *expected* to achieve RPO of minutes; we do not promise that until a restore
+  drill measures it. Storage objects follow the replication schedule (≤ 24 h). Final numbers:
+  client decision (Q-18).
 - **Storage objects are not covered by database backups** in the same way; plan a
   scheduled replication of private buckets to a separate, encrypted location
   `[decision Q-11]`.
@@ -585,7 +666,7 @@ approval gate.
 ## 19. Open architectural questions (summary)
 
 Tracked in DECISIONS.md "Open questions". Highlights: hosting region / data residency
-(Q-01), custom domains in MVP (Q-02), owner clinical visibility (Q-03), guardian access
-for adolescents (Q-04), retention periods (Q-05), break-glass approval flow (Q-06), portal
-MFA (Q-07), platform activity templates (Q-08), branding bucket public (Q-09), antivirus
-(Q-10), storage backup replication (Q-11).
+(Q-01), custom domains in MVP (Q-02), owner clinical visibility (Q-03), adolescent guardian
+defaults (Q-04), retention periods (Q-05), portal MFA (Q-07), antivirus (Q-10), storage backup
+replication (Q-11), RPO/RTO (Q-18), and **ADR-019 database access path (Q-19)**, which
+blocks Phase 1 DAL work.

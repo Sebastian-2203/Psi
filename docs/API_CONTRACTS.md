@@ -20,7 +20,9 @@
 | Dates | ISO 8601 strings in UTC for timestamps; `YYYY-MM-DD` for dates. Formatting happens in UI with org/user time zone. |
 | Locale | Taken from the request (next-intl), never from input, except explicit content-locale fields. |
 | Organization | Taken from `AuthzContext`, **never** from client input. Inputs never contain `organizationId`. |
-| Revalidation | Actions call `revalidateTag()` with org-scoped tags (`org:<id>:patients`). |
+| Caching | **No shared caching of tenant/patient/clinical data** (F-17): no `unstable_cache`, fetch cache or `revalidateTag` for them; pages render dynamically, responses `Cache-Control: private, no-store`. Only branding and static catalogs use tags (`org:<id>:branding`). Actions refresh views with `revalidatePath`/`router.refresh()` of dynamic routes. |
+| Data path | Per ADR-019 (Proposed). Contracts below are independent of Option A/B. |
+| Rate limits | `withAction` applies the ADR-020 limiter (per profile + IP, per action class) before the handler. |
 | PHI in URLs | Forbidden in query strings (no names, documents). Only opaque ids in paths. |
 
 ---
@@ -45,8 +47,9 @@ export type AppErrorPayload = {
 Route handler error envelope: `{ "error": AppErrorPayload }` with HTTP status per §3.
 
 Helpers: `ok(data)`, `fail(code, opts)`, `withAction(schema, permission, handler)` — a
-wrapper every action uses that performs: context resolution → Zod parse → permission
-check → idempotency → handler → audit → error mapping.
+wrapper every action uses that performs: context resolution (incl. acting-as and AAL) →
+rate limit → Zod parse (`.strict()`) → permission check → idempotency → handler → audit →
+error mapping.
 
 ```ts
 export const finalizeNoteAction = withAction({
@@ -82,7 +85,7 @@ export const finalizeNoteAction = withAction({
 Choosing `FORBIDDEN` vs `NOT_FOUND`: if the caller could legitimately know the resource
 exists (e.g. a psychologist in the same org viewing a patient not on their care team, in a
 directory listing), return `FORBIDDEN`; for anything cross-tenant or patient/guardian
-probing, return `NOT_FOUND`. Security to confirm.
+probing, return `NOT_FOUND` (confirmed in SECURITY.md §4.5; both audited as `access.denied` on clinical scopes).
 
 ---
 
@@ -96,17 +99,25 @@ export type AuthzContext = {
   profileId: string;                 // = auth.uid()
   aal: 'aal1' | 'aal2';
   organizationId: string | null;     // resolved + validated tenant
-  actorKind: 'staff' | 'patient' | 'guardian' | 'platform_admin';
-  membership?: { id: string; roles: Array<'organization_owner' | 'psychologist'> };
-  patientId?: string;                // when actorKind = 'patient'
-  guardian?: { guardianId: string; relationships: Array<{
+  actingAs: 'staff' | 'patient' | 'guardian' | 'platform_admin'; // exactly one per request
+  availableCapacities: Array<{ organizationId: string; actingAs: AuthzContext['actingAs'] }>;
+  membership?: { id: string; roles: Array<'organization_owner' | 'psychologist'> }; // actingAs = staff
+  patientId?: string;                // actingAs = patient
+  guardian?: { guardianId: string; relationships: Array<{   // actingAs = guardian
     patientId: string; patientGuardianId: string; permissions: GuardianPermission[];
-  }> };
-  platform?: { activeGrants: Array<{ id: string; scope: GrantScope; patientId?: string; expiresAt: string }> };
+  }>; supervisedSessionId?: string };
+  platform?: { grants: Array<{ id: string; scope: GrantScope; patientId?: string; expiresAt: string }> }; // approved only
+  mfaVerifiedAt?: string;            // for "recent MFA" checks on high-risk actions
 };
 ```
 
 - Built once per request (`cache()`), from verified `auth.getUser()` + DB lookups.
+- **Acting-as (F-21).** A profile may hold several capacities (e.g. guardian and patient in one
+  org; staff in org A, guardian in org B). The capacity is chosen explicitly
+  (`selectCapacityAction`, stored in an httpOnly `acting_as` cookie as a *hint*) and
+  re-validated on every request; permissions are evaluated **only** for the active capacity —
+  never the union. With a single capacity it is selected automatically. Switching is audited
+  (`auth.capacity_switched`). Staff ↔ patient/guardian in the same org is rejected by the DB (MVP).
 - `requirePermission(ctx, permission, scope)` resolves resource scope (e.g. loads the
   note's `patient_id`) and checks role + care team / guardian permission / grant.
 - Permission registry (`src/server/authz/permissions.ts`) maps each permission to
@@ -123,35 +134,45 @@ export type AuthzContext = {
 | `org.retention.manage` | organization_owner |
 | `patient.create` | psychologist |
 | `patient.directory.read` | staff (limited fields) |
-| `patient.read`, `patient.update`, `patient.archive` | psychologist on care team |
-| `patient.care_team.manage` | organization_owner, primary psychologist |
+| `patient.read`, `patient.update` | psychologist on care team |
+| `patient.care_team.manage` | organization_owner, primary psychologist (self-assignment rules: §8.4) |
+| `patient.status.manage` | psychologist on care team (activation gated by consents/guardians, DB-enforced) |
 | `patient.portal.invite` | psychologist on care team |
-| `guardian.manage`, `guardian.permissions.manage` | psychologist on care team |
-| `clinical.record.read`, `clinical.record.write` | psychologist on care team; break-glass (read only) |
-| `clinical.note.write`, `clinical.note.finalize`, `clinical.note.addendum.create` | psychologist on care team (finalize: author only) |
+| `guardian.manage`, `guardian.permissions.manage`, `guardian.caveat.manage` | psychologist on care team |
+| `clinical.record.read` | psychologist on care team; approved break-glass grant (read only) |
+| `clinical.record.write` | psychologist on care team (never break-glass) |
+| `clinical.note.write`, `clinical.note.finalize`, `clinical.note.addendum.create` | psychologist on care team (draft update + finalize: author only, DB-enforced) |
 | `clinical.assessment.*`, `clinical.diagnosis.*`, `clinical.plan.*` | psychologist on care team |
-| `clinical.document.read`, `clinical.document.upload` | psychologist on care team |
-| `consent.template.manage` | organization_owner |
+| `clinical.document.read`, `clinical.document.upload`, `clinical.document.share` | psychologist on care team |
+| `consent.template.manage` | organization_owner (PRD CON-01 also lists psychologist — product decision, F-24) |
 | `consent.request`, `consent.record.read` | psychologist on care team |
 | `consent.sign.self` | patient (own) |
-| `consent.sign.guardian` | guardian with `sign_consents` |
+| `consent.sign.guardian` | guardian with `sign_consents` ∧ verified legal representative (F-12) |
+| `consent.sign.assent` | minor patient (own; never a guardian account) |
 | `resource.manage`, `activity.manage`, `activity.publish` | psychologist |
-| `resource.share`, `assignment.manage`, `response.review` | psychologist on care team |
+| `resource.share`, `assignment.manage`, `response.review`, `response.feedback.write` | psychologist on care team |
 | `portal.assignment.read` | patient (own); guardian with `view_assignments` |
 | `portal.assignment.respond` | patient (own); guardian with `complete_assignments` |
 | `portal.response.read` | patient (own); guardian with `view_responses` + assignment visibility |
 | `portal.resource.read` | patient (shared); guardian with `view_shared_resources` + share flag |
 | `portal.preferences.update` | patient; guardian with `manage_portal_preferences` |
+| `portal.goal.read` | patient (own); guardian with `view_patient_facing_goals` |
+| `portal.document.read` | patient (shared); guardian with `view_shared_documents` + share flag |
+| `portal.reflection.write`, `portal.reflection.share` | patient (own; not in a guardian supervised session) — **no guardian permission exists** |
+| `portal.supervised_session.start` | guardian with `complete_assignments` |
 | `privacy.dsr.create` | patient, guardian (own scope); staff |
 | `privacy.dsr.manage` | organization_owner, psychologist on care team |
-| `privacy.export.create` | psychologist on care team; organization_owner for DSR fulfilment (Q-03) |
+| `privacy.export.create` | psychologist on care team only (aal2 + recent MFA). Owners track DSRs but never generate full-record exports (F-06) |
 | `platform.org.provision`, `platform.org.suspend` | platform_admin |
 | `platform.grant.request` | platform_admin |
-| `platform.grant.approve` | organization_owner of target org (Q-06) |
+| `platform.grant.approve_tenant` | organization_owner of target org; treating psychologist when required |
+| `platform.grant.approve_second` | a platform_admin **other than** the requester |
+| `platform.grant.revoke` | owner, treating psychologist, either SyV approver |
 
 `platform_admin` holds **no** `clinical.*`, `patient.*` or `portal.*` permission. With an
-active `clinical_read_break_glass` grant it gains `clinical.record.read` for the grant's
-patient only, read-only, every access audited with the grant id.
+**approved, active** `clinical_read_break_glass` grant it gains `clinical.record.read` (and
+in-scope `clinical.document.read`) for the grant's patient only — never write, export or
+`exports` URLs; every access audited with the grant id.
 
 ---
 
@@ -189,7 +210,7 @@ patient only, read-only, every access audited with the grant id.
 
 | Route | Method | Purpose | Permission | Audit |
 |---|---|---|---|---|
-| `/api/files/[fileId]/download-url` | POST | Issue signed download URL (TTL per bucket) | `app.can_read_file` + domain permission | `file.download_url_issued` (clinical buckets) |
+| `/api/files/[fileId]/download-url` | POST | Issue signed download URL (TTL per bucket); rate-limited; `Origin` checked | `app.can_read_file` (RLS-bound) + domain permission; never `exports` under break-glass | `file.download_url_issued` (clinical buckets) |
 | `/api/files/upload-url` | POST `{ bucket, purpose, entityId, mime, size }` | Issue signed upload URL (2 min) + pending `file_objects` row | domain upload permission | `file.upload_url_issued` |
 | `/api/exports/[exportId]` | GET | Stream a generated export (single use, short TTL) | requester of export | `export.downloaded` |
 | `/api/auth/callback` | GET | Supabase auth code exchange | — | `auth.signed_in` |
@@ -209,8 +230,11 @@ All inputs exclude `organizationId` (from context). `Id` = uuid.
 | Contract | Input → Output | Permission | Audit |
 |---|---|---|---|
 | `acceptInvitationAction` | `{ token, password?, displayName, locale }` → `{ redirectTo }` | public (token) | `invitation.accepted` |
-| `enrollMfaAction` / `verifyMfaAction` | `{ factorId, code }` → `{ aal }` | authenticated | `auth.mfa_enrolled` / `auth.mfa_verified` |
-| `switchOrganizationAction` | `{ organizationId }` → `{ ok }` (validated membership) | membership | `auth.org_switched` |
+| `enrollMfaAction` / `verifyMfaAction` | `{ factorId, code }` → `{ aal }` (server-side, so cookies stay httpOnly) | authenticated | `auth.mfa_enrolled` / `auth.mfa_verified` |
+| `generateRecoveryCodesAction` | `{}` → `{ codes: string[] }` (shown once; requires recent MFA) | self, aal2 | `auth.recovery_codes_generated` |
+| `useRecoveryCodeAction` | `{ code }` → `{ redirectTo: enrollment }` (ADR-021: unenrolls factors, revokes other sessions) | self, aal1, rate-limited | `auth.recovery_code_used`, `auth.mfa_reset` |
+| `selectCapacityAction` | `{ organizationId, actingAs }` → `{ redirectTo }` (validated against `availableCapacities`) | authenticated | `auth.org_switched` / `auth.capacity_switched` |
+| `startSupervisedSessionAction` / `endSupervisedSessionAction` | `{ patientId }` / `{}` → `{ expiresAt }` / `{ ok }` | `portal.supervised_session.start` | `supervised_session.started` / `.ended` |
 | `updateMyProfileAction` | `{ displayName?, locale?, timeZone? }` → `Profile` | self | `profile.updated` |
 
 ### 8.2 organizations
@@ -237,10 +261,10 @@ All inputs exclude `organizationId` (from context). `Id` = uuid.
 |---|---|---|---|
 | `listMyPatients` | filters (status), pagination → `PatientSummary[]` | care team | `patient.list_viewed` |
 | `getPatient` | `{ patientId }` → `PatientDetail` | `patient.read` | `patient.viewed` |
-| `createPatientAction` | `{ firstName, lastName, dateOfBirth, documentType, documentNumber?, email?, phone?, idempotencyKey }` → `{ patientId }` (creator becomes primary care team, record opened) | `patient.create` | `patient.created`, `clinical_record.opened` |
+| `createPatientAction` | `{ firstName, lastName, dateOfBirth, documentType, documentNumber?, email?, phone?, idempotencyKey }` → `{ patientId }` (status `intake`; creator becomes primary care team, record opened) | `patient.create` | `patient.created`, `clinical_record.opened` |
+| `changePatientStatusAction` | `{ patientId, status: 'active'\|'paused'\|'discharged'\|'archived', reason? }` → `PatientDetail` (`PRECONDITION_FAILED` with missing items when consents/legal representative are missing) | `patient.status.manage` | `patient.status_changed` |
 | `updatePatientAction` | `{ patientId, expectedUpdatedAt, ...fields }` → `PatientDetail` | `patient.update` | `patient.updated` (field names) |
-| `archivePatientAction` | `{ patientId, reason }` → `{ ok }` | `patient.archive` | `patient.archived` |
-| `assignCareTeamMemberAction` | `{ patientId, membershipId, careRole }` → `CareTeamMember` | `patient.care_team.manage` | `care_team.assigned` |
+| `assignCareTeamMemberAction` | `{ patientId, membershipId, careRole, reason? }` → `CareTeamMember` (`reason` required and primary notified when self-assigning to a patient with another primary, F-06) | `patient.care_team.manage` | `care_team.assigned` / `care_team.self_assigned` |
 | `endCareTeamMemberAction` | `{ careTeamMemberId, reason }` → `{ ok }` | `patient.care_team.manage` | `care_team.ended` |
 | `invitePatientToPortalAction` | `{ patientId, email, idempotencyKey }` → `{ invitationId }` | `patient.portal.invite` | `invitation.created` |
 | `updatePatientPreferencesAction` | `{ patientId, portalMode?, locale?, accessibility? }` → `Preferences` | care team (portalMode); patient/guardian (others) | `patient_preferences.updated` |
@@ -248,8 +272,10 @@ All inputs exclude `organizationId` (from context). `Id` = uuid.
 ### 8.5 guardians
 | Contract | Input → Output | Permission | Audit |
 |---|---|---|---|
-| `createGuardianAction` | `{ patientId, firstName, lastName, documentType, documentNumber?, email?, phone?, relationship, isLegalRepresentative }` → `{ guardianId, patientGuardianId }` | `guardian.manage` | `guardian.created`, `patient_guardian.created` |
-| `verifyGuardianRelationshipAction` | `{ patientGuardianId, verificationNote, validFrom, validUntil? }` → `Relationship` | `guardian.manage` | `patient_guardian.verified` |
+| `createGuardianAction` | `{ patientId, firstName, lastName, documentType, documentNumber?, email?, phone?, relationship, isLegalRepresentative, legalBasis?, isPrimaryContact }` → `{ guardianId, patientGuardianId }` (`legalBasis` required if legal representative) | `guardian.manage` | `guardian.created`, `patient_guardian.created` |
+| `verifyGuardianRelationshipAction` | `{ patientGuardianId, verificationNote, validFrom, validUntil?, legalBasisFileId?, verifyLegalBasis: boolean }` → `Relationship` | `guardian.manage` | `patient_guardian.verified` |
+| `suspendGuardianRelationshipAction` / `reactivate…` | `{ patientGuardianId, reason: SuspensionReason }` / `{ patientGuardianId, consentRecordId? }` → `Relationship` (reactivation after majority requires the adult patient's consent) | `guardian.manage` | `patient_guardian.suspended` / `.reactivated` |
+| `setGuardianCaveatAction` | `{ patientGuardianId, caveat, restrictSchedule }` → `{ ok }` | `guardian.caveat.manage` | `guardian_caveat.set` |
 | `setGuardianPermissionsAction` | `{ patientGuardianId, permissions: GuardianPermission[] }` → `{ granted[], revoked[] }` (diff) | `guardian.permissions.manage` | `guardian_permission.granted` / `.revoked` |
 | `revokeGuardianRelationshipAction` | `{ patientGuardianId, reason }` → `{ ok }` (revokes all permissions) | `guardian.manage` | `patient_guardian.revoked` |
 | `inviteGuardianToPortalAction` | `{ patientGuardianId, email, idempotencyKey }` → `{ invitationId }` | `guardian.manage` | `invitation.created` |
@@ -271,13 +297,15 @@ All inputs exclude `organizationId` (from context). `Id` = uuid.
 | `createTreatmentPlanDraftAction` | `{ recordId, summary, startDate, reviewDate?, goals[] }` → `Plan` | `clinical.plan.write` | `treatment_plan.created` |
 | `activateTreatmentPlanAction` | `{ planId }` → `Plan` (supersedes current active) | `clinical.plan.write` | `treatment_plan.activated` |
 | `reviseTreatmentPlanAction` | `{ planId }` → `Plan` (new draft copy, version+1) | `clinical.plan.write` | `treatment_plan.revised` |
-| `updateGoalStatusAction` | `{ goalId, status }` → `Goal` | `clinical.plan.write` | `treatment_goal.status_changed` |
+| `updateGoalStatusAction` | `{ goalId, status: 'open'\|'in_progress'\|'achieved'\|'discontinued' }` → `Goal` | `clinical.plan.write` | `treatment_goal.status_changed` |
+| `setPatientFacingGoalTextAction` | `{ goalId, patientFacingText: RichTextAst \| null }` → `Goal` (draft plans only) | `clinical.plan.write` | `treatment_goal.patient_text_set` |
+| `listMyGoals` (portal) | `{ patientId? (guardian) }` → `PortalGoal[]` (patient-facing text + status only) | `portal.goal.read` | — |
 
 ### 8.8 sessions
 | Contract | Input → Output | Permission | Audit |
 |---|---|---|---|
 | `scheduleSessionAction` | `{ patientId, start, end, modality }` → `Session` | care team | `therapy_session.scheduled` |
-| `updateSessionStatusAction` | `{ sessionId, status, cancelledReason? }` → `Session` | care team | `therapy_session.status_changed` |
+| `updateSessionStatusAction` | `{ sessionId, status: 'scheduled'\|'held'\|'cancelled_by_patient'\|'cancelled_by_psychologist'\|'no_show', cancelledReason? }` → `Session` | care team | `therapy_session.status_changed` |
 | `listSessions` | `{ from, to, patientId? }` → `Session[]` | care team | — |
 | `listMyUpcomingSessions` (portal) | — → `PortalSession[]` (date/time/status only) | patient; guardian `view_session_schedule` | — |
 
@@ -298,6 +326,8 @@ All inputs exclude `organizationId` (from context). `Id` = uuid.
 | `attachClinicalDocumentAction` | `{ recordId, fileObjectId, documentType, title, documentDate? , supersedesDocumentId? }` → `ClinicalDocument` | `clinical.document.upload` | `clinical_document.attached` |
 | `archiveClinicalDocumentAction` | `{ documentId, reason }` → `{ ok }` | `clinical.document.upload` | `clinical_document.archived` |
 | `listClinicalDocuments` | `{ patientId }` → `ClinicalDocument[]` | `clinical.document.read` | `clinical_document.list_viewed` |
+| `shareClinicalDocumentAction` / `unshareClinicalDocumentAction` | `{ documentId, guardianVisible }` / `{ shareId }` → `DocumentShare` / `{ ok }` (warns on guardian caveat) | `clinical.document.share` | `document.shared` / `document.unshared` |
+| `listMySharedDocuments` (portal) | `{ patientId? (guardian) }` → `PortalDocument[]` | `portal.document.read` | `document.portal_list_viewed` (PRT-07 requires audit) |
 
 ### 8.11 consents
 | Contract | Input → Output | Permission | Audit |
@@ -306,9 +336,9 @@ All inputs exclude `organizationId` (from context). `Id` = uuid.
 | `saveConsentVersionDraftAction` | `{ templateId, locale, body }` → `Version` | `consent.template.manage` | `consent_template_version.draft_saved` |
 | `publishConsentVersionAction` | `{ versionId, legalReviewReference? }` → `{ bodyHash, publishedAt }` | `consent.template.manage` | `consent_template_version.published` |
 | `requestConsentAction` | `{ patientId, templateId, signer: 'patient'\|'guardian', patientGuardianId? }` → `ConsentRequest` (portal task) | `consent.request` | `consent.requested` |
-| `signConsentAction` (portal) | `{ versionId, patientId, decision, method, typedName?, textHash, idempotencyKey }` → `ConsentRecord` (server recomputes hash, captures ip/UA server-side) | `consent.sign.self` / `consent.sign.guardian` | `consent.signed` / `consent.declined` |
+| `signConsentAction` (portal) | `{ versionId, patientId, decision, method, typedName?, textHash, idempotencyKey }` → `ConsentConfirmation` (server recomputes hash, captures IP/UA server-side; evidence never returned) | `consent.sign.self` / `consent.sign.guardian` / `consent.sign.assent` | `consent.signed` / `consent.declined` |
 | `recordConsentAction` (professional, paper/verbal) | `{ patientId, versionId, signerType, patientGuardianId?, method, evidenceFileId?, acceptedAt, idempotencyKey }` → `ConsentRecord` | `consent.request` | `consent.recorded` |
-| `revokeConsentAction` | `{ consentRecordId, reason }` → `ConsentRecord` | signer or care team | `consent.revoked` |
+| `withdrawConsentAction` | `{ consentRecordId, reason }` → `ConsentRecord` (status `withdrawn`; alerts psychologist; blocks new assignments, CON-04) | signer or care team | `consent.withdrawn` |
 | `getPatientConsentStatus` | `{ patientId }` → `ConsentStatus[]` (latest per template) | `consent.record.read` | `consent.status_viewed` |
 
 ### 8.12 resources
@@ -358,23 +388,35 @@ Exact block fields are owned by the activities agent and require architect appro
 | Contract | Input → Output | Permission | Audit |
 |---|---|---|---|
 | `assignActivityAction` | `{ patientId, activityVersionId, availableFrom?, dueAt?, guardianVisibility, allowMultipleAttempts, messageToPatient? }` → `Assignment` (version must be published) | `assignment.manage` | `activity_assignment.created` |
-| `cancelAssignmentAction` | `{ assignmentId, reason }` → `{ ok }` | `assignment.manage` | `activity_assignment.cancelled` |
+| `withdrawAssignmentAction` | `{ assignmentId, reason }` → `{ ok }` (hides from portal, keeps responses, ASG-04) | `assignment.manage` | `activity_assignment.withdrawn` |
+| `reopenAssignmentAction` | `{ assignmentId }` → `{ ok }` (next submission is a new attempt, RSP-02) | `assignment.manage` | `activity_assignment.reopened` |
 | `listMyAssignments` (portal) | `{ status?, patientId? (guardian) }` → `PortalAssignment[]` | `portal.assignment.read` | — |
 | `getAssignmentForCompletion` (portal) | `{ assignmentId }` → `{ version: RenderableActivity, draftResponse? }` (pinned version, approved translations, no psychologist-only fields) | `portal.assignment.read` | `activity_assignment.opened` |
 | `saveResponseProgressAction` (portal) | `{ assignmentId, items: { blockClientKey, value }[], expectedUpdatedAt? }` → `{ responseId, savedAt }` | `portal.assignment.respond` | — (throttled `activity_response.progress_saved`) |
 | `submitActivityResponseAction` (portal) | `{ assignmentId, responseId, idempotencyKey }` → `{ submittedAt }` (validates every item vs pinned block, required blocks answered) | `portal.assignment.respond` | `activity_response.submitted` |
 | `getResponseForReview` | `{ responseId }` → `ResponseReview` (blocks + items, review renderers) | `response.review` | `activity_response.viewed` |
 | `markResponseReviewedAction` | `{ responseId }` → `{ reviewedAt }` | `response.review` | `activity_response.reviewed` |
+| `leaveResponseFeedbackAction` | `{ responseId, body: RichTextAst }` → `Feedback` (visible to patient, RSP-05) | `response.feedback.write` | `activity_response.feedback_added` |
 
+Response saving and submission execute the DB functions of DATABASE.md §5.6, which re-check
+actor, state and item validity (F-10); Zod validation in the action is the first layer only.
 No contract converts a response into a clinical note. A psychologist may write a note
 manually while viewing a response (separate `createNoteDraftAction`).
+
+### 8.14a reflections (portal, PRT-05)
+| Contract | Input → Output | Permission | Audit |
+|---|---|---|---|
+| `saveReflectionAction` | `{ reflectionId?, body: RichTextAst, expectedUpdatedAt? }` → `Reflection` (unshared only) | `portal.reflection.write` | — |
+| `shareReflectionAction` | `{ reflectionId }` → `{ sharedAt }` (explicit, per entry) | `portal.reflection.share` | `reflection.shared` |
+| `listMyReflections` | pagination → `Reflection[]` | `portal.reflection.write` | — |
+| `listSharedReflections` (professional) | `{ patientId }` → `Reflection[]` (shared only) | `clinical.record.read` | `reflection.list_viewed` |
 
 ### 8.15 privacy
 | Contract | Input → Output | Permission | Audit |
 |---|---|---|---|
 | `createDataSubjectRequestAction` | `{ subject: { patientId } \| { guardianId }, requestType, description, channel }` → `DSR` | `privacy.dsr.create` | `dsr.created` |
 | `updateDataSubjectRequestAction` | `{ dsrId, status, resolutionSummary? }` → `DSR` | `privacy.dsr.manage` | `dsr.status_changed` |
-| `requestExportAction` | `{ patientId, scope: 'full_record' \| 'portal_data', reason, dsrId?, idempotencyKey }` → `{ exportId }` (async job, `exports` bucket) | `privacy.export.create` | `export.requested` |
+| `requestExportAction` | `{ patientId, scope: 'full_record' \| 'portal_data', reason, dsrId?, idempotencyKey }` → `{ exportId }` (async job, `exports` bucket; requester-only single-use download) | `privacy.export.create` (care team only; owner cannot) | `export.requested` |
 
 ### 8.16 audit
 | Contract | Input → Output | Permission | Audit |
@@ -386,9 +428,16 @@ manually while viewing a response (separate `createNoteDraftAction`).
 |---|---|---|---|
 | `provisionOrganizationAction` | `{ slug, legalName, displayName, ownerEmail, defaultLocale, timeZone }` → `{ organizationId, invitationId }` | `platform.org.provision` (aal2) | `organization.provisioned` |
 | `suspendOrganizationAction` | `{ organizationId, reason }` → `{ ok }` | `platform.org.suspend` | `organization.suspended` |
-| `requestAccessGrantAction` | `{ organizationId, scope, patientId?, reason, ticketReference, durationMinutes }` → `Grant (pending/active)` | `platform.grant.request` | `platform_grant.requested` |
-| `approveAccessGrantAction` | `{ grantId }` → `Grant` | `platform.grant.approve` | `platform_grant.approved` |
-| `revokeAccessGrantAction` | `{ grantId }` → `{ ok }` | requester, approver | `platform_grant.revoked` |
+| `requestAccessGrantAction` | `{ organizationId, scope, patientId?, objectScope?, reason (≥ 20), ticketReference, durationMinutes (≤ 240) }` → `Grant` (always `pending`) | `platform.grant.request` (aal2) | `platform_grant.requested` |
+| `approveAccessGrantAsTenantAction` | `{ grantId, decision: 'approve'\|'reject' }` → `Grant` | `platform.grant.approve_tenant` (aal2, recent MFA) | `platform_grant.approved` / `.rejected` |
+| `secondApproveAccessGrantAction` | `{ grantId }` → `Grant` (refused if caller = requester) | `platform.grant.approve_second` (aal2) | `platform_grant.approved` |
+| `revokeAccessGrantAction` | `{ grantId, reason }` → `{ ok }` | `platform.grant.revoke` | `platform_grant.revoked` |
+| `listOrgAccessGrants` | `{ status? }` → `Grant[]` (tenant view incl. access report after expiry) | organization_owner | — |
+
+Activation (`status = approved`, `starts_at`, `expires_at`) is set **by the database** when the
+last required approval arrives (DATABASE.md §5.1); no contract sets it directly. The owner is
+notified on request, approval, first use and closure; `platform_grant.activated` and
+`.expired` are system events.
 
 ---
 
@@ -402,4 +451,6 @@ manually while viewing a response (separate `createNoteDraftAction`).
   are always audited; portal reads of own data are not (volume), except opening an
   assignment.
 - Denied attempts (`FORBIDDEN`/`NOT_FOUND` on clinical scopes) are audited as
-  `access.denied` with the attempted permission.
+  `access.denied` with the attempted permission (via the service-role system writer).
+- The audit writer is never callable from the browser and never accepts an actor: the actor is
+  `auth.uid()` inside `app.write_audit` (DATABASE.md §9). Each event has exactly one source.

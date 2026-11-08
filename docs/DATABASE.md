@@ -170,6 +170,8 @@ allowed status (§5.1) and memberships/relationships to be `active`.
 
 ## 4. ER overview
 
+Diagrams show the core entities; tables added after security review v0.1 are listed in §2.
+
 ### 4.1 Tenancy & identity
 
 ```mermaid
@@ -592,19 +594,30 @@ Purpose: metadata of every storage object.
 - RLS: org members read; patients/guardians read published versions they are asked to sign.
 
 #### `consent_records` (merges `consents` + `guardian_consents`)
-Purpose: evidence of a consent decision.
+Purpose: a consent decision (who, what, which version, how).
 - Cols: `patient_id`, `consent_template_version_id`, `signer_type`,
   `signer_profile_id null`, `signer_guardian_id null`, `patient_guardian_id null`,
   `recorded_by_profile_id`, `decision consent_decision`, `method consent_method`,
-  `typed_name text null`, `locale text`, `text_hash bytea`, `accepted_at timestamptz`,
-  `ip_address inet null`, `user_agent text null`, `evidence_file_id uuid null`,
-  `revoked_at null`, `revoked_by_profile_id null`, `revocation_reason text null`.
-- C: `text_hash` must equal the version's `body_hash` (trigger); `signer_type = 'guardian'` ⇒
-  guardian ids not null and relationship active with `sign_consents` at time of signing;
-  `method = 'paper_scan'` ⇒ `evidence_file_id not null`; `method = 'portal_typed_name'` ⇒ `typed_name not null`.
-- Immutable except one-time setting of `revoked_*` (trigger). Re-consent = new row.
+  `locale text`, `text_hash bytea`, `accepted_at timestamptz` (server time),
+  `evidence_file_id uuid null`, `withdrawn_at null`, `withdrawn_by_profile_id null`,
+  `withdrawal_reason text null`,
+  `status consent_record_status generated always as (withdrawn → declined → accepted) stored`.
+- C: `text_hash` must equal the version's `body_hash` (trigger); `method = 'paper_scan'` ⇒
+  `evidence_file_id not null`; `signer_type = 'guardian'` ⇒ guardian ids not null and, at signing
+  time, relationship `active` ∧ `sign_consents` ∧ (for `treatment_informed_consent`,
+  `guardian_authorization`, `personal_data_processing`) `is_legal_representative` with
+  `legal_basis_verified_at` set (F-12, GRD-03); `minor_assent` ⇒ `signer_type = 'patient'`.
+- Writes only via `app.sign_consent()` / `app.record_consent()` (enforce the above, capture
+  evidence). Immutable except one-time `withdrawn_*` (trigger). Re-consent = new row.
+  Withdrawal blocks new assignments for the patient until the psychologist resolves (CON-04; trigger on `activity_assignments`).
 - Idx: `(organization_id, patient_id, consent_template_version_id)`.
-- RLS: care team reads/creates; patient reads own; guardian reads ones they signed or with `sign_consents`.
+- RLS: care team reads/creates; patient reads own; **guardian reads only records they signed**
+  (F-09) — never other signers' records or evidence.
+
+#### `consent_record_evidence` [split] (F-09)
+- Cols: `consent_record_id unique`, `typed_name text null`, `ip_address inet null`, `user_agent text null`.
+- C: `method = 'portal_typed_name'` ⇒ `typed_name not null` (checked in `app.sign_consent`). Insert-only.
+- RLS: care team only. The signer sees a confirmation DTO, not the stored evidence.
 
 ### 5.6 Resources & activities
 
@@ -642,7 +655,10 @@ Purpose: immutable content snapshot once published.
 - C: `unique(activity_id, version_number)`; partial unique `(activity_id) where status = 'draft'`;
   `check (age_min_years is null or age_max_years is null or age_min_years <= age_max_years)`.
 - Immutable once `published` (only `published → retired`).
-- RLS: psychologists read/manage drafts; patients/guardians read only versions pinned by an assignment they can see (via view without `therapeutic_objective` — Q-13).
+- RLS: psychologists read/manage drafts; patients/guardians receive only versions pinned by an
+  assignment they can see, through `app.portal_activity_version(assignment)` (SECURITY DEFINER,
+  omits `therapeutic_objective` — Q-13). **[B]** split professional fields into
+  `activity_version_professional_fields`.
 
 #### `activity_blocks`
 - Cols: `activity_version_id`, `position smallint`, `block_type`, `schema_version smallint`,
@@ -656,10 +672,12 @@ Purpose: immutable content snapshot once published.
 - Cols: `patient_id`, `activity_id`, `activity_version_id` (**pinned**),
   `assigned_by_membership_id`, `assigned_at`, `available_from null`, `due_at null`,
   `status assignment_status`, `guardian_visibility guardian_visibility default 'none'`,
-  `allow_multiple_attempts bool`, `message_to_patient text null`, `cancelled_at null`.
-- C: pinned version must be `published` at insert (trigger); `activity_version_id` immutable (trigger); FK `(activity_id, activity_version_id)` consistency.
+  `allow_multiple_attempts bool`, `message_to_patient text null`, `withdrawn_at null`, `withdrawn_reason null`.
+- C: pinned version must be `published` at insert (trigger); `activity_version_id` immutable (trigger); FK `(activity_id, activity_version_id)` consistency;
+  insert requires patient status allowing new assignments (§5.3) and no withdrawn required consent (CON-04/05);
+  status transitions enforced by trigger (`assigned → in_progress → submitted → reviewed`, any → `withdrawn`; reopen = new attempt, RSP-02).
 - Idx: `(organization_id, patient_id, status)`, `(organization_id, assigned_by_membership_id, status)`.
-- RLS: care team manages; patient reads own (non-cancelled); guardian with `view_assignments` and `guardian_visibility <> 'none'`.
+- RLS: care team manages; patient reads own (non-`withdrawn`); guardian with `view_assignments` and `guardian_visibility <> 'none'`.
 
 #### `activity_responses`
 - Cols: `activity_assignment_id`, `activity_version_id`, `patient_id`, `attempt_number smallint`,
@@ -667,7 +685,28 @@ Purpose: immutable content snapshot once published.
   `submitted_by_actor response_actor null`, `reviewed_at null`, `reviewed_by_membership_id null`.
 - C: `unique(activity_assignment_id, attempt_number)`; version equals the assignment's pinned version (composite FK).
 - Immutable once `submitted` (only `reviewed_*` set by care team).
-- RLS: patient creates/updates own in-progress; guardian with `complete_assignments`; read by guardian requires `view_responses` **and** `guardian_visibility = 'assignment_and_responses'`; care team reads. Responses **never** create notes automatically.
+- **Writes only via functions** (F-10): direct INSERT/UPDATE on responses and items is revoked for
+  `authenticated`; `app.save_response_progress()` and `app.submit_activity_response()` check the
+  actor (patient self with `portal_write`, or guardian with `complete_assignments` inside an
+  active supervised session), the assignment state, every item against its pinned block
+  (value type per `block_type`, option keys ∈ block config, scale within min/max, text ≤
+  `maxLength`, `pg_column_size(value)` cap) and that all required blocks are answered; they set
+  `submitted_at`, `submitted_by_profile_id`, `submitted_by_actor` server-side.
+- RLS (read): patient own; guardian requires `view_responses` **and** `guardian_visibility = 'assignment_and_responses'`; care team reads. Responses **never** create notes automatically.
+
+#### `activity_response_feedback` (RSP-05)
+- Cols: `activity_response_id`, `patient_id`, `body jsonb` (AST), `author_membership_id`, `created_at`, `superseded_by_id null`.
+- Append-only; edit = new row superseding the previous. Separate from notes; never copied into the record.
+- RLS: care team writes/reads; patient self reads latest; guardian follows response visibility
+  (`view_responses` ∧ `assignment_and_responses`) `[NEEDS PSYCHOLOGIST INPUT]`.
+
+#### `patient_reflections` (PRT-05, F-07)
+- Cols: `patient_id`, `body jsonb` (AST), `created_by_profile_id`, `shared_with_care_team_at null`, `updated_at`.
+- C: editable by the patient while not shared; sharing is a one-way explicit action per entry
+  (un-share after sharing `[NEEDS PSYCHOLOGIST INPUT]`). Not linkable to assignments or responses.
+- RLS: patient self (`portal_write`, never inside a guardian supervised session); care team reads
+  **only** shared entries; **no guardian policy, ever, in MVP**; no platform or owner access.
+- Whether wholly private entries are stored and their retention `[NEEDS PSYCHOLOGIST INPUT]` `[NEEDS LEGAL VERIFICATION]`.
 
 #### `activity_response_items`
 - Cols: `activity_response_id`, `activity_version_id`, `activity_block_id`, `value jsonb`, `answered_at`.
@@ -714,6 +753,17 @@ Purpose: human-authored translations of therapeutic content with review.
 - C: `unique(actor_profile_id, action_name, key)`.
 - RLS: actor reads/inserts own; purge job deletes expired rows (operational data, not clinical).
 
+#### `mfa_recovery_codes` (ADR-021, no `organization_id`)
+- Cols: `profile_id`, `code_hash text` (Argon2id/bcrypt), `batch_id uuid`, `created_at`, `used_at null`.
+- C: 10 codes per active batch; regenerating revokes the previous batch; single use (one-time `used_at`).
+- RLS: none for `authenticated` (no policies); read/write only by the recovery server function
+  (service-role allowlist). Every generation/use audited (`auth.recovery_codes_generated/used`).
+
+#### `rate_limit_counters` (ADR-020, no `organization_id`)
+- Cols: `bucket_key bytea` (sha256 of `action:profile|ip`), `window_start timestamptz`, `count int`.
+- C: PK `(bucket_key, window_start)`. `UNLOGGED` table acceptable (loss on crash only resets limits).
+- Access only through `app.consume_rate_limit(key, limit, window)` (SECURITY DEFINER, not exposed); purge job removes old windows. No PHI, no raw IPs.
+
 ---
 
 ## 6. Versioning & immutability strategy
@@ -729,8 +779,12 @@ Immutability is enforced **in the database** (triggers), not only in the app.
 | `treatment_plans` / goals | `draft` | `active` | plan: `status` → completed/superseded/discontinued; goals: `status`, `achieved_at` |
 | `activity_versions` / blocks | `draft` | `published` | version: `published → retired` only |
 | `consent_template_versions` | `draft` | `published` | `published → retired` only |
-| `consent_records` | never | on insert | one-time revocation fields |
+| `consent_records`, `consent_record_evidence` | never | on insert | one-time `withdrawn_*` fields (records only) |
 | `activity_responses` / items | `in_progress` | `submitted` | `reviewed_*` only |
+| `activity_response_feedback`, `clinical_note_addenda` | never | on insert | nothing (supersede) |
+| `treatment_goal_patient_texts` | plan `draft` | plan `active` | `withdrawn_at` once |
+| `patient_reflections` | not shared | `shared_with_care_team_at` set | nothing |
+| `platform_access_grants` | `pending` | `approved`/`rejected` | `revoked_*`, `status → expired` |
 | `content_translations` | `draft`/`in_review` | `approved` | nothing (supersede) |
 | `audit_logs`, `*_revisions` | never | on insert | nothing |
 
@@ -745,45 +799,42 @@ Mechanics:
 - `DELETE` is revoked from `authenticated` on all clinical, consent, audit and
   published-content tables. Draft notes may be discarded via a function that audits the
   discard.
+- Write functions default to `SECURITY INVOKER` (RLS applies); `SECURITY DEFINER` only where an
+  invariant needs rows the caller cannot read (e.g. guardian signing checks), always with
+  `set search_path = ''`, schema-qualified names, no dynamic SQL, and identity from `auth.uid()`.
 
 ---
 
 ## 7. Soft delete vs. archival stance
 
-- **No generic `deleted_at` soft delete** across the schema: it is easy to forget in
-  queries and it weakens RLS reasoning.
-- **Clinical, consent, audit data**: never deleted by users. Lifecycle via status
-  (`archived`, `closed`, `discharged`, `superseded`, `revoked`). Actual destruction only
-  through a retention/suppression process (configured policy + DSR + audit), executed by a
-  privileged job. `[NEEDS LEGAL VERIFICATION]` (clinical record retention obligations may
-  limit suppression).
-- **Operational content** (resources, activities, categories): `archived` status hides from
-  pickers; existing assignments keep working because they pin versions.
-- **Relationships** (care team, guardians, permissions, shares): end-dated / revoked, never
-  deleted, so historical access can be reconstructed.
-- **Files**: `file_objects.status = 'deleted'` + storage object removal by job; metadata row
-  kept for traceability.
+- **No generic `deleted_at` soft delete** (easy to forget in queries; weakens RLS reasoning).
+- **Clinical, consent, audit data**: never deleted by users; lifecycle via status (`archived`,
+  `closed`, `discharged`, `superseded`, `withdrawn`). Destruction only through a configured
+  retention/suppression process executed by a privileged, audited job `[NEEDS LEGAL VERIFICATION]`.
+- **Operational content** (resources, activities, categories): `archived` hides from pickers;
+  assignments keep working because they pin versions.
+- **Relationships and shares**: end-dated / revoked, never deleted (access history is reconstructable).
+- **Files**: `file_objects.status = 'deleted'` + storage removal by job; metadata row kept.
 
 ---
 
 ## 8. Guardian permission model
 
-Guardian access = **relationship** ∧ **validity** ∧ **permission** ∧ **resource-level flag**.
+Guardian access = **relationship** ∧ **validity** ∧ **permission** ∧ **resource-level flag** ∧
+**patient is a minor** ∧ **patient/org status allows portal** (all checked in `app.guardian_can`).
 
-1. `patient_guardians.status = 'active'` and `current_date between valid_from and coalesce(valid_until, 'infinity')`.
-2. Unrevoked row in `patient_guardian_permissions` for the needed permission.
+1. `patient_guardians.status = 'active'`, verified, and `current_date between valid_from and coalesce(valid_until, 'infinity')`.
+2. Unrevoked row in `patient_guardian_permissions` for the needed permission; all default **off** (GRD-04).
 3. Resource flags set by the psychologist: `activity_assignments.guardian_visibility`,
-   `resource_shares.guardian_visible`.
-4. No permission exists for clinical notes, record sections, diagnoses, assessments or
-   treatment plans — guardians **cannot** be granted them in MVP.
-5. Minors' private reflections: default `guardian_visibility = 'none'`; the psychologist
-   decides per assignment. `[NEEDS PSYCHOLOGIST INPUT]` `[NEEDS LEGAL VERIFICATION]`
-   (adolescent confidentiality, Ley 1098).
-6. When a patient reaches majority (derived), relationships are flagged for review (job
-   creates a task/notification; no automatic revocation without decision — Q-04).
-7. Every grant/revoke is audited with before/after permission sets.
-
----
+   `resource_shares.guardian_visible`, `clinical_document_shares.guardian_visible`.
+4. No permission exists for clinical notes, record sections, diagnoses, assessments, internal
+   treatment plans, private documents or **patient reflections** — guardians **cannot** be granted them.
+5. Adolescent defaults (`guardian_visibility = 'none'`, `view_responses` off, schedule off):
+   SECURITY.md §5.3 `[NEEDS PSYCHOLOGIST INPUT]` `[NEEDS LEGAL VERIFICATION]` (Ley 1098/2006).
+6. Age of majority: fail-closed suspension (§5.3 `patient_guardians`, PRD PAT-06).
+7. Signing consents additionally requires legal representation with verified basis (§5.5).
+8. Guardians never see other guardians, their contact data, caveats or consent evidence.
+9. Every grant/revoke is audited with before/after permission sets.
 
 ## 9. Audit approach
 
@@ -798,12 +849,20 @@ Guardian access = **relationship** ∧ **validity** ∧ **permission** ∧ **res
   `prev_hash bytea null`, `row_hash bytea null` (optional hash chain, Q-15).
 - Idx: `(organization_id, occurred_at desc)`, `(organization_id, patient_id, occurred_at desc)`,
   `(actor_profile_id, occurred_at desc)`, `(event_type, occurred_at desc)`.
-- Writes: only via `app.write_audit(...)` (`SECURITY DEFINER`); `INSERT/UPDATE/DELETE`
-  revoked from `authenticated`/`anon`; a trigger rejects UPDATE/DELETE even for owners
-  of the table except the retention job role.
-- Sources: (a) Postgres functions for critical mutations (atomic), (b) row triggers on
-  clinical tables as a safety net for any mutation path, (c) DAL for **reads** of clinical
-  data and for signed URL issuance.
+- Writes: only via `app.write_audit(event_type, resource_type, resource_id, patient_id, metadata)`
+  (`SECURITY DEFINER`, F-04): lives in the non-exposed `app` schema; `execute` granted only to
+  `authenticated` for calls from our own write functions/DAL; **`actor_profile_id` comes from
+  `auth.uid()` and `actor_roles` from the DB, never from parameters**; the org is taken from
+  the resource or must be one the caller belongs to; `event_type` must be in the allowlist
+  table `app.audit_event_types`; metadata size-capped; per-actor rate limit. System and denied-
+  attempt events use a separate service-role-only `app.write_system_audit()`.
+  `INSERT/UPDATE/DELETE/TRUNCATE` revoked from `authenticated`/`anon`; a trigger rejects
+  UPDATE/DELETE for every role except the retention job role (whose use is itself logged).
+- Sources — **one source per event** (F-23): (a) the Postgres function performing a critical
+  mutation writes its event; (b) row triggers on clinical tables are a safety net that emits a
+  distinct `*.changed_untracked` event only when the function path was not used (session
+  flag); (c) the DAL writes **reads** of clinical data and signed URL issuance.
+- Integrity: daily signed digest over the `seq` range stored outside the project (SECURITY.md §7.5); per-row hash chain optional (Q-15).
 - RLS: owners read their org's logs; care team reads logs for their patients; platform
   admin reads platform events (`organization_id is null`) and break-glass events.
 - Partition by month when volume requires (declarative partitioning on `occurred_at`).
@@ -812,24 +871,12 @@ Guardian access = **relationship** ∧ **validity** ∧ **permission** ∧ **res
 
 ## 10. Consent evidence fields
 
-For each `consent_records` row the evidence bundle is:
-
-| Field | Meaning |
-|---|---|
-| `consent_template_version_id` | Exact template + version + locale presented |
-| `text_hash` | sha256 of the canonical text shown; must match `body_hash` |
-| `locale` | Language shown to signer |
-| `accepted_at` | Server timestamp (not client) |
-| `signer_type`, `signer_profile_id`, `signer_guardian_id`, `patient_guardian_id` | Who decided, in what capacity |
-| `recorded_by_profile_id` | Who entered it (self, or professional for paper/verbal) |
-| `method`, `typed_name` | How acceptance was expressed |
-| `ip_address`, `user_agent` | Technical context (portal methods) |
-| `evidence_file_id` | Scan of a paper consent, when applicable |
-| `decision` | Accepted or declined (declines are also evidence) |
-| `revoked_*` | Revocation event (separate from the original evidence) |
-
-Whether this constitutes valid electronic consent/signature in Colombia (Ley 527/1999,
-Ley 1581/2012) is `[NEEDS LEGAL VERIFICATION]`.
+Evidence bundle per decision: template version + locale presented, `text_hash` (= `body_hash`),
+server `accepted_at`, signer identity and capacity (`signer_type`, profile/guardian/relationship
+ids), `recorded_by_profile_id`, `method`, `decision` (declines are evidence too), optional
+paper scan, and — in care-team-only `consent_record_evidence` — typed name, IP and user agent.
+Withdrawal (`withdrawn_*`) is a separate event on the same row. Whether this constitutes valid
+electronic consent/signature in Colombia (Ley 527/1999, Ley 1581/2012) is `[NEEDS LEGAL VERIFICATION]`.
 
 ---
 
@@ -849,6 +896,9 @@ Ley 1581/2012) is `[NEEDS LEGAL VERIFICATION]`.
 - Seeds (`seed.sql`) contain synthetic personas only.
 - Enum additions in their own migration (Postgres restriction on using new values in the
   same transaction).
+- Migration lint (CI): every table has RLS enabled + forced; every view has
+  `security_invoker`; every function has `search_path` set and no `public` execute; no
+  `security definer` outside schema `app`; Data API exposed-schema config matches ADR-019.
 - Order of the initial migration set (proposal): extensions (`pgcrypto`, `citext`) →
   `app` schema + helpers → tenancy & identity → patients & guardians → clinical → consents →
   files & storage policies → resources & activities → translations → privacy → audit →
@@ -859,9 +909,12 @@ Ley 1581/2012) is `[NEEDS LEGAL VERIFICATION]`.
 ## 12. Open data-model questions
 
 - Q-03 Owner clinical visibility without care-team membership.
-- Q-04 Guardian access when adolescent / at majority.
+- Q-04 Adolescent defaults (majority behaviour now follows PRD PAT-06, fail-closed).
 - Q-12 Multiple clinical episodes per patient (re-admission) vs. single record reopened.
 - Q-13 Whether patients may see an activity's therapeutic objective.
 - Q-14 DSR intake from portal vs. only via professional.
 - Q-15 Audit hash chain (tamper evidence) in MVP.
+- Q-19 ADR-019 access path (Option A vs B) — changes which **[B]** splits are mandatory.
+- Draft-note visibility to co-care-team, reflection un-sharing, feedback visibility to guardians, owner self-assignment acknowledgement, `paused` portal behaviour `[NEEDS PSYCHOLOGIST INPUT]`.
+- `read_only`/`closed` org custody and legal-representation bases `[NEEDS LEGAL VERIFICATION]`.
 - Section keys, care roles, note types, sex/gender fields `[NEEDS PSYCHOLOGIST INPUT]`.
