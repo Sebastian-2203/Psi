@@ -72,6 +72,7 @@ language plpgsql
 security definer
 set search_path = ''
 as $$
+#variable_conflict use_column
 declare
   v_inv public.invitations%rowtype;
   v_email text;

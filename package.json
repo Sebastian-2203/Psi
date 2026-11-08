@@ -17,7 +17,14 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "e2e": "playwright test --trace off",
-    "i18n:check": "node scripts/check-i18n.mjs"
+    "i18n:check": "node scripts/check-i18n.mjs",
+    "db:start": "supabase start -x studio,imgproxy,vector,logflare,realtime,edge-runtime,mailpit,postgres-meta,supavisor",
+    "db:stop": "supabase stop",
+    "db:reset": "supabase db reset && node scripts/db-app-password.mjs",
+    "db:app-password": "node scripts/db-app-password.mjs",
+    "db:test": "supabase test db",
+    "test:integration": "vitest run --project integration --project node",
+    "gen:types": "supabase gen types typescript --local --schema public,app > src/server/db/types.gen.ts && prettier --write src/server/db/types.gen.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "7.0.3",

@@ -1,0 +1,124 @@
+-- Shared pgTAP helpers, included by every test file with `\ir _helpers.psql` INSIDE the
+-- test transaction (everything here is rolled back). FICTIONAL fixtures only, independent
+-- of seed.sql (ids use the c0/d0/e0 prefixes).
+--
+-- Impersonation mirrors src/server/db/server.ts: request.jwt.claims + request.jwt.claim.sub
+-- set transaction-locally, then `set local role authenticated`.
+
+create extension if not exists pgtap with schema extensions;
+
+create schema tests;
+grant usage on schema tests to authenticated, anon;
+
+create function tests.create_user(p_id uuid, p_email text) returns void
+language sql as $$
+  insert into auth.users (instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
+                          raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
+  values ('00000000-0000-0000-0000-000000000000', p_id, 'authenticated', 'authenticated', p_email,
+          '', now(), '{}'::jsonb, jsonb_build_object('display_name', 'Fictional ' || p_email), now(), now());
+$$;
+
+create function tests.as_user(p_sub uuid, p_aal text default 'aal2') returns void
+language plpgsql as $$
+begin
+  perform set_config('request.jwt.claims',
+    json_build_object('sub', p_sub, 'role', 'authenticated', 'aal', p_aal,
+                      'session_id', gen_random_uuid())::text, true);
+  perform set_config('request.jwt.claim.sub', p_sub::text, true);
+  set local role authenticated;
+end
+$$;
+
+create function tests.as_anon() returns void
+language plpgsql as $$
+begin
+  perform set_config('request.jwt.claims', '{"role":"anon"}', true);
+  perform set_config('request.jwt.claim.sub', '', true);
+  set local role anon;
+end
+$$;
+
+create function tests.as_admin() returns void
+language plpgsql as $$
+begin
+  reset role;
+  perform set_config('request.jwt.claims', '', true);
+  perform set_config('request.jwt.claim.sub', '', true);
+end
+$$;
+
+-- Rows affected by a DML statement, executed with the CURRENT role (RLS applies).
+create function tests.affected(p_sql text) returns integer
+language plpgsql as $$
+declare
+  n integer;
+begin
+  execute p_sql;
+  get diagnostics n = row_count;
+  return n;
+end
+$$;
+
+grant execute on all functions in schema tests to authenticated, anon;
+
+-- Fixtures ---------------------------------------------------------------------------------
+-- Org X (active) and Org Y (active), Org R (read_only), Org S (suspended)
+--   c...01 owner X      c...02 owner+psy X   c...03 psy X     c...04 psy X (suspended member)
+--   d...01 owner Y      e...01 platform admin   e...02 platform admin 2   c...09 no membership
+select tests.create_user('c0000000-0000-4000-8000-000000000001', 'owner.x@example.test');
+select tests.create_user('c0000000-0000-4000-8000-000000000002', 'owner-psy.x@example.test');
+select tests.create_user('c0000000-0000-4000-8000-000000000003', 'psy.x@example.test');
+select tests.create_user('c0000000-0000-4000-8000-000000000004', 'psy-suspended.x@example.test');
+select tests.create_user('c0000000-0000-4000-8000-000000000009', 'nobody@example.test');
+select tests.create_user('d0000000-0000-4000-8000-000000000001', 'owner.y@example.test');
+select tests.create_user('e0000000-0000-4000-8000-000000000001', 'platform.t@example.test');
+select tests.create_user('e0000000-0000-4000-8000-000000000002', 'platform2.t@example.test');
+
+insert into public.organizations (id, slug, legal_name, display_name, status) values
+  ('c1000000-0000-4000-8000-000000000001', 'test-x', 'Org X (FICTIONAL)', 'Org X', 'active'),
+  ('d1000000-0000-4000-8000-000000000001', 'test-y', 'Org Y (FICTIONAL)', 'Org Y', 'active'),
+  ('c1000000-0000-4000-8000-0000000000aa', 'test-r', 'Org R (FICTIONAL)', 'Org R', 'read_only'),
+  ('c1000000-0000-4000-8000-0000000000bb', 'test-s', 'Org S (FICTIONAL)', 'Org S', 'suspended');
+
+insert into public.organization_branding (organization_id, display_name, brand_color) values
+  ('c1000000-0000-4000-8000-000000000001', 'Org X', '#336699'),
+  ('d1000000-0000-4000-8000-000000000001', 'Org Y', '#993366');
+
+insert into public.organization_domains (organization_id, host, is_primary, verified_at) values
+  ('c1000000-0000-4000-8000-000000000001', 'test-x.localhost', true, now()),
+  ('d1000000-0000-4000-8000-000000000001', 'test-y.localhost', true, null);
+
+insert into public.memberships (id, organization_id, profile_id, status) values
+  ('c2000000-0000-4000-8000-000000000001', 'c1000000-0000-4000-8000-000000000001', 'c0000000-0000-4000-8000-000000000001', 'active'),
+  ('c2000000-0000-4000-8000-000000000002', 'c1000000-0000-4000-8000-000000000001', 'c0000000-0000-4000-8000-000000000002', 'active'),
+  ('c2000000-0000-4000-8000-000000000003', 'c1000000-0000-4000-8000-000000000001', 'c0000000-0000-4000-8000-000000000003', 'active'),
+  ('c2000000-0000-4000-8000-000000000004', 'c1000000-0000-4000-8000-000000000001', 'c0000000-0000-4000-8000-000000000004', 'suspended'),
+  ('d2000000-0000-4000-8000-000000000001', 'd1000000-0000-4000-8000-000000000001', 'd0000000-0000-4000-8000-000000000001', 'active'),
+  -- owner X is also owner of the read_only and suspended orgs
+  ('c2000000-0000-4000-8000-0000000000aa', 'c1000000-0000-4000-8000-0000000000aa', 'c0000000-0000-4000-8000-000000000001', 'active'),
+  ('c2000000-0000-4000-8000-0000000000bb', 'c1000000-0000-4000-8000-0000000000bb', 'c0000000-0000-4000-8000-000000000001', 'active');
+
+insert into public.professional_profiles (organization_id, membership_id, professional_title, license_number, license_issuer) values
+  ('c1000000-0000-4000-8000-000000000001', 'c2000000-0000-4000-8000-000000000002', 'Psicóloga (ficticia)', 'TEST-X-2', 'Ficticio'),
+  ('c1000000-0000-4000-8000-000000000001', 'c2000000-0000-4000-8000-000000000003', 'Psicólogo (ficticio)', 'TEST-X-3', 'Ficticio'),
+  ('c1000000-0000-4000-8000-000000000001', 'c2000000-0000-4000-8000-000000000004', 'Psicóloga (ficticia)', 'TEST-X-4', 'Ficticio');
+
+insert into public.membership_roles (organization_id, membership_id, role) values
+  ('c1000000-0000-4000-8000-000000000001', 'c2000000-0000-4000-8000-000000000001', 'organization_owner'),
+  ('c1000000-0000-4000-8000-000000000001', 'c2000000-0000-4000-8000-000000000002', 'organization_owner'),
+  ('c1000000-0000-4000-8000-000000000001', 'c2000000-0000-4000-8000-000000000002', 'psychologist'),
+  ('c1000000-0000-4000-8000-000000000001', 'c2000000-0000-4000-8000-000000000003', 'psychologist'),
+  ('c1000000-0000-4000-8000-000000000001', 'c2000000-0000-4000-8000-000000000004', 'psychologist'),
+  ('d1000000-0000-4000-8000-000000000001', 'd2000000-0000-4000-8000-000000000001', 'organization_owner'),
+  ('c1000000-0000-4000-8000-0000000000aa', 'c2000000-0000-4000-8000-0000000000aa', 'organization_owner'),
+  ('c1000000-0000-4000-8000-0000000000bb', 'c2000000-0000-4000-8000-0000000000bb', 'organization_owner');
+
+insert into public.platform_admins (profile_id) values
+  ('e0000000-0000-4000-8000-000000000001'),
+  ('e0000000-0000-4000-8000-000000000002');
+
+insert into public.invitations (organization_id, email, roles, token_hash, expires_at, invited_by) values
+  ('c1000000-0000-4000-8000-000000000001', 'invitee.x@example.test', '{psychologist}',
+   extensions.digest('test-token-x', 'sha256'), now() + interval '1 day', 'c0000000-0000-4000-8000-000000000001'),
+  ('d1000000-0000-4000-8000-000000000001', 'invitee.y@example.test', '{organization_owner}',
+   extensions.digest('test-token-y', 'sha256'), now() + interval '1 day', 'd0000000-0000-4000-8000-000000000001');

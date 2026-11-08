@@ -10,6 +10,8 @@ const ADMIN_PATTERN = {
 
 const ADMIN_DB_ALLOWLIST = [
   'src/server/db/admin.ts',
+  // System audit writer for denied attempts (ARCHITECTURE §6.4 row 6). PENDING architect approval.
+  'src/server/audit/**',
   'src/server/tenancy/**',
   'src/modules/platform/server/**',
   'tests/**',
