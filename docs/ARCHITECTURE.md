@@ -499,7 +499,7 @@ ADR-011.
 | `clinical-documents` | Clinical documents, signed consent scans, exports | Private; care team only |
 | `activity-media` | Images/audio/video used in activity blocks | Private; org members + assigned patients/guardians |
 | `resources` | Resource library files | Private; org members + patients with a share |
-| `branding` | Logos, favicons (PNG/WebP/ICO, no SVG) | Public-read, no listing (Q-09); write by org owner via server action |
+| `branding` | Logos, favicons (PNG/JPEG/WebP, no SVG; 512 KiB) | Public-read, no listing (Q-09); write by org owner via server action. Path `<organization_id>/logo-<hash>.<ext>` (not the `org/…` convention: no `file_objects` row, public by design); INSERT-only storage policy, objects immutable |
 | `exports` | Generated record exports / DSR packages | Private; requester only; auto-expire |
 
 **Path convention** (enforced by storage RLS on `storage.objects` using path segments):

@@ -242,7 +242,9 @@ All inputs exclude `organizationId` (from context). `Id` = uuid.
 |---|---|---|---|
 | `getOrganizationSettings` | — → `OrgSettings` | staff | — |
 | `updateOrganizationSettingsAction` | `{ displayName?, defaultLocale?, timeZone? }` → `OrgSettings` | `org.settings.manage` | `organization.updated` |
-| `updateBrandingAction` | `{ colors, radiusScale, fontFamily, logoFileId?, welcome{es,en} }` → `Branding` (rejects low contrast) | `org.branding.manage` | `organization_branding.updated` |
+| `updateBrandingAction` | `{ displayName, brandColor, functionalColor?, secondaryColor?, expectedUpdatedAt }` → `{ updatedAt, logoUrl }`. Contrast guard: an explicit `functionalColor` < 4.5:1 is rejected (`VALIDATION_FAILED`, field error `contrast:<nearest passing shade>:<ratio>`); `brandColor` is decorative and auto-adjusted for text use; stale `expectedUpdatedAt` → `CONFLICT`. Font/radius are not tenant-configurable (no allow-list in DESIGN_SYSTEM). | `org.branding.manage` | `organization_branding.updated` |
+| `uploadLogoAction` | `FormData{ file }` (PNG/JPEG/WebP ≤ 512 KiB, 16–2048 px; magic-byte sniffed, metadata/trailing bytes stripped, no SVG) → `{ updatedAt, logoUrl }` | `org.branding.manage` | `organization_branding.logo_uploaded` (`media_type`, `size_bytes`) |
+| `removeLogoAction` | — → `{ updatedAt, logoUrl: null }` | `org.branding.manage` | `organization_branding.updated` (`logo_path`) |
 | `addDomainAction` / `verifyDomainAction` | `{ host }` / `{ domainId }` → `Domain` | `org.domains.manage` | `organization_domain.added` / `.verified` |
 | `setRetentionPolicyAction` | `{ dataCategory, retentionPeriod, triggerEvent, legalBasisReference }` → `RetentionPolicy` (draft) | `org.retention.manage` | `retention_policy.created` |
 

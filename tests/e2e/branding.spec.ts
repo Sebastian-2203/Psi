@@ -1,12 +1,33 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Browser, type Page } from '@playwright/test';
 import { ORGS, PERSONAS } from '../fixtures/personas';
 import { derivePrimary } from '../../src/styles/branding';
+import postgres from 'postgres';
 import { signInWithMfa } from './support/auth';
 
 /**
  * Workstream 1.7 — organization branding. FICTIONAL tenants only: org A carries the provisional
  * Daniela brand, org B a different fictional brand (supabase/seed.sql).
  */
+
+// Every test shares org A's branding row: run the file serially and start from the seeded state.
+test.describe.configure({ mode: 'serial' });
+
+test.beforeAll(async () => {
+  // LOCAL ONLY (like auth.setup.ts): restore the seeded fictional brand of org A.
+  const sql = postgres('postgresql://postgres:postgres@127.0.0.1:54322/postgres', {
+    max: 1,
+    onnotice: () => {},
+  });
+  try {
+    await sql`
+      update public.organization_branding set
+        display_name = 'Psicóloga Daniela Ortega', brand_color = '#d94a43',
+        functional_color = '#a73c37', secondary_color = null, logo_path = null
+      where organization_id = ${ORGS.A.id}`;
+  } finally {
+    await sql.end();
+  }
+});
 
 const A = `http://${ORGS.A.host}:3000`;
 const B = `http://${ORGS.B.host}:3000`;
@@ -18,6 +39,17 @@ const hydrated = (page: Page) =>
       k.startsWith('__reactProps$'),
     ),
   );
+
+/** Primary colour a signed-out visitor gets on the tenant's sign-in page. */
+async function publicPrimary(browser: Browser, origin: string): Promise<string> {
+  const visitor = await browser.newPage();
+  try {
+    await visitor.goto(`${origin}/es/sign-in`);
+    return await primaryOf(visitor);
+  } finally {
+    await visitor.close();
+  }
+}
 
 const primaryOf = (page: Page) =>
   page.evaluate(() =>
@@ -56,8 +88,6 @@ test.describe('tenant theming by host', () => {
 });
 
 test.describe('branding settings (owner, aal2)', () => {
-  test.describe.configure({ mode: 'serial' });
-
   test('owner changes the primary colour and sees it applied everywhere', async ({ browser }) => {
     const page = await browser.newPage();
     await signInWithMfa(page, PERSONAS.ownerA, A);
@@ -65,7 +95,9 @@ test.describe('branding settings (owner, aal2)', () => {
     await hydrated(page);
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Marca de tu consulta');
 
-    // Live preview in the three contexts follows the draft before saving.
+    // Org A stores an explicit functional colour (Daniela's logo ink); clear it so the primary is
+    // derived from the new main colour. The live preview in the three contexts follows the draft.
+    await page.getByLabel(/^Color para texto y botones/).fill('');
     await page.getByLabel('Color principal de la marca', { exact: true }).fill('#1d6fa5');
     await expect(page.getByTestId('functional-report')).toContainText('contraste');
     const draft = derivePrimary('#1d6fa5')?.primary as string;
@@ -85,17 +117,17 @@ test.describe('branding settings (owner, aal2)', () => {
     // Applied on the server-rendered page after a reload and on other pages of the tenant.
     await page.goto(`${A}/es/dashboard`);
     expect(await primaryOf(page)).toBe(draft);
-    await page.goto(`${A}/es/sign-in`);
-    expect(await primaryOf(page)).toBe(draft);
+    // Public pages of the tenant too (fresh, signed-out browser).
+    expect(await publicPrimary(browser, A)).toBe(draft);
 
     // Restore the seeded brand.
     await page.goto(`${A}/es/settings/branding`);
     await hydrated(page);
     await page.getByLabel('Color principal de la marca', { exact: true }).fill('#d94a43');
+    await page.getByLabel(/^Color para texto y botones/).fill('#a73c37');
     await page.getByRole('button', { name: 'Guardar cambios' }).click();
     await expect(page.getByText('Guardamos la marca de tu consulta.')).toBeVisible();
-    await page.goto(`${A}/es/sign-in`);
-    expect(await primaryOf(page)).toBe('#a73c37');
+    expect(await publicPrimary(browser, A)).toBe('#a73c37');
     await page.close();
   });
 
@@ -106,7 +138,7 @@ test.describe('branding settings (owner, aal2)', () => {
     await signInWithMfa(page, PERSONAS.ownerA, A);
     await page.goto(`${A}/es/settings/branding`);
     await hydrated(page);
-    const field = page.getByLabel('Color para texto y botones', { exact: true });
+    const field = page.getByLabel(/^Color para texto y botones/);
     await field.fill('#ffcc00');
     await expect(field).toHaveAttribute('aria-invalid', 'true');
     await expect(page.getByText(/no tiene suficiente contraste/)).toBeVisible();
@@ -116,8 +148,7 @@ test.describe('branding settings (owner, aal2)', () => {
     await page.getByRole('button', { name: 'Guardar cambios' }).click();
     await expect(page.getByText('Guardamos la marca de tu consulta.')).toHaveCount(0);
     // Not stored: another page still renders the seeded primary.
-    await page.goto(`${A}/es/sign-in`);
-    expect(await primaryOf(page)).toBe('#a73c37');
+    expect(await publicPrimary(browser, A)).toBe('#a73c37');
 
     // One click applies the suggestion and clears the error.
     await page.goto(`${A}/es/settings/branding`);
@@ -179,7 +210,6 @@ test.describe('branding settings (owner, aal2)', () => {
     const page = await browser.newPage();
     await signInWithMfa(page, PERSONAS.psyA, A);
     await page.goto(`${A}/es/settings/branding`);
-    await hydrated(page);
     await expect(
       page.getByText('Solo la titular o el titular de la consulta puede cambiar la marca.'),
     ).toBeVisible();
