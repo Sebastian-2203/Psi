@@ -7,10 +7,12 @@ This file is loaded by every Claude Code session and subagent. Read it before do
 
 ## Current phase
 
-**Phase 1 — Core infrastructure** (authorized by the client on 2026-11-08). Phase 0 foundation and
-ADR-001…021 are accepted; **ADR-019 Option A**: browsers never query Postgres; the server queries Postgres
-as the user (role `authenticated` + verified JWT claims per transaction). Scope: `docs/DEVELOPMENT_ROADMAP.md` §2
-Phase 1. Do not start Phase 2 features (patients, clinical, activities) without authorization.
+**Phase 2 — Patient management** (authorized 2026-11-09): patients (adult/minor), care team, guardians and
+granular guardian permissions, patient/guardian invitations and portal identities, consent templates, versions,
+records with evidence, minor assent and revocation. Phase 1 is accepted (gate passed for internal alpha with
+synthetic data). ADR-019 Option A applies. Provisional defaults for Q-03/Q-04/Q-17 are in `docs/DECISIONS.md`
+(client decisions log). Do not start Phase 3 (clinical records, notes) or Phase 4 (activities) without authorization.
+Follow the resource budget rules in `docs/AGENT_WORKFLOW.md`.
 
 ## Source of truth
 
