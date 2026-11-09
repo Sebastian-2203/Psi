@@ -1837,3 +1837,7 @@ begin
   end if;
 end
 $$;
+
+-- Invoker helpers evaluated inside definer bodies / app_definer policies.
+grant execute on function app.can_write_as_role(uuid, public.membership_role) to app_definer;
+grant execute on function app.write_audit(text, uuid, text, uuid, jsonb, text) to app_definer;
