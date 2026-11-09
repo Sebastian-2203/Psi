@@ -10,8 +10,9 @@
   `docs/qa/PHASE1_QA_REPORT.md`).
 
 ## Phase 2 progress
-- [ ] Backend: patients, care team, guardians + permissions, consents + evidence, patient/guardian portal
-      invitations, seed, tests — in progress (migrations `20261109100000`, `20261109110000` drafted).
+- [x] DB layer: migrations `20261109100000/110000/120000`, pgTAP 266/266.
+- [ ] Server modules (patients/guardians/consents actions, portal invitations + guard, seed, integration
+      tests) — PAUSED mid-way by client request; partial code committed as WIP, untested.
 - [ ] Frontend: patient list/profile, guardians, consent signing, portal entry.
 - [ ] Security review + QA pass.
 
