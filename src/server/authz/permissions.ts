@@ -2,8 +2,15 @@ import 'server-only';
 
 /**
  * Permission registry — single source of truth in code (ARCHITECTURE §5, API_CONTRACTS §4).
- * Phase 1 permissions only; patient/clinical/portal/guardian permissions arrive with their
- * modules. The permission-matrix tests (tests/authz) are generated from this object.
+ * Phase 1 + Phase 2 (patients, guardians, consents, portal reads) permissions; clinical and
+ * activity permissions arrive with their modules. The permission-matrix tests (tests/authz) are
+ * generated from this object.
+ *
+ * Care-team and relationship scope ("psychologist ON THE CARE TEAM", "guardian WITH
+ * sign_consents") are NOT expressible here: the registry gates capacity + role + aal + org
+ * status, and RLS / the definer functions (`app.can_manage_patient`, `app.guardian_can`, ...)
+ * decide the row-level part. A care-team miss therefore surfaces as NOT_FOUND / FORBIDDEN from
+ * the DAL, never as data.
  *
  * Each rule mirrors an RLS policy in supabase/migrations/20261108120100_tenancy_identity.sql
  * (column `mirrorsPolicy`), so TS and SQL can be asserted to agree.
@@ -36,6 +43,32 @@ export type PermissionRule = {
 };
 
 const RECENT_MFA = 15 * 60;
+
+/** Care-team staff capability: psychologist role, aal2, active org (writes). */
+const psychologistWrite = {
+  actingAs: ['staff'],
+  roles: ['psychologist'],
+  scope: 'organization',
+  orgAccess: 'staff_write',
+  requiresAal2: true,
+  recentMfaSeconds: null,
+} as const;
+const psychologistRead = { ...psychologistWrite, orgAccess: 'staff_read' } as const;
+
+/**
+ * Portal capability (patient / guardian). MFA is optional for portal identities (Q-07
+ * default), so no aal2. `orgAccess: 'staff_write'` is the "organization is active" gate; portal
+ * capacities are only ever loaded for active organizations.
+ */
+const portal = (actingAs: readonly ('patient' | 'guardian')[]) =>
+  ({
+    actingAs,
+    roles: [],
+    scope: 'organization',
+    orgAccess: 'staff_write',
+    requiresAal2: false,
+    recentMfaSeconds: null,
+  }) as const;
 
 const ownerWrite = {
   actingAs: ['staff'],
@@ -83,6 +116,73 @@ export const PERMISSIONS = {
     recentMfaSeconds: null,
     special: 'self_or_owner_membership',
     mirrorsPolicy: 'professional_profiles_update_self_or_owner',
+  },
+  // --- Phase 2: patients ---------------------------------------------------------------
+  'patient.create': { ...psychologistWrite, mirrorsPolicy: 'function app.create_patient' },
+  'patient.directory.read': {
+    actingAs: ['staff'],
+    roles: [],
+    scope: 'organization',
+    orgAccess: 'staff_read',
+    requiresAal2: true,
+    recentMfaSeconds: null,
+    mirrorsPolicy: 'function app.patient_directory (app.is_org_member)',
+  },
+  'patient.read': { ...psychologistRead, mirrorsPolicy: 'patients_select_care_team' },
+  'patient.update': { ...psychologistWrite, mirrorsPolicy: 'patients_update_care_team' },
+  'patient.status.manage': { ...psychologistWrite, mirrorsPolicy: 'patients_update_care_team' },
+  'patient.care_team.manage': {
+    actingAs: ['staff'],
+    roles: ['organization_owner', 'psychologist'],
+    scope: 'organization',
+    orgAccess: 'staff_write',
+    requiresAal2: true,
+    recentMfaSeconds: null,
+    mirrorsPolicy: 'care_team_members_insert (app.can_assign_care_team)',
+  },
+  'patient.portal.invite': { ...psychologistWrite, mirrorsPolicy: 'invitations_insert_care_team' },
+  'patient.preferences.manage': {
+    ...psychologistWrite,
+    mirrorsPolicy: 'patient_preferences_update (app.can_manage_patient)',
+  },
+  // --- Phase 2: guardians --------------------------------------------------------------
+  'guardian.manage': { ...psychologistWrite, mirrorsPolicy: 'patient_guardians_update_care_team' },
+  'guardian.permissions.manage': {
+    ...psychologistWrite,
+    mirrorsPolicy: 'function app.set_guardian_permissions',
+  },
+  'guardian.caveat.manage': {
+    ...psychologistWrite,
+    mirrorsPolicy: 'patient_guardian_caveats_insert',
+  },
+  // --- Phase 2: consents ---------------------------------------------------------------
+  'consent.request': { ...psychologistWrite, mirrorsPolicy: 'function app.record_consent' },
+  'consent.record.read': { ...psychologistRead, mirrorsPolicy: 'consent_records_select_care_team' },
+  'consent.sign.self': {
+    ...portal(['patient']),
+    mirrorsPolicy: 'function app.sign_consent (app.is_patient_self)',
+  },
+  'consent.sign.guardian': {
+    ...portal(['guardian']),
+    mirrorsPolicy: 'function app.sign_consent (app.guardian_can sign_consents)',
+  },
+  'consent.withdraw': { ...psychologistWrite, mirrorsPolicy: 'function app.withdraw_consent (care team)' },
+  'consent.withdraw.own': {
+    ...portal(['patient', 'guardian']),
+    mirrorsPolicy: 'function app.withdraw_consent (signer, own record)',
+  },
+  // --- Phase 2: portal reads (own data only) -----------------------------------------------
+  'portal.consent.read': {
+    ...portal(['patient', 'guardian']),
+    mirrorsPolicy: 'consent_template_versions_select_portal + consent_records_select_*',
+  },
+  'portal.privacy.read': {
+    ...portal(['patient']),
+    mirrorsPolicy: 'function app.patient_privacy_view (app.is_patient_self)',
+  },
+  'portal.guardian.read': {
+    ...portal(['guardian']),
+    mirrorsPolicy: 'function app.guardian_patient_summary',
   },
   'profile.self.update': {
     actingAs: ['staff', 'patient', 'guardian', 'platform_admin'],

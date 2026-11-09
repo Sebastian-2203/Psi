@@ -1,7 +1,9 @@
 import 'server-only';
 
+export { switchCapacity, type CapacityTarget } from './capacity';
 export {
   getAuthzContext,
+  loadCapacities,
   resolveAuthzContext,
   restrictCapacitiesToHost,
   selectCapacity,

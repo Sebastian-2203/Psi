@@ -15,14 +15,16 @@ export type Capacity = {
   organizationId: string | null;
   actingAs: ActingAs;
   membershipId?: string;
+  /** patient id (actingAs = patient) or guardian id (actingAs = guardian). */
+  subjectId?: string;
   roles: MembershipRole[];
   orgStatus: OrgStatus | null;
 };
 
 /**
  * Per-request authorization context (API_CONTRACTS §4). Exactly one acting-as capacity.
- * Patient/guardian/break-glass fields are typed for forward compatibility and populated
- * from Phase 2/3 onward.
+ * `patientId` (patient) and `guardian` (guardian) are populated since Phase 2; break-glass
+ * (`platform.grants`) arrives in Phase 3.
  */
 export type AuthzContext = {
   requestId: string;
@@ -86,16 +88,18 @@ type CapacityRow = {
   membership_status: 'active' | 'suspended' | 'removed' | null;
   org_status: OrgStatus | null;
   roles: MembershipRole[];
+  subject_id: string | null;
 };
 
 const uuidSchema = z.uuid();
 const actingAsSchema = z.enum(ACTING_AS);
 
 /** Loads the caller's capacities through RLS-bound `app.my_capacities()`. */
-async function loadCapacities(claims: VerifiedClaims): Promise<Capacity[]> {
+export async function loadCapacities(claims: VerifiedClaims): Promise<Capacity[]> {
   const rows = await withUserTransaction(claims, async (tx) => {
     return tx<CapacityRow[]>`
-      select organization_id, acting_as, membership_id, membership_status, org_status, roles
+      select organization_id, acting_as, membership_id, membership_status, org_status, roles,
+             subject_id
       from app.my_capacities()
     `;
   });
@@ -121,9 +125,50 @@ async function loadCapacities(claims: VerifiedClaims): Promise<Capacity[]> {
         roles: row.roles,
         orgStatus: row.org_status,
       });
+    } else if (
+      (row.acting_as === 'patient' || row.acting_as === 'guardian') &&
+      row.organization_id &&
+      row.subject_id &&
+      row.org_status === 'active'
+    ) {
+      // MFA is optional for portal identities (Q-07 default); the DB already limits these rows
+      // to non-archived patients / active guardians of ACTIVE organizations.
+      capacities.push({
+        organizationId: row.organization_id,
+        actingAs: row.acting_as,
+        subjectId: row.subject_id,
+        roles: [],
+        orgStatus: row.org_status,
+      });
     }
   }
   return capacities;
+}
+
+type RelationshipRow = {
+  patient_guardian_id: string;
+  patient_id: string;
+  permissions: string[];
+};
+
+/**
+ * The guardian's relationships (own rows only, through `app.guardian_patient_summary`).
+ * Permissions are empty unless the relationship is effective (active, verified, in window,
+ * patient is a minor, patient status allows the portal) — the DB computes that, never the TS.
+ */
+async function loadGuardianRelationships(claims: VerifiedClaims, organizationId: string) {
+  const rows = await withUserTransaction(
+    claims,
+    (tx) => tx<RelationshipRow[]>`
+      select patient_guardian_id, patient_id, permissions::text[] as permissions
+      from app.guardian_patient_summary(${organizationId}::uuid)
+    `,
+  );
+  return rows.map((r) => ({
+    patientId: r.patient_id,
+    patientGuardianId: r.patient_guardian_id,
+    permissions: r.permissions,
+  }));
 }
 
 /**
@@ -192,6 +237,17 @@ export async function resolveAuthzContext(
       ? { membership: { id: selected.membershipId, roles: selected.roles } }
       : {}),
     ...(selected.actingAs === 'platform_admin' ? { platform: { grants: [] } } : {}),
+    ...(selected.actingAs === 'patient' && selected.subjectId
+      ? { patientId: selected.subjectId }
+      : {}),
+    ...(selected.actingAs === 'guardian' && selected.subjectId && selected.organizationId
+      ? {
+          guardian: {
+            guardianId: selected.subjectId,
+            relationships: await loadGuardianRelationships(claims, selected.organizationId),
+          },
+        }
+      : {}),
     ...(claims.mfaVerifiedAt !== null
       ? { mfaVerifiedAt: new Date(claims.mfaVerifiedAt * 1000).toISOString() }
       : {}),

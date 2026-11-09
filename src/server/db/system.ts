@@ -195,3 +195,76 @@ export async function systemPeekStaffInvitation(
     };
   });
 }
+
+export type InvitationKind = 'staff' | 'patient' | 'guardian';
+
+export type InvitationPeekRow = {
+  invitationId: string;
+  organizationId: string;
+  organizationDisplayName: string;
+  kind: InvitationKind;
+  email: string;
+  expiresAt: string;
+  /** Server-internal: never returned to the browser (SECURITY.md §3.7). */
+  existingProfileId: string | null;
+};
+
+/**
+ * Phase 2: pending + unexpired invitation of ANY kind for sha256(token) in an ACTIVE
+ * organization (`app.peek_invitation`), or null. Callers filter on `kind`.
+ */
+export async function systemPeekInvitation(
+  tokenHash: Uint8Array,
+): Promise<InvitationPeekRow | null> {
+  return withSystemTransaction(async (tx) => {
+    const [row] = await tx<
+      {
+        invitation_id: string;
+        organization_id: string;
+        organization_display_name: string;
+        invitation_type: InvitationKind;
+        email: string;
+        expires_at: Date;
+        existing_profile_id: string | null;
+      }[]
+    >`select * from app.peek_invitation(${Buffer.from(tokenHash)})`;
+    if (!row) return null;
+    return {
+      invitationId: row.invitation_id,
+      organizationId: row.organization_id,
+      organizationDisplayName: row.organization_display_name,
+      kind: row.invitation_type,
+      email: row.email,
+      expiresAt: row.expires_at.toISOString(),
+      existingProfileId: row.existing_profile_id,
+    };
+  });
+}
+
+/**
+ * Patient / guardian invitation acceptance (`app.accept_portal_invitation`): single use, email
+ * bound, links patients.profile_id / guardians.profile_id and writes its own audit rows. A
+ * guardian acceptance NEVER activates the relationship (it stays pending until a professional
+ * verifies it).
+ */
+export async function systemAcceptPortalInvitation(input: {
+  tokenHash: Uint8Array;
+  profileId: string;
+  requestId: string | null;
+}): Promise<{ organizationId: string; kind: 'patient' | 'guardian'; subjectId: string }> {
+  return withSystemTransaction(async (tx) => {
+    const [row] = await tx<
+      { organization_id: string; invitation_type: 'patient' | 'guardian'; subject_id: string }[]
+    >`
+      select * from app.accept_portal_invitation(
+        ${Buffer.from(input.tokenHash)}, ${input.profileId}::uuid, ${input.requestId}
+      )
+    `;
+    if (!row) throw new Error('accept_portal_invitation returned no row');
+    return {
+      organizationId: row.organization_id,
+      kind: row.invitation_type,
+      subjectId: row.subject_id,
+    };
+  });
+}

@@ -2,9 +2,10 @@ import 'server-only';
 import { z } from 'zod';
 
 /**
- * Audit event catalog (API_CONTRACTS §9, SECURITY.md §7.1) — Phase 1 events.
- * Must match `app.audit_event_types` (supabase/migrations/20261108120300_audit.sql); the
- * integration test tests/integration/audit-catalog.test.ts asserts parity.
+ * Audit event catalog (API_CONTRACTS §9, SECURITY.md §7.1) — Phase 1 + Phase 2 events.
+ * Must match `app.audit_event_types` (20261108120300_audit.sql, 20261109100000_patients_guardians.sql,
+ * 20261109110000_consents.sql); tests/integration/audit.test.ts asserts parity. Events written by
+ * the DB itself (definer functions / triggers) are listed with the metadata the DB writes.
  *
  * Metadata rules (SECURITY.md §7.3): ids, enum values, changed field NAMES, status
  * transitions. NEVER names, emails, document numbers, free text, response values, file names.
@@ -15,6 +16,33 @@ const id = z.uuid();
 const role = z.enum(['organization_owner', 'psychologist']);
 const fieldNames = z.array(z.string().regex(/^[a-z][a-z0-9_]{0,63}$/)).max(32);
 const empty = z.object({}).strict();
+const patientStatus = z.enum(['intake', 'active', 'paused', 'discharged', 'archived']);
+const consentType = z.enum([
+  'treatment_informed_consent',
+  'personal_data_processing',
+  'minor_assent',
+  'guardian_authorization',
+  'portal_use',
+  'other',
+]);
+const guardianPermission = z.enum([
+  'view_assignments',
+  'complete_assignments',
+  'view_responses',
+  'view_shared_resources',
+  'sign_consents',
+  'view_session_schedule',
+  'manage_portal_preferences',
+  'receive_notifications',
+  'view_shared_documents',
+  'view_patient_facing_goals',
+]);
+const relationshipStatus = z.enum(['pending_verification', 'active', 'suspended', 'revoked']);
+const consentRecordMeta = {
+  patient_id: id,
+  consent_record_id: id,
+  consent_type: consentType,
+};
 
 type Writer = 'user' | 'system' | 'both';
 type Category =
@@ -25,7 +53,11 @@ type Category =
   | 'branding'
   | 'profile'
   | 'platform'
-  | 'security';
+  | 'security'
+  | 'patient'
+  | 'care_team'
+  | 'guardian'
+  | 'consent';
 
 type EventSpec = {
   category: Category;
@@ -194,13 +226,24 @@ export const AUDIT_EVENTS = {
     'invitation',
     'user',
     false,
-    z.object({ roles: z.array(role).min(1).max(2) }).strict(),
+    z
+      .object({
+        // staff: roles; patient / guardian: the subject ids (never the invited email).
+        roles: z.array(role).min(1).max(2).optional(),
+        invitation_type: z.enum(['staff', 'patient', 'guardian']).optional(),
+        patient_id: id.optional(),
+        guardian_id: id.optional(),
+        patient_guardian_id: id.optional(),
+      })
+      .strict(),
   ),
   'invitation.accepted': event(
     'invitation',
     'system',
     false,
-    z.object({ membership_id: id }).strict(),
+    z
+      .object({ membership_id: id.optional(), patient_id: id.optional(), guardian_id: id.optional() })
+      .strict(),
   ),
   'invitation.revoked': event('invitation', 'user', false, empty),
   'invitation.expired': event('invitation', 'system', false, empty),
@@ -222,6 +265,302 @@ export const AUDIT_EVENTS = {
         scope: z.enum(['org_support_non_clinical', 'clinical_read_break_glass']),
       })
       .strict(),
+  ),
+  // patients (Phase 2)
+  'patient.created': event(
+    'patient',
+    'user',
+    false,
+    z
+      .object({ patient_id: id, care_team_membership_id: id, is_minor: z.boolean().nullable() })
+      .strict(),
+  ),
+  'patient.updated': event(
+    'patient',
+    'user',
+    false,
+    z.object({ patient_id: id, changed_fields: fieldNames }).strict(),
+  ),
+  'patient.viewed': event('patient', 'user', false, z.object({ patient_id: id }).strict()),
+  'patient.list_viewed': event(
+    'patient',
+    'user',
+    false,
+    z.object({ result_count: z.number().int().min(0) }).strict(),
+  ),
+  'patient.directory_viewed': event(
+    'patient',
+    'user',
+    false,
+    z.object({ result_count: z.number().int().min(0) }).strict(),
+  ),
+  'patient.status_changed': event(
+    'patient',
+    'user',
+    false,
+    z.object({ patient_id: id, from_status: patientStatus, to_status: patientStatus }).strict(),
+  ),
+  'patient.portal_linked': event(
+    'patient',
+    'system',
+    false,
+    z.object({ patient_id: id, invitation_id: id }).strict(),
+  ),
+  'patient_preferences.updated': event(
+    'patient',
+    'user',
+    false,
+    z.object({ patient_id: id, changed_fields: fieldNames }).strict(),
+  ),
+  // care team
+  'care_team.assigned': event(
+    'care_team',
+    'user',
+    false,
+    z
+      .object({
+        patient_id: id,
+        membership_id: id,
+        care_role: z.enum(['primary', 'secondary', 'supervisor']),
+      })
+      .strict(),
+  ),
+  'care_team.self_assigned': event(
+    'care_team',
+    'user',
+    false,
+    z
+      .object({
+        patient_id: id,
+        membership_id: id,
+        care_role: z.enum(['primary', 'secondary', 'supervisor']),
+      })
+      .strict(),
+  ),
+  'care_team.ended': event(
+    'care_team',
+    'user',
+    false,
+    z.object({ patient_id: id, membership_id: id }).strict(),
+  ),
+  // guardians
+  'guardian.created': event(
+    'guardian',
+    'user',
+    false,
+    z.object({ patient_id: id, guardian_id: id }).strict(),
+  ),
+  'guardian.updated': event(
+    'guardian',
+    'user',
+    false,
+    z.object({ guardian_id: id, changed_fields: fieldNames }).strict(),
+  ),
+  'guardian.portal_linked': event(
+    'guardian',
+    'system',
+    false,
+    z.object({ guardian_id: id, invitation_id: id }).strict(),
+  ),
+  'patient_guardian.created': event(
+    'guardian',
+    'user',
+    false,
+    z
+      .object({
+        patient_id: id,
+        guardian_id: id,
+        patient_guardian_id: id,
+        relationship: z.string().regex(/^[a-z_]{1,32}$/),
+        is_legal_representative: z.boolean(),
+      })
+      .strict(),
+  ),
+  'patient_guardian.updated': event(
+    'guardian',
+    'user',
+    false,
+    z
+      .object({ patient_id: id, patient_guardian_id: id, changed_fields: fieldNames })
+      .strict(),
+  ),
+  'patient_guardian.verified': event(
+    'guardian',
+    'user',
+    false,
+    z
+      .object({
+        patient_id: id,
+        patient_guardian_id: id,
+        legal_basis_verified: z.boolean(),
+        from_status: relationshipStatus,
+      })
+      .strict(),
+  ),
+  'patient_guardian.suspended': event(
+    'guardian',
+    'both',
+    false,
+    z
+      .object({
+        patient_id: id,
+        patient_guardian_id: id,
+        suspension: z.enum(['age_of_majority', 'custody_review', 'safety_concern', 'other']),
+      })
+      .strict(),
+  ),
+  'patient_guardian.reactivated': event(
+    'guardian',
+    'user',
+    false,
+    z.object({ patient_id: id, patient_guardian_id: id }).strict(),
+  ),
+  'patient_guardian.revoked': event(
+    'guardian',
+    'user',
+    false,
+    z
+      .object({
+        patient_id: id,
+        patient_guardian_id: id,
+        from_status: relationshipStatus,
+        permissions_revoked: z.number().int().min(0),
+      })
+      .strict(),
+  ),
+  'guardian_caveat.set': event(
+    'guardian',
+    'user',
+    false,
+    z
+      .object({ patient_id: id, patient_guardian_id: id, restrict_schedule: z.boolean() })
+      .strict(),
+  ),
+  'guardian_caveat.ended': event(
+    'guardian',
+    'user',
+    false,
+    z.object({ patient_id: id, patient_guardian_id: id }).strict(),
+  ),
+  'guardian_permission.granted': event(
+    'guardian',
+    'user',
+    false,
+    z
+      .object({
+        patient_id: id,
+        patient_guardian_id: id,
+        permissions: z.array(guardianPermission),
+        before: z.array(guardianPermission),
+        after: z.array(guardianPermission),
+        adolescent_view_responses: z.boolean().nullable().optional(),
+      })
+      .strict(),
+  ),
+  'guardian_permission.revoked': event(
+    'guardian',
+    'user',
+    false,
+    z
+      .object({
+        patient_id: id,
+        patient_guardian_id: id,
+        permissions: z.array(guardianPermission),
+        before: z.array(guardianPermission),
+        after: z.array(guardianPermission),
+      })
+      .strict(),
+  ),
+  // consents
+  'consent_template.created': event(
+    'consent',
+    'user',
+    false,
+    z.object({ consent_template_id: id, consent_type: consentType }).strict(),
+  ),
+  'consent_template.updated': event(
+    'consent',
+    'user',
+    false,
+    z.object({ consent_template_id: id, changed_fields: fieldNames }).strict(),
+  ),
+  'consent_template_version.draft_saved': event(
+    'consent',
+    'user',
+    false,
+    z.object({ consent_template_id: id, consent_template_version_id: id }).strict(),
+  ),
+  'consent_template_version.published': event(
+    'consent',
+    'user',
+    false,
+    z.object({ consent_template_id: id, consent_template_version_id: id }).strict(),
+  ),
+  'consent_template_version.retired': event(
+    'consent',
+    'user',
+    false,
+    z.object({ consent_template_id: id, consent_template_version_id: id }).strict(),
+  ),
+  'consent.signed': event(
+    'consent',
+    'user',
+    false,
+    z
+      .object({
+        ...consentRecordMeta,
+        consent_template_version_id: id,
+        signer_type: z.enum(['patient', 'guardian']),
+        method: z.literal('portal_typed_name'),
+      })
+      .strict(),
+  ),
+  'consent.declined': event(
+    'consent',
+    'user',
+    false,
+    z
+      .object({
+        ...consentRecordMeta,
+        consent_template_version_id: id,
+        signer_type: z.enum(['patient', 'guardian']),
+        method: z.literal('portal_typed_name'),
+      })
+      .strict(),
+  ),
+  'consent.recorded': event(
+    'consent',
+    'user',
+    false,
+    z
+      .object({
+        ...consentRecordMeta,
+        consent_template_version_id: id,
+        signer_type: z.enum(['patient', 'guardian', 'professional_recorded']),
+        method: z.enum(['portal_checkbox', 'portal_typed_name', 'paper_scan', 'verbal_recorded']),
+        decision: z.enum(['accepted', 'declined']),
+      })
+      .strict(),
+  ),
+  'consent.withdrawn': event(
+    'consent',
+    'user',
+    false,
+    z
+      .object({ ...consentRecordMeta, withdrawn_by: z.enum(['staff', 'patient', 'guardian']) })
+      .strict(),
+  ),
+  'consent.status_viewed': event(
+    'consent',
+    'user',
+    false,
+    z.object({ patient_id: id }).strict(),
+  ),
+  'consent.evidence_viewed': event(
+    'consent',
+    'user',
+    false,
+    z.object({ patient_id: id, consent_record_id: id }).strict(),
   ),
   // security
   'access.denied': event(
