@@ -242,7 +242,11 @@ export const AUDIT_EVENTS = {
     'system',
     false,
     z
-      .object({ membership_id: id.optional(), patient_id: id.optional(), guardian_id: id.optional() })
+      .object({
+        membership_id: id.optional(),
+        patient_id: id.optional(),
+        guardian_id: id.optional(),
+      })
       .strict(),
   ),
   'invitation.revoked': event('invitation', 'user', false, empty),
@@ -380,9 +384,7 @@ export const AUDIT_EVENTS = {
     'guardian',
     'user',
     false,
-    z
-      .object({ patient_id: id, patient_guardian_id: id, changed_fields: fieldNames })
-      .strict(),
+    z.object({ patient_id: id, patient_guardian_id: id, changed_fields: fieldNames }).strict(),
   ),
   'patient_guardian.verified': event(
     'guardian',
@@ -432,9 +434,7 @@ export const AUDIT_EVENTS = {
     'guardian',
     'user',
     false,
-    z
-      .object({ patient_id: id, patient_guardian_id: id, restrict_schedule: z.boolean() })
-      .strict(),
+    z.object({ patient_id: id, patient_guardian_id: id, restrict_schedule: z.boolean() }).strict(),
   ),
   'guardian_caveat.ended': event(
     'guardian',
@@ -550,12 +550,7 @@ export const AUDIT_EVENTS = {
       .object({ ...consentRecordMeta, withdrawn_by: z.enum(['staff', 'patient', 'guardian']) })
       .strict(),
   ),
-  'consent.status_viewed': event(
-    'consent',
-    'user',
-    false,
-    z.object({ patient_id: id }).strict(),
-  ),
+  'consent.status_viewed': event('consent', 'user', false, z.object({ patient_id: id }).strict()),
   'consent.evidence_viewed': event(
     'consent',
     'user',

@@ -228,7 +228,9 @@
       "invitationSubject": "Te invitaron a unirte a una consulta en Psi",
       "invitationBody": "Hola:\n\nTe invitaron a unirte al equipo de una consulta. Para aceptar, abre este enlace:\n\n{link}\n\nEl enlace vence en {hours} horas y solo sirve una vez. Si no esperabas esta invitación, ignora este correo.",
       "mfaResetSubject": "Se desactivó tu verificación en dos pasos",
-      "mfaResetBody": "Hola:\n\nSe usó un código de recuperación en tu cuenta y desactivamos tu app de autenticación. Todas tus sesiones se cerraron.\n\nSi no fuiste tú, comunícate de inmediato con la titular de tu consulta o con soporte."
+      "mfaResetBody": "Hola:\n\nSe usó un código de recuperación en tu cuenta y desactivamos tu app de autenticación. Todas tus sesiones se cerraron.\n\nSi no fuiste tú, comunícate de inmediato con la titular de tu consulta o con soporte.",
+      "portalInvitationSubject": "Te invitaron al portal de tu consulta en Psi",
+      "portalInvitationBody": "Hola:\n\nTe invitaron a usar el portal de tu consulta. Para aceptar, abre este enlace:\n\n{link}\n\nEl enlace vence en {days} días y solo sirve una vez. Si no esperabas esta invitación, ignora este correo."
     }
   },
   "home": {
@@ -345,6 +347,69 @@
       "logoDimensions": "El logo debe medir entre 16 y 2048 píxeles por lado.",
       "logoMissing": "Elige un archivo para subir.",
       "logoRateLimited": "Subiste muchos logos en poco tiempo. Espera una hora e inténtalo de nuevo."
+    }
+  },
+  "validation": {
+    "fieldRequired": "Este campo es obligatorio.",
+    "fieldTooShort": "Escribe un poco más.",
+    "fieldTooLong": "El texto es demasiado largo.",
+    "emailInvalid": "Escribe un correo válido.",
+    "phoneInvalid": "Escribe un teléfono válido.",
+    "dateInvalid": "Escribe una fecha válida.",
+    "dateInFuture": "La fecha no puede ser futura.",
+    "documentInvalid": "Revisa el número de documento: usa letras, números o guiones (3 a 32 caracteres).",
+    "choiceInvalid": "Elige una opción válida.",
+    "versionRequired": "Recarga la página e inténtalo de nuevo.",
+    "nothingToUpdate": "No hay cambios para guardar.",
+    "dependsOnDocumentType": "Elige también el tipo de documento."
+  },
+  "patients": {
+    "errors": {
+      "possibleDuplicate": "Ya existe una persona con datos muy parecidos. Revísala antes de crear otro registro.",
+      "activationRequirementsMissing": "Todavía faltan requisitos para activar a esta persona.",
+      "invalidStatusTransition": "Ese cambio de estado no está disponible desde el estado actual.",
+      "readOnly": "Este registro está cerrado y ya no se puede editar.",
+      "selfAssignmentReasonRequired": "Para sumarte a este equipo de atención, explica el motivo (mínimo 10 caracteres).",
+      "careTeamRequiresPsychologist": "Solo una persona con rol de psicóloga puede integrar el equipo de atención.",
+      "portalModeCareTeamOnly": "Solo el equipo de atención puede cambiar el modo del portal.",
+      "staffCannotBePatient": "Esta cuenta pertenece al equipo de la consulta y no puede ser paciente.",
+      "endReasonRequired": "Escribe el motivo para terminar la asignación.",
+      "notInvitable": "No se puede invitar a esta persona al portal en este momento."
+    }
+  },
+  "guardians": {
+    "errors": {
+      "patientNotMinor": "Solo se puede vincular una persona responsable a pacientes menores de edad.",
+      "invalidTransition": "Ese cambio no está disponible desde el estado actual de la relación.",
+      "majorityReactivationUnsupported": "No se puede reactivar una relación suspendida por mayoría de edad.",
+      "notVerified": "Primero hay que verificar la relación.",
+      "notGrantable": "No se pueden dar permisos en una relación suspendida o revocada.",
+      "scheduleRestricted": "Una precaución de seguridad impide compartir el calendario de sesiones.",
+      "notInvitable": "No se puede invitar a esta persona al portal en este momento.",
+      "staffCannotBeGuardian": "Esta cuenta pertenece al equipo de la consulta y no puede ser responsable de un paciente.",
+      "suspensionReasonRequired": "Elige el motivo de la suspensión.",
+      "revokeReasonRequired": "Escribe el motivo para revocar la relación.",
+      "notLegalRepresentative": "Esta persona no está registrada como representante legal."
+    }
+  },
+  "consents": {
+    "errors": {
+      "notSignable": "Este documento ya no está disponible para firmar.",
+      "notApplicable": "Este documento no aplica en este caso.",
+      "textMismatch": "El texto cambió mientras lo leías. Recarga y vuelve a leerlo.",
+      "evidenceIncomplete": "Escribe tu nombre completo y confirma la casilla para continuar.",
+      "signerNotAllowed": "Esta persona no puede firmar este documento.",
+      "assentRequiresPatient": "El asentimiento lo da la propia persona menor de edad.",
+      "legalRepresentativeNotVerified": "Para firmar este documento hace falta que la representación legal esté verificada.",
+      "relationshipNotActive": "La relación con el paciente no está activa.",
+      "jurisdictionNotConfigured": "Falta configurar el país de la consulta.",
+      "paperScanUnavailable": "Por ahora no se pueden adjuntar documentos escaneados.",
+      "methodNotAllowed": "Ese método de registro no está disponible.",
+      "decidedAtInvalid": "La fecha de la decisión no es válida.",
+      "notWithdrawable": "Esta decisión ya no se puede retirar.",
+      "withdrawalReasonRequired": "Escribe el motivo del retiro.",
+      "templateHasNoPublishedVersion": "Publica una versión antes de activar la plantilla.",
+      "invalidVersionTransition": "Ese cambio no está disponible para esta versión."
     }
   }
 }

@@ -5,18 +5,17 @@ import { redirect } from '@/i18n/navigation';
 import { isPortalPreviewEnabled } from '@/lib/portal-preview';
 import { AccessDenied } from '@/modules/auth';
 import { signOutAction } from '@/modules/auth/server/actions';
-import { getVerifiedClaims } from '@/server/auth/claims';
+import { requirePortalAccess } from '@/modules/auth/server/guards';
 
 export const dynamic = 'force-dynamic';
 
 /**
- * Portal guard, Phase 1 (deny by default). Patient/guardian identities do not exist until
- * Phase 2, so NO session can hold a portal capacity:
- * - any signed-in user (staff, platform admin) -> access denied (staff are never patients or
- *   guardians through their staff session, F-21);
+ * Portal guard (deny by default). Admits a signed-in patient or guardian of the organization of
+ * this host (aal1 is fine); every page and action re-checks (first line only, RLS re-checks).
  * - signed out -> sign-in, except the documented dev-only static preview
- *   (src/lib/portal-preview.ts), which renders no data at all.
- * Phase 2 replaces this with getAuthzContext() + actingAs patient/guardian.
+ *   (src/lib/portal-preview.ts), which renders no data at all;
+ * - signed in without a portal capacity (staff, platform admin, other tenant) -> access denied
+ *   (staff are never patients or guardians through their staff session, F-21).
  */
 export default async function PortalLayout({
   children,
@@ -27,9 +26,11 @@ export default async function PortalLayout({
 }) {
   const locale = await getRouteLocale(params);
   setRequestLocale(locale);
-  if (await getVerifiedClaims()) {
-    return <AccessDenied reason="no_access" signOutAction={signOutAction} />;
+  const access = await requirePortalAccess();
+  if (access.ok) return children;
+  if (access.reason === 'signed_out') {
+    if (!isPortalPreviewEnabled()) redirect({ href: '/sign-in', locale });
+    return children;
   }
-  if (!isPortalPreviewEnabled()) redirect({ href: '/sign-in', locale });
-  return children;
+  return <AccessDenied reason={access.reason} signOutAction={signOutAction} />;
 }

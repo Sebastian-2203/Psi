@@ -26,7 +26,11 @@ export const uuidField = z.uuid('choiceInvalid');
 
 /** Trimmed, required text bounded to the DB column. */
 export const requiredText = (max: number, min = 1) =>
-  z.string().trim().min(min, min <= 1 ? 'fieldRequired' : 'fieldTooShort').max(max, 'fieldTooLong');
+  z
+    .string()
+    .trim()
+    .min(min, min <= 1 ? 'fieldRequired' : 'fieldTooShort')
+    .max(max, 'fieldTooLong');
 
 /** Optional trimmed text: '' means "not provided". */
 export const optionalText = (max: number, min = 1) =>
@@ -116,3 +120,6 @@ export function zodFieldErrors(error: z.ZodError): Record<string, string[]> {
   }
   return fieldErrors;
 }
+
+/** Actions without input. */
+export const emptyInput = z.object({}).strict();

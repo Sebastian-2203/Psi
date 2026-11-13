@@ -122,6 +122,29 @@ export const acceptInvitationSchema = z
   .strict();
 export type AcceptInvitationInput = z.input<typeof acceptInvitationSchema>;
 
+/** Patient / guardian invitation acceptance (no professional fields; MFA optional for portal). */
+export const acceptPortalInvitationSchema = z
+  .object({
+    token: invitationTokenSchema,
+    displayName: z.string().trim().min(1, 'displayNameRequired').max(120, 'displayNameRequired'),
+    password: newPasswordSchema,
+  })
+  .strict();
+export type AcceptPortalInvitationInput = z.input<typeof acceptPortalInvitationSchema>;
+
+/** Acting-as switch (F-21). Platform admins have no organization. */
+export const selectCapacitySchema = z
+  .object({
+    organizationId: z.uuid().nullable(),
+    actingAs: z.enum(['staff', 'patient', 'guardian', 'platform_admin']),
+  })
+  .strict()
+  .refine((v) => (v.actingAs === 'platform_admin') === (v.organizationId === null), {
+    path: ['organizationId'],
+    message: 'fieldRequired',
+  });
+export type SelectCapacityInput = z.input<typeof selectCapacitySchema>;
+
 export const STAFF_ROLES = ['organization_owner', 'psychologist'] as const;
 
 export const createInvitationSchema = z

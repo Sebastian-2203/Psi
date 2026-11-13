@@ -144,6 +144,8 @@ export type AuthzContext = {
 | `clinical.note.write`, `clinical.note.finalize`, `clinical.note.addendum.create` | psychologist on care team (draft update + finalize: author only, DB-enforced) |
 | `clinical.assessment.*`, `clinical.diagnosis.*`, `clinical.plan.*` | psychologist on care team |
 | `clinical.document.read`, `clinical.document.upload`, `clinical.document.share` | psychologist on care team |
+| `consent.withdraw`, `consent.withdraw.own` | care team psychologist / signer (patient, guardian) — own record |
+| `patient.preferences.manage`, `portal.consent.read`, `portal.privacy.read`, `portal.guardian.read` | care team / patient or guardian (own data only) |
 | `consent.template.manage` | organization_owner (PRD CON-01 also lists psychologist — product decision, F-24) |
 | `consent.request`, `consent.record.read` | psychologist on care team |
 | `consent.sign.self` | patient (own) |
@@ -233,7 +235,7 @@ All inputs exclude `organizationId` (from context). `Id` = uuid.
 | `enrollMfaAction` / `verifyMfaAction` | `{ factorId, code }` → `{ aal }` (server-side, so cookies stay httpOnly) | authenticated | `auth.mfa_enrolled` / `auth.mfa_verified` |
 | `generateRecoveryCodesAction` | `{}` → `{ codes: string[] }` (shown once; requires recent MFA) | self, aal2 | `auth.recovery_codes_generated` |
 | `useRecoveryCodeAction` | `{ code }` → `{ redirectTo: enrollment }` (ADR-021: unenrolls factors, revokes other sessions) | self, aal1, rate-limited | `auth.recovery_code_used`, `auth.mfa_reset` |
-| `selectCapacityAction` | `{ organizationId, actingAs }` → `{ redirectTo }` (validated against `availableCapacities`) | authenticated | `auth.org_switched` / `auth.capacity_switched` |
+| `selectCapacityAction` | `{ organizationId, actingAs }` → `{ organizationId, actingAs, href }` (validated against the DB capacities of this host; aal2 for staff; sets host-only httpOnly hint cookies) | authenticated | `auth.org_switched` / `auth.capacity_switched` |
 | `startSupervisedSessionAction` / `endSupervisedSessionAction` | `{ patientId }` / `{}` → `{ expiresAt }` / `{ ok }` | `portal.supervised_session.start` | `supervised_session.started` / `.ended` |
 | `updateMyProfileAction` | `{ displayName?, locale?, timeZone? }` → `Profile` | self | `profile.updated` |
 
@@ -263,24 +265,24 @@ All inputs exclude `organizationId` (from context). `Id` = uuid.
 |---|---|---|---|
 | `listMyPatients` | filters (status), pagination → `PatientSummary[]` | care team | `patient.list_viewed` |
 | `getPatient` | `{ patientId }` → `PatientDetail` | `patient.read` | `patient.viewed` |
-| `createPatientAction` | `{ firstName, lastName, dateOfBirth, documentType, documentNumber?, email?, phone?, idempotencyKey }` → `{ patientId }` (status `intake`; creator becomes primary care team, record opened) | `patient.create` | `patient.created`, `clinical_record.opened` |
-| `changePatientStatusAction` | `{ patientId, status: 'active'\|'paused'\|'discharged'\|'archived', reason? }` → `PatientDetail` (`PRECONDITION_FAILED` with missing items when consents/legal representative are missing) | `patient.status.manage` | `patient.status_changed` |
+| `createPatientAction` | `{ firstName, lastName, preferredName?, dateOfBirth, documentType?, documentNumber?, email?, phone?, preferredLocale?, confirmDuplicate? }` → `{ patientId }` (`CONFLICT` + `fieldErrors.duplicate` = `document`\|`name_dob` until `confirmDuplicate`, PAT-07; `idempotencyKey` pending) (status `intake`; creator becomes primary care team, record opened) | `patient.create` | `patient.created`, `clinical_record.opened` |
+| `changePatientStatusAction` | `{ patientId, status: 'active'\|'paused'\|'discharged'\|'archived' }` → `{ status }` (no `reason`: no column, audit has no free text) (`PRECONDITION_FAILED` with missing items when consents/legal representative are missing) | `patient.status.manage` | `patient.status_changed` |
 | `updatePatientAction` | `{ patientId, expectedUpdatedAt, ...fields }` → `PatientDetail` | `patient.update` | `patient.updated` (field names) |
 | `assignCareTeamMemberAction` | `{ patientId, membershipId, careRole, reason? }` → `CareTeamMember` (`reason` required and primary notified when self-assigning to a patient with another primary, F-06) | `patient.care_team.manage` | `care_team.assigned` / `care_team.self_assigned` |
 | `endCareTeamMemberAction` | `{ careTeamMemberId, reason }` → `{ ok }` | `patient.care_team.manage` | `care_team.ended` |
-| `invitePatientToPortalAction` | `{ patientId, email, idempotencyKey }` → `{ invitationId }` | `patient.portal.invite` | `invitation.created` |
-| `updatePatientPreferencesAction` | `{ patientId, portalMode?, locale?, accessibility? }` → `Preferences` | care team (portalMode); patient/guardian (others) | `patient_preferences.updated` |
+| `invitePatientToPortalAction` | `{ patientId, email, emailLocale }` → `{ invitationId }` | `patient.portal.invite` | `invitation.created` |
+| `updatePatientPreferencesAction` | `{ patientId, portalMode?, locale?, notifyEmail?, textSize?, reducedMotion?, audioInstructions? }` → `{ changedFields }` | `patient.preferences.manage` (care team); patient/guardian self-service pending | `patient_preferences.updated` |
 
 ### 8.5 guardians
 | Contract | Input → Output | Permission | Audit |
 |---|---|---|---|
 | `createGuardianAction` | `{ patientId, firstName, lastName, documentType, documentNumber?, email?, phone?, relationship, isLegalRepresentative, legalBasis?, isPrimaryContact }` → `{ guardianId, patientGuardianId }` (`legalBasis` required if legal representative) | `guardian.manage` | `guardian.created`, `patient_guardian.created` |
-| `verifyGuardianRelationshipAction` | `{ patientGuardianId, verificationNote, validFrom, validUntil?, legalBasisFileId?, verifyLegalBasis: boolean }` → `Relationship` | `guardian.manage` | `patient_guardian.verified` |
-| `suspendGuardianRelationshipAction` / `reactivate…` | `{ patientGuardianId, reason: SuspensionReason }` / `{ patientGuardianId, consentRecordId? }` → `Relationship` (reactivation after majority requires the adult patient's consent) | `guardian.manage` | `patient_guardian.suspended` / `.reactivated` |
+| `verifyGuardianRelationshipAction` | `{ patientGuardianId, verificationNote?, validFrom?, validUntil?, verifyLegalBasis: boolean }` (`legalBasisFileId` pending file storage) → `Relationship` | `guardian.manage` | `patient_guardian.verified` |
+| `suspendGuardianRelationshipAction` / `reactivate…` | `{ patientGuardianId, reason: 'custody_review'\|'safety_concern'\|'other' }` / `{ patientGuardianId }` (`age_of_majority` is system-only; reactivation after majority unsupported) → `Relationship` (reactivation after majority requires the adult patient's consent) | `guardian.manage` | `patient_guardian.suspended` / `.reactivated` |
 | `setGuardianCaveatAction` | `{ patientGuardianId, caveat, restrictSchedule }` → `{ ok }` | `guardian.caveat.manage` | `guardian_caveat.set` |
 | `setGuardianPermissionsAction` | `{ patientGuardianId, permissions: GuardianPermission[] }` → `{ granted[], revoked[] }` (diff) | `guardian.permissions.manage` | `guardian_permission.granted` / `.revoked` |
 | `revokeGuardianRelationshipAction` | `{ patientGuardianId, reason }` → `{ ok }` (revokes all permissions) | `guardian.manage` | `patient_guardian.revoked` |
-| `inviteGuardianToPortalAction` | `{ patientGuardianId, email, idempotencyKey }` → `{ invitationId }` | `guardian.manage` | `invitation.created` |
+| `inviteGuardianToPortalAction` | `{ patientGuardianId, email, emailLocale }` → `{ invitationId }` | `guardian.manage` | `invitation.created` |
 
 ### 8.6 clinical-records
 | Contract | Input → Output | Permission | Audit |
@@ -338,9 +340,9 @@ All inputs exclude `organizationId` (from context). `Id` = uuid.
 | `saveConsentVersionDraftAction` | `{ templateId, locale, body }` → `Version` | `consent.template.manage` | `consent_template_version.draft_saved` |
 | `publishConsentVersionAction` | `{ versionId, legalReviewReference? }` → `{ bodyHash, publishedAt }` | `consent.template.manage` | `consent_template_version.published` |
 | `requestConsentAction` | `{ patientId, templateId, signer: 'patient'\|'guardian', patientGuardianId? }` → `ConsentRequest` (portal task) | `consent.request` | `consent.requested` |
-| `signConsentAction` (portal) | `{ versionId, patientId, decision, method, typedName?, textHash, idempotencyKey }` → `ConsentConfirmation` (server recomputes hash, captures IP/UA server-side; evidence never returned) | `consent.sign.self` / `consent.sign.guardian` / `consent.sign.assent` | `consent.signed` / `consent.declined` |
-| `recordConsentAction` (professional, paper/verbal) | `{ patientId, versionId, signerType, patientGuardianId?, method, evidenceFileId?, acceptedAt, idempotencyKey }` → `ConsentRecord` | `consent.request` | `consent.recorded` |
-| `withdrawConsentAction` | `{ consentRecordId, reason }` → `ConsentRecord` (status `withdrawn`; alerts psychologist; blocks new assignments, CON-04) | signer or care team | `consent.withdrawn` |
+| `signConsentAction` (portal) | `{ versionId, patientId, decision, typedName, checkboxConfirmed: true, textHash (hex sha256 of the shown body) }` → `{ consentRecordId }` → `ConsentConfirmation` (server recomputes hash, captures IP/UA server-side; evidence never returned) | `consent.sign.self` / `consent.sign.guardian` / `consent.sign.assent` | `consent.signed` / `consent.declined` |
+| `recordConsentAction` (professional, verbal) | `{ patientId, versionId, signerType: 'patient'\|'guardian', patientGuardianId?, method: 'verbal_recorded', decision, decidedAt }` → `{ consentRecordId }` (`paper_scan` pending file storage) → `ConsentRecord` | `consent.request` | `consent.recorded` |
+| `withdrawConsentAction` | `{ consentRecordId, reason }` → `{ ok }` (status `withdrawn`; alerts psychologist; blocks new assignments, CON-04) | signer or care team | `consent.withdrawn` |
 | `getPatientConsentStatus` | `{ patientId }` → `ConsentStatus[]` (latest per template) | `consent.record.read` | `consent.status_viewed` |
 
 ### 8.12 resources

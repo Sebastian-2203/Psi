@@ -952,3 +952,18 @@ Deviations from the logical model above (to be confirmed by architect/security):
 - **`mfa_recovery_codes`**: GoTrue v2.197 ships native MFA recovery codes (`auth.mfa_recovery_code_sets`, auth-js `mfa.recoveryCodes.*` behind a flag). ADR-021 says to prefer native support; workstream 1.3 keeps the app-managed table (bcrypt hashes compared in SQL, no direct grants) until architect/security decide to supersede it.
 - Auth (`config.toml`): sign-ups disabled (email provider stays enabled), 900 s JWTs, password ≥ 12, email confirmation on, secure password change, TOTP enroll/verify on, exact redirect URLs (only `/api/auth/confirm/{es,en}` per local host), recovery email template `supabase/templates/recovery.html` (token_hash link), `[auth.sessions]` timebox 12 h / inactivity 30 min as backstop (app enforces 12 h / 15 min), local `email_sent` raised to 30/h for tests.
 
+
+### Phase 2 additions (server layer, 2026-11-13)
+
+Migrations `20261109100000_patients_guardians.sql`, `20261109110000_consents.sql` and `20261109120000_portal_identities.sql` (patients, care team, guardians, permissions, consents, portal invitations, `app.my_capacities()` + `subject_id`) are consumed by `src/modules/{patients,guardians,consents}/server/**` and `src/server/auth/invitations.ts`.
+
+| Migration | Contents |
+|---|---|
+| `20261113100000_record_consent_patient_fix.sql` | Fix found by the server integration tests: `app.record_consent` read the unassigned record `v_rel` when `p_signer_type = 'patient'` (SQLSTATE 55000). `CREATE OR REPLACE` with the same signature, owner and grants. **Needs security review** (definer function). |
+
+Server-layer notes:
+
+- **Audit ownership.** DB-written: `patient.created`, `guardian.created`, `patient_guardian.created`, `guardian_permission.granted/revoked`, `care_team.self_assigned`, `consent.signed/declined/recorded/withdrawn`, `*.portal_linked`, `invitation.accepted` (portal). TS-written (same transaction, `recordAudit`): `patient.updated/viewed/list_viewed/directory_viewed/status_changed`, `patient_preferences.updated`, `care_team.assigned/ended`, `patient_guardian.verified/suspended/reactivated/revoked`, `guardian_caveat.set/ended`, `consent_template*.`, `consent.status_viewed`, `invitation.created/revoked`, `auth.capacity_switched/org_switched`. `src/server/audit/events.ts` mirrors the whole catalog (parity test).
+- **One pending invitation per (organization, email)** (index from Phase 1) applies across kinds: re-inviting the same subject revokes the previous token; an email pending for a different subject is a `CONFLICT`. Architect to decide whether the index should include the subject.
+- **Gaps (not implemented):** `reason` on `changePatientStatusAction` (no column; audit cannot hold free text); `idempotencyKey` on create/invite actions (idempotency table unused so far); `consent.requested` event/portal task; paper-scan evidence (needs `file_objects`); `consent.evidence_viewed` reads; guardian/patient self-service preferences; audit of `platform_admin` capacity switches (catalog requires an organization).
+- **Seed (fictional, `supabase/seed.sql`):** per org A/B adult + minor patients; org A also an at-majority patient (guardian relationship suspended `age_of_majority`), intake adult/minor with pending portal invitations (tokens in the file header); guardians Marta (portal login, active, verified legal representative, `sign_consents`), Jorge (revoked), Rosa (at majority), Elena (pending); consent template `tratamiento` with v1 (retired) and v2 (published), a signed guardian record later withdrawn and a signed patient record. Portal personas (`ana.paciente@`, `marta.guardiana@`, `beto.paciente@example.test`) have no TOTP.

@@ -1,7 +1,12 @@
 import 'server-only';
 import { redirect } from '@/i18n/navigation';
 import type { Locale } from '@/i18n/routing';
-import { getAuthzContext, type AuthzContext } from '@/server/authz';
+import {
+  classifyPortalAccess,
+  getAuthzContext,
+  type AuthzContext,
+  type PortalAccess,
+} from '@/server/authz';
 
 /**
  * Route guards (ARCHITECTURE §7). First line only: every page/action/route handler checks
@@ -49,4 +54,9 @@ export async function getStaffPageContext(
 ): Promise<AuthzContext | null> {
   const access = await requireStaffAccess(locale, next);
   return access.ok ? access.ctx : null;
+}
+
+/** (portal) routes: a signed-in patient/guardian of the organization of this host. */
+export async function requirePortalAccess(): Promise<PortalAccess> {
+  return classifyPortalAccess(await getAuthzContext());
 }

@@ -9,6 +9,8 @@ import type { Locale } from '@/i18n/routing';
 import { ACTIVITY_COOKIE } from '@/lib/session-policy';
 import {
   acceptInvitationSchema,
+  acceptPortalInvitationSchema,
+  selectCapacitySchema,
   confirmRecoveryLinkSchema,
   createInvitationSchema,
   previewInvitationSchema,
@@ -19,6 +21,8 @@ import {
   verifyEnrollmentSchema,
   verifyMfaSchema,
   type AcceptInvitationInput,
+  type AcceptPortalInvitationInput,
+  type SelectCapacityInput,
   type CreateInvitationInput,
   type RecoveryCodeInput,
   type RequestPasswordResetInput,
@@ -30,6 +34,9 @@ import {
 import { getVerifiedClaims } from '@/server/auth/claims';
 import { getPreferredLocale } from '@/modules/profiles/server/locale';
 import {
+  acceptPortalInvitation,
+  previewPortalInvitation,
+  type PortalInvitationPreview,
   acceptStaffInvitation,
   createStaffInvitation,
   previewStaffInvitation,
@@ -57,7 +64,7 @@ import {
   type PostSignInStep,
 } from '@/server/auth/sign-in';
 import { createRequestAuthClient } from '@/server/auth/supabase';
-import { getAuthzContext } from '@/server/authz';
+import { getAuthzContext, switchCapacity, type ActingAs } from '@/server/authz';
 import { fail, toAppError, toErrorPayload, toResult, type Result } from '@/server/errors';
 import { getRequestHostScope } from '@/server/tenancy/request';
 
@@ -360,6 +367,100 @@ export async function createInvitationAction(
     );
     if (outcome.ok) revalidatePath('/[locale]/settings', 'page');
     return toResult(outcome, context.data.requestId);
+  } catch (error) {
+    return internal(error, meta.requestId);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Portal invitations (patient / guardian) and acting-as selection — Phase 2
+// ---------------------------------------------------------------------------
+
+export async function previewPortalInvitationAction(input: {
+  token: string;
+}): Promise<Result<PortalInvitationPreview>> {
+  const meta = await getRequestMeta();
+  const parsed = previewInvitationSchema.safeParse(input);
+  if (!parsed.success) {
+    return fail('PRECONDITION_FAILED', meta.requestId, {
+      messageKey: 'auth.errors.invitationInvalid',
+    });
+  }
+  try {
+    return toResult(await previewPortalInvitation(parsed.data.token, meta), meta.requestId);
+  } catch (error) {
+    return internal(error, meta.requestId);
+  }
+}
+
+export async function acceptPortalInvitationAction(
+  input: AcceptPortalInvitationInput,
+): Promise<Result<never>> {
+  const meta = await getRequestMeta();
+  const parsed = acceptPortalInvitationSchema.safeParse(input);
+  if (!parsed.success) return validationFailure(parsed.error, meta.requestId);
+  try {
+    const outcome = await acceptPortalInvitation(
+      await createRequestAuthClient(),
+      { ...parsed.data, locale: await currentLocale() },
+      meta,
+    );
+    if (!outcome.ok) return toResult(outcome, meta.requestId);
+  } catch (error) {
+    return internal(error, meta.requestId);
+  }
+  return redirect({ href: '/portal', locale: await currentLocale() });
+}
+
+const CAPACITY_COOKIE = { httpOnly: true, sameSite: 'lax', path: '/' } as const;
+const ACTING_AS_VALUES = ['staff', 'patient', 'guardian', 'platform_admin'];
+
+/**
+ * F-21: stores the chosen (organization, capacity) as host-only httpOnly HINT cookies after
+ * validating that the caller really holds it on this host. getAuthzContext re-validates on every
+ * request, so the cookies never grant anything. Audited (`auth.org_switched` /
+ * `auth.capacity_switched`). `href` is where the UI should go next.
+ */
+export async function selectCapacityAction(
+  input: SelectCapacityInput,
+): Promise<Result<{ organizationId: string | null; actingAs: ActingAs; href: string }>> {
+  const meta = await getRequestMeta();
+  const parsed = selectCapacitySchema.safeParse(input);
+  if (!parsed.success) return validationFailure(parsed.error, meta.requestId);
+  try {
+    const claims = await getVerifiedClaims();
+    if (!claims) return fail('UNAUTHENTICATED', meta.requestId);
+    const store = await cookies();
+    const fromAct = store.get('acting_as')?.value;
+    const outcome = await switchCapacity(
+      claims,
+      await getRequestHostScope(),
+      parsed.data,
+      {
+        organizationId: store.get('active_org')?.value ?? null,
+        actingAs: ACTING_AS_VALUES.includes(fromAct ?? '') ? (fromAct as ActingAs) : null,
+      },
+      meta.requestId,
+    );
+    if (!outcome.ok) return toResult(outcome, meta.requestId);
+    const secure = process.env.NODE_ENV === 'production';
+    store.set('acting_as', outcome.data.actingAs, { ...CAPACITY_COOKIE, secure });
+    if (outcome.data.organizationId) {
+      store.set('active_org', outcome.data.organizationId, { ...CAPACITY_COOKIE, secure });
+    } else {
+      store.delete('active_org');
+    }
+    revalidatePath('/', 'layout');
+    return {
+      ok: true,
+      data: {
+        ...outcome.data,
+        href:
+          outcome.data.actingAs === 'patient' || outcome.data.actingAs === 'guardian'
+            ? '/portal'
+            : '/dashboard',
+      },
+    };
   } catch (error) {
     return internal(error, meta.requestId);
   }

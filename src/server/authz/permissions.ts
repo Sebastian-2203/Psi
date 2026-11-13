@@ -156,6 +156,7 @@ export const PERMISSIONS = {
     mirrorsPolicy: 'patient_guardian_caveats_insert',
   },
   // --- Phase 2: consents ---------------------------------------------------------------
+  'consent.template.manage': { ...ownerWrite, mirrorsPolicy: 'consent_templates_insert_owner' },
   'consent.request': { ...psychologistWrite, mirrorsPolicy: 'function app.record_consent' },
   'consent.record.read': { ...psychologistRead, mirrorsPolicy: 'consent_records_select_care_team' },
   'consent.sign.self': {
@@ -166,7 +167,10 @@ export const PERMISSIONS = {
     ...portal(['guardian']),
     mirrorsPolicy: 'function app.sign_consent (app.guardian_can sign_consents)',
   },
-  'consent.withdraw': { ...psychologistWrite, mirrorsPolicy: 'function app.withdraw_consent (care team)' },
+  'consent.withdraw': {
+    ...psychologistWrite,
+    mirrorsPolicy: 'function app.withdraw_consent (care team)',
+  },
   'consent.withdraw.own': {
     ...portal(['patient', 'guardian']),
     mirrorsPolicy: 'function app.withdraw_consent (signer, own record)',

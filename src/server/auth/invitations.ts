@@ -4,9 +4,14 @@ import { createHash, randomBytes } from 'node:crypto';
 import { recordAudit, recordSystemAudit } from '@/server/audit';
 import { requirePermission, type AuthzContext } from '@/server/authz';
 import { adminCreateInvitedUser, adminDeleteUnacceptedUser } from '@/server/db/service-role';
-import { systemAcceptStaffInvitation, systemPeekStaffInvitation } from '@/server/db/system';
+import {
+  systemAcceptPortalInvitation,
+  systemAcceptStaffInvitation,
+  systemPeekInvitation,
+  systemPeekStaffInvitation,
+} from '@/server/db/system';
 import { withUserTransaction } from '@/server/db/server';
-import { failure, ok, toAppError, type Outcome } from '@/server/errors';
+import { AppError, dbFailure, failure, ok, toAppError, type Outcome } from '@/server/errors';
 import { verifyAccessToken, type VerifiedClaims } from './claims';
 import { sendEmail, type Email } from './mailer';
 import { consumePreAuthLimit } from './rate-limit';
@@ -37,9 +42,23 @@ export function hashInvitationToken(token: string): Buffer {
   return createHash('sha256').update(token, 'utf8').digest();
 }
 
-export function invitationLink(origin: string, locale: 'es' | 'en', token: string): string {
-  return `${origin}/${locale}/invitation#token=${token}`;
+export function invitationLink(
+  origin: string,
+  locale: 'es' | 'en',
+  token: string,
+  kind?: 'patient' | 'guardian',
+): string {
+  // The fragment is never sent to servers. `kind` is a UI routing hint only, never trusted.
+  return `${origin}/${locale}/invitation#token=${token}${kind ? `&kind=${kind}` : ''}`;
 }
+
+/** Product constant (SECURITY.md §3.8: patient/guardian 7 days), configurable. */
+export const PORTAL_INVITATION_TTL_HOURS = 168;
+
+const PORTAL_INVITE_KEYS = {
+  patient_not_invitable: 'patients.errors.notInvitable',
+  guardian_not_invitable: 'guardians.errors.notInvitable',
+} as const;
 
 export type CreatedInvitation = { invitationId: string; expiresAt: string };
 
@@ -282,4 +301,210 @@ export async function acceptStaffInvitation(
     recordAudit(tx, 'auth.signed_in', { method: 'password' }, { requestId: meta.requestId }),
   ).catch(() => undefined);
   return ok({ claims, step: await nextStepAfterPassword(client, claims) });
+}
+
+// ---------------------------------------------------------------------------
+// Portal invitations (patient / guardian) — Phase 2
+// ---------------------------------------------------------------------------
+
+export type PortalInvitationTarget =
+  { kind: 'patient'; patientId: string } | { kind: 'guardian'; patientGuardianId: string };
+
+/**
+ * Care-team action. Patient: permission `patient.portal.invite`; guardian: `guardian.manage`.
+ * ONE user transaction: resolve the subject through RLS (a row the caller cannot see is
+ * NOT_FOUND), revoke a previous pending invitation for the SAME subject, insert the new one
+ * (RLS + `app.guard_portal_invitation` re-check care-team, unlinked subject, relationship state),
+ * audit `invitation.created` (ids only, never the email) and deliver the email; a delivery
+ * failure rolls everything back. NOTE: the DB allows one pending invitation per (organization,
+ * email) across all kinds, so reusing an email that is pending for ANOTHER subject is a CONFLICT.
+ */
+export async function createPortalInvitation(
+  ctx: AuthzContext,
+  target: PortalInvitationTarget,
+  email: string,
+  origin: string,
+  renderEmail: (link: string) => Email,
+  emailLocale: 'es' | 'en',
+): Promise<Outcome<CreatedInvitation>> {
+  const permitted = await requirePermission(
+    ctx,
+    target.kind === 'patient' ? 'patient.portal.invite' : 'guardian.manage',
+  );
+  if (!permitted.ok) return permitted;
+  const organizationId = ctx.organizationId as string;
+  const token = generateInvitationToken();
+  const tokenHash = hashInvitationToken(token);
+  const expiresAt = new Date(Date.now() + PORTAL_INVITATION_TTL_HOURS * 3600 * 1000);
+  try {
+    const created = await withUserTransaction(ctx.claims, async (tx) => {
+      let patientId: string | null = null;
+      let guardianId: string | null = null;
+      let patientGuardianId: string | null = null;
+      let auditPatientId: string | null = null;
+      if (target.kind === 'patient') {
+        const [p] = await tx<{ id: string }[]>`
+          select id from public.patients where organization_id = ${organizationId} and id = ${target.patientId}`;
+        if (!p) throw new AppError('NOT_FOUND');
+        patientId = p.id;
+        auditPatientId = p.id;
+      } else {
+        const [r] = await tx<{ id: string; guardian_id: string; patient_id: string }[]>`
+          select id, guardian_id, patient_id from public.patient_guardians
+          where organization_id = ${organizationId} and id = ${target.patientGuardianId}`;
+        if (!r) throw new AppError('NOT_FOUND');
+        patientGuardianId = r.id;
+        guardianId = r.guardian_id;
+        auditPatientId = r.patient_id;
+      }
+      const revoked = await tx<{ id: string }[]>`
+        update public.invitations set status = 'revoked'
+        where organization_id = ${organizationId} and status = 'pending'
+          and invitation_type = ${target.kind}::public.invitation_type
+          and (${patientId}::uuid is null or patient_id = ${patientId})
+          and (${patientGuardianId}::uuid is null or patient_guardian_id = ${patientGuardianId})
+        returning id`;
+      for (const row of revoked) {
+        await recordAudit(
+          tx,
+          'invitation.revoked',
+          {},
+          {
+            organizationId,
+            resourceType: 'invitation',
+            resourceId: row.id,
+            requestId: ctx.requestId,
+          },
+        );
+      }
+      const [row] = await tx<{ id: string; expires_at: Date }[]>`
+        insert into public.invitations (organization_id, invitation_type, email, token_hash, expires_at,
+                                        patient_id, guardian_id, patient_guardian_id)
+        values (${organizationId}, ${target.kind}::public.invitation_type, ${email}, ${tokenHash},
+                ${expiresAt}, ${patientId}, ${guardianId}, ${patientGuardianId})
+        returning id, expires_at`;
+      if (!row) throw new Error('invitation insert returned no row');
+      await recordAudit(
+        tx,
+        'invitation.created',
+        {
+          invitation_type: target.kind,
+          patient_id: auditPatientId as string,
+          ...(guardianId
+            ? { guardian_id: guardianId, patient_guardian_id: patientGuardianId as string }
+            : {}),
+        },
+        {
+          organizationId,
+          resourceType: 'invitation',
+          resourceId: row.id,
+          requestId: ctx.requestId,
+        },
+      );
+      await sendEmail({
+        ...renderEmail(invitationLink(origin, emailLocale, token, target.kind)),
+        to: email,
+      });
+      return { invitationId: row.id, expiresAt: row.expires_at.toISOString() };
+    });
+    return ok(created);
+  } catch (error) {
+    return dbFailure(error, PORTAL_INVITE_KEYS);
+  }
+}
+
+export type PortalInvitationPreview = {
+  organizationName: string;
+  email: string;
+  kind: 'patient' | 'guardian';
+  expiresAt: string;
+};
+
+/** Read-only preview; staff tokens are INVALID here (and portal tokens are INVALID for staff). */
+export async function previewPortalInvitation(
+  token: string,
+  meta: RequestMeta,
+): Promise<Outcome<PortalInvitationPreview>> {
+  if (!(await limitInvitation(token, meta))) {
+    return failure('RATE_LIMITED', { messageKey: 'auth.errors.rateLimited' });
+  }
+  const row = await systemPeekInvitation(hashInvitationToken(token));
+  if (!row || row.kind === 'staff') return INVALID();
+  return ok({
+    organizationName: row.organizationDisplayName,
+    email: row.email,
+    kind: row.kind,
+    expiresAt: row.expiresAt,
+  });
+}
+
+/**
+ * Same account rules as staff acceptance (new email -> confirmed user with the chosen password;
+ * existing account -> its current password; no "accept as a different user"). The DB links
+ * patients/guardians.profile_id, rejects staff of the organization, and a guardian acceptance
+ * leaves the relationship pending_verification. No MFA step: portal MFA is optional (Q-07).
+ */
+export async function acceptPortalInvitation(
+  client: SupabaseClient,
+  input: { token: string; displayName: string; password: string; locale: 'es' | 'en' },
+  meta: RequestMeta,
+): Promise<Outcome<{ claims: VerifiedClaims; kind: 'patient' | 'guardian' }>> {
+  if (!(await limitInvitation(input.token, meta))) {
+    return failure('RATE_LIMITED', { messageKey: 'auth.errors.rateLimited' });
+  }
+  const tokenHash = hashInvitationToken(input.token);
+  const invitation = await systemPeekInvitation(tokenHash);
+  if (!invitation || invitation.kind === 'staff') return INVALID();
+
+  let createdUserId: string | null = null;
+  if (!invitation.existingProfileId) {
+    const created = await adminCreateInvitedUser({
+      email: invitation.email,
+      password: input.password,
+      displayName: input.displayName,
+      locale: input.locale,
+    });
+    if (!created.ok) {
+      if (created.reason === 'weak_password') {
+        return failure('VALIDATION_FAILED', {
+          messageKey: 'auth.errors.weakPassword',
+          fieldErrors: { password: ['passwordWeak'] },
+        });
+      }
+      return INVALID();
+    }
+    createdUserId = created.userId;
+  }
+
+  const { data, error } = await client.auth.signInWithPassword({
+    email: invitation.email,
+    password: input.password,
+  });
+  const claims = !error && data.session ? await verifyAccessToken(data.session.access_token) : null;
+  if (!claims) {
+    await recordSystemAudit(
+      'auth.sign_in_failed',
+      { method: 'password' },
+      { requestId: meta.requestId, ip: meta.ip, userAgent: meta.userAgent },
+    ).catch(() => undefined);
+    if (createdUserId) await adminDeleteUnacceptedUser(createdUserId).catch(() => undefined);
+    return INVALID();
+  }
+
+  let accepted: Awaited<ReturnType<typeof systemAcceptPortalInvitation>>;
+  try {
+    accepted = await systemAcceptPortalInvitation({
+      tokenHash,
+      profileId: claims.sub,
+      requestId: meta.requestId,
+    });
+  } catch {
+    await client.auth.signOut({ scope: 'local' }).catch(() => undefined);
+    if (createdUserId) await adminDeleteUnacceptedUser(createdUserId).catch(() => undefined);
+    return INVALID();
+  }
+  await withUserTransaction(claims, (tx) =>
+    recordAudit(tx, 'auth.signed_in', { method: 'password' }, { requestId: meta.requestId }),
+  ).catch(() => undefined);
+  return ok({ claims, kind: accepted.kind });
 }

@@ -213,6 +213,9 @@ export async function deleteFictionalUser(userId: string): Promise<void> {
     await sql`delete from public.professional_profiles where membership_id in (select id from public.memberships where profile_id = ${userId})`;
     await sql`delete from public.memberships where profile_id = ${userId}`;
     await sql`delete from public.invitations where accepted_by_profile_id = ${userId}`;
+    // Phase 2 portal links (superuser connection: no claims, so the immutability guard allows it).
+    await sql`update public.patients set profile_id = null where profile_id = ${userId}`;
+    await sql`update public.guardians set profile_id = null where profile_id = ${userId}`;
   } finally {
     await sql.end();
   }

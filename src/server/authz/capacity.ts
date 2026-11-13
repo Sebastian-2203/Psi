@@ -34,7 +34,10 @@ export async function switchCapacity(
       (c) => c.actingAs === target.actingAs && c.organizationId === target.organizationId,
     );
     if (!match) return failure('FORBIDDEN', { messageKey: 'errors.noCapacity' });
-    if ((match.actingAs === 'staff' || match.actingAs === 'platform_admin') && claims.aal !== 'aal2') {
+    if (
+      (match.actingAs === 'staff' || match.actingAs === 'platform_admin') &&
+      claims.aal !== 'aal2'
+    ) {
       return failure('MFA_REQUIRED');
     }
     if (match.organizationId) {

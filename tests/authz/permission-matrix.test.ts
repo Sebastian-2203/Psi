@@ -28,7 +28,7 @@ import { ORGS, PERSONAS, type Persona } from '../fixtures/personas';
  * Phase 2+ adds patient/guardian personas and relationship states.
  */
 
-type Kind = Persona['kind'];
+type Kind = Exclude<Persona['kind'], 'patient' | 'guardian'>;
 const KINDS: Kind[] = ['owner_only', 'owner_psychologist', 'psychologist', 'platform_admin'];
 
 const OWNERS = {
@@ -49,6 +49,19 @@ const PLATFORM = {
   psychologist: false,
   platform_admin: true,
 };
+const PSY = {
+  owner_only: false,
+  owner_psychologist: true,
+  psychologist: true,
+  platform_admin: false,
+};
+/** Portal-only permissions: no staff or platform persona holds them (see portal tests below). */
+const NONE = {
+  owner_only: false,
+  owner_psychologist: false,
+  psychologist: false,
+  platform_admin: false,
+};
 const EVERYONE = {
   owner_only: true,
   owner_psychologist: true,
@@ -66,6 +79,27 @@ const BASE: Record<Permission, Record<Kind, boolean>> = {
   'org.audit.read': OWNERS,
   'org.professional_profile.manage': STAFF, // scope = own membership
   'profile.self.update': EVERYONE,
+  'patient.create': PSY,
+  'patient.directory.read': STAFF,
+  'patient.read': PSY, // + care team (RLS)
+  'patient.update': PSY,
+  'patient.status.manage': PSY,
+  'patient.care_team.manage': STAFF, // owner or psychologist; primary rule is DB-side
+  'patient.portal.invite': PSY,
+  'patient.preferences.manage': PSY,
+  'guardian.manage': PSY,
+  'guardian.permissions.manage': PSY,
+  'guardian.caveat.manage': PSY,
+  'consent.template.manage': OWNERS,
+  'consent.request': PSY,
+  'consent.record.read': PSY,
+  'consent.withdraw': PSY,
+  'consent.sign.self': NONE,
+  'consent.sign.guardian': NONE,
+  'consent.withdraw.own': NONE,
+  'portal.consent.read': NONE,
+  'portal.privacy.read': NONE,
+  'portal.guardian.read': NONE,
   'platform.org.read': PLATFORM,
   'platform.org.provision': PLATFORM,
   'platform.org.suspend': PLATFORM,
@@ -144,7 +178,20 @@ describe('permission registry', () => {
   it('every staff/platform permission requires aal2', () => {
     for (const name of PERMISSION_NAMES) {
       const rule = PERMISSIONS[name];
-      if (rule.scope !== 'self') expect(rule.requiresAal2).toBe(true);
+      const staffLike = (rule.actingAs as readonly string[]).some(
+        (a) => a === 'staff' || a === 'platform_admin',
+      );
+      if (rule.scope !== 'self' && staffLike) expect(rule.requiresAal2).toBe(true);
+    }
+  });
+
+  it('portal permissions never include staff or platform capacities, and need no aal2', () => {
+    for (const name of PERMISSION_NAMES) {
+      const rule = PERMISSIONS[name];
+      const portalOnly = (rule.actingAs as readonly string[]).every(
+        (a) => a === 'patient' || a === 'guardian',
+      );
+      if (portalOnly) expect(rule.requiresAal2).toBe(false);
     }
   });
 });
@@ -187,5 +234,77 @@ describe('permission matrix', () => {
       NOW,
     );
     expect(decision).toMatchObject({ allowed: false, code: 'FORBIDDEN' });
+  });
+});
+
+describe('portal capacities (patient / guardian)', () => {
+  const portalSubject = (actingAs: 'patient' | 'guardian', aal: 'aal1' | 'aal2' = 'aal1') => ({
+    profileId: 'a9000000-0000-4000-8000-000000000001',
+    aal,
+    organizationId: ORGS.A.id,
+    organizationStatus: 'active' as const,
+    actingAs,
+  });
+  const decide = (
+    actingAs: 'patient' | 'guardian',
+    permission: Permission,
+    scope: { organizationId?: string } = {},
+  ) => {
+    const d = evaluatePermission(portalSubject(actingAs), permission, scope, NOW);
+    return d.allowed ? 'allow' : d.code;
+  };
+
+  it('patient: sign self, withdraw own, own reads; nothing staff-side, not the guardian ones', () => {
+    for (const p of [
+      'consent.sign.self',
+      'consent.withdraw.own',
+      'portal.consent.read',
+      'portal.privacy.read',
+    ] as const) {
+      expect(decide('patient', p)).toBe('allow');
+    }
+    for (const p of [
+      'consent.sign.guardian',
+      'portal.guardian.read',
+      'patient.read',
+      'patient.directory.read',
+      'consent.request',
+      'guardian.manage',
+    ] as const) {
+      expect(decide('patient', p)).toBe('FORBIDDEN');
+    }
+  });
+
+  it('guardian: sign guardian, withdraw own, own relationships; never the patient-only privacy view', () => {
+    for (const p of [
+      'consent.sign.guardian',
+      'consent.withdraw.own',
+      'portal.consent.read',
+      'portal.guardian.read',
+    ] as const) {
+      expect(decide('guardian', p)).toBe('allow');
+    }
+    for (const p of [
+      'consent.sign.self',
+      'portal.privacy.read',
+      'patient.read',
+      'guardian.permissions.manage',
+    ] as const) {
+      expect(decide('guardian', p)).toBe('FORBIDDEN');
+    }
+  });
+
+  it('cross-tenant scope is NOT_FOUND for portal identities too', () => {
+    expect(decide('patient', 'consent.sign.self', { organizationId: ORGS.B.id })).toBe('NOT_FOUND');
+  });
+
+  it('a non-active organization denies portal permissions', () => {
+    const d = evaluatePermission(
+      { ...portalSubject('patient'), organizationStatus: 'read_only' },
+      'consent.sign.self',
+      {},
+      NOW,
+    );
+    expect(d).toMatchObject({ allowed: false, code: 'FORBIDDEN' });
   });
 });

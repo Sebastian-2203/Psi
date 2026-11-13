@@ -1,5 +1,6 @@
 import 'server-only';
 
+export { classifyPortalAccess, type PortalAccess } from './portal-access';
 export { switchCapacity, type CapacityTarget } from './capacity';
 export {
   getAuthzContext,

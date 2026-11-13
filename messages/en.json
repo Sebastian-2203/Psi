@@ -228,7 +228,9 @@
       "invitationSubject": "You were invited to join a practice on Psi",
       "invitationBody": "Hello,\n\nYou were invited to join a practice team. To accept, open this link:\n\n{link}\n\nThe link expires in {hours} hours and works only once. If you were not expecting this invitation, ignore this email.",
       "mfaResetSubject": "Your two-step verification was turned off",
-      "mfaResetBody": "Hello,\n\nA recovery code was used on your account and we turned off your authenticator app. All your sessions were signed out.\n\nIf this was not you, contact your practice owner or support right away."
+      "mfaResetBody": "Hello,\n\nA recovery code was used on your account and we turned off your authenticator app. All your sessions were signed out.\n\nIf this was not you, contact your practice owner or support right away.",
+      "portalInvitationSubject": "You were invited to your practice portal on Psi",
+      "portalInvitationBody": "Hello,\n\nYou were invited to use your practice portal. To accept, open this link:\n\n{link}\n\nThe link expires in {days} days and works only once. If you were not expecting this invitation, ignore this email."
     }
   },
   "home": {
@@ -345,6 +347,69 @@
       "logoDimensions": "The logo must be between 16 and 2048 pixels per side.",
       "logoMissing": "Choose a file to upload.",
       "logoRateLimited": "You uploaded many logos in a short time. Wait an hour and try again."
+    }
+  },
+  "validation": {
+    "fieldRequired": "This field is required.",
+    "fieldTooShort": "Write a little more.",
+    "fieldTooLong": "The text is too long.",
+    "emailInvalid": "Enter a valid email.",
+    "phoneInvalid": "Enter a valid phone number.",
+    "dateInvalid": "Enter a valid date.",
+    "dateInFuture": "The date can't be in the future.",
+    "documentInvalid": "Check the document number: use letters, numbers or hyphens (3 to 32 characters).",
+    "choiceInvalid": "Choose a valid option.",
+    "versionRequired": "Reload the page and try again.",
+    "nothingToUpdate": "There are no changes to save.",
+    "dependsOnDocumentType": "Choose the document type too."
+  },
+  "patients": {
+    "errors": {
+      "possibleDuplicate": "A person with very similar details already exists. Review them before creating another record.",
+      "activationRequirementsMissing": "Some requirements are still missing before this person can be activated.",
+      "invalidStatusTransition": "That status change isn't available from the current status.",
+      "readOnly": "This record is closed and can't be edited anymore.",
+      "selfAssignmentReasonRequired": "To join this care team, explain why (at least 10 characters).",
+      "careTeamRequiresPsychologist": "Only someone with the psychologist role can join the care team.",
+      "portalModeCareTeamOnly": "Only the care team can change the portal mode.",
+      "staffCannotBePatient": "This account belongs to the practice team and can't be a patient.",
+      "endReasonRequired": "Write the reason for ending the assignment.",
+      "notInvitable": "This person can't be invited to the portal right now."
+    }
+  },
+  "guardians": {
+    "errors": {
+      "patientNotMinor": "A guardian can only be linked to a minor patient.",
+      "invalidTransition": "That change isn't available from the relationship's current status.",
+      "majorityReactivationUnsupported": "A relationship suspended at the age of majority can't be reactivated.",
+      "notVerified": "The relationship has to be verified first.",
+      "notGrantable": "Permissions can't be granted on a suspended or revoked relationship.",
+      "scheduleRestricted": "A safety caveat prevents sharing the session schedule.",
+      "notInvitable": "This person can't be invited to the portal right now.",
+      "staffCannotBeGuardian": "This account belongs to the practice team and can't be a patient's guardian.",
+      "suspensionReasonRequired": "Choose the reason for the suspension.",
+      "revokeReasonRequired": "Write the reason for revoking the relationship.",
+      "notLegalRepresentative": "This person isn't registered as a legal representative."
+    }
+  },
+  "consents": {
+    "errors": {
+      "notSignable": "This document is no longer available to sign.",
+      "notApplicable": "This document doesn't apply in this case.",
+      "textMismatch": "The text changed while you were reading it. Reload and read it again.",
+      "evidenceIncomplete": "Type your full name and tick the box to continue.",
+      "signerNotAllowed": "This person can't sign this document.",
+      "assentRequiresPatient": "Assent is given by the minor themselves.",
+      "legalRepresentativeNotVerified": "Signing this document requires a verified legal representation.",
+      "relationshipNotActive": "The relationship with the patient isn't active.",
+      "jurisdictionNotConfigured": "The practice's country isn't configured yet.",
+      "paperScanUnavailable": "Scanned documents can't be attached yet.",
+      "methodNotAllowed": "That recording method isn't available.",
+      "decidedAtInvalid": "The decision date isn't valid.",
+      "notWithdrawable": "This decision can no longer be withdrawn.",
+      "withdrawalReasonRequired": "Write the reason for withdrawing.",
+      "templateHasNoPublishedVersion": "Publish a version before activating the template.",
+      "invalidVersionTransition": "That change isn't available for this version."
     }
   }
 }

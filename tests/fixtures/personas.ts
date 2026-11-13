@@ -19,7 +19,13 @@ export type Persona = {
   key: string;
   id: string;
   email: string;
-  kind: 'owner_only' | 'owner_psychologist' | 'psychologist' | 'platform_admin';
+  kind:
+    | 'owner_only'
+    | 'owner_psychologist'
+    | 'psychologist'
+    | 'platform_admin'
+    | 'patient'
+    | 'guardian';
   org: OrgKey | null;
   membershipId: string | null;
   roles: PersonaRole[];
@@ -117,6 +123,67 @@ export const PERSONAS = {
     roles: [],
     hasTotp: true,
   },
+  // --- Phase 2 portal personas (no MFA; mirror supabase/seed.sql) ---
+  patientA: {
+    key: 'patientA',
+    id: 'a9000000-0000-4000-8000-000000000001',
+    email: 'ana.paciente@example.test',
+    kind: 'patient',
+    org: 'A',
+    membershipId: null,
+    roles: [],
+    hasTotp: false,
+  },
+  guardianA: {
+    key: 'guardianA',
+    id: 'a9000000-0000-4000-8000-000000000002',
+    email: 'marta.guardiana@example.test',
+    kind: 'guardian',
+    org: 'A',
+    membershipId: null,
+    roles: [],
+    hasTotp: false,
+  },
+  patientB: {
+    key: 'patientB',
+    id: 'b9000000-0000-4000-8000-000000000001',
+    email: 'beto.paciente@example.test',
+    kind: 'patient',
+    org: 'B',
+    membershipId: null,
+    roles: [],
+    hasTotp: false,
+  },
 } as const satisfies Record<string, Persona>;
+
+/** Fictional Phase 2 records seeded by supabase/seed.sql. */
+export const SEED = {
+  patients: {
+    adultA: 'a3000000-0000-4000-8000-000000000001',
+    minorA: 'a3000000-0000-4000-8000-000000000002',
+    atMajorityA: 'a3000000-0000-4000-8000-000000000003',
+    intakeAdultA: 'a3000000-0000-4000-8000-000000000004',
+    intakeMinorA: 'a3000000-0000-4000-8000-000000000005',
+    adultB: 'b3000000-0000-4000-8000-000000000001',
+    minorB: 'b3000000-0000-4000-8000-000000000002',
+  },
+  relationships: {
+    martaActive: 'a5000000-0000-4000-8000-000000000001',
+    jorgeRevoked: 'a5000000-0000-4000-8000-000000000002',
+    rosaAtMajority: 'a5000000-0000-4000-8000-000000000003',
+    elenaPending: 'a5000000-0000-4000-8000-000000000004',
+    bertaPendingB: 'b5000000-0000-4000-8000-000000000001',
+  },
+  consent: {
+    template: 'a6000000-0000-4000-8000-000000000001',
+    versionRetired: 'a7000000-0000-4000-8000-000000000001',
+    versionPublished: 'a7000000-0000-4000-8000-000000000002',
+    withdrawnRecord: 'a8000000-0000-4000-8000-000000000001',
+  },
+  tokens: {
+    patientInvitation: 'fictional-invitation-token-patient-demo-a',
+    guardianInvitation: 'fictional-invitation-token-guardian-demo-a',
+  },
+} as const;
 
 export type PersonaKey = keyof typeof PERSONAS;

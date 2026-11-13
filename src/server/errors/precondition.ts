@@ -8,7 +8,10 @@ import { toAppError } from './result';
  * internal `detail`. Modules pass an allowlist `machine_key -> i18n key`; anything not listed
  * keeps the generic key, and the raw DB message never reaches the client.
  */
-export function refinePrecondition(error: AppError, keys: Readonly<Record<string, string>>): AppError {
+export function refinePrecondition(
+  error: AppError,
+  keys: Readonly<Record<string, string>>,
+): AppError {
   if (error.code !== 'PRECONDITION_FAILED' || !error.detail) return error;
   const machineKey = error.detail.replace(/^PRECONDITION:/, '');
   const messageKey = keys[machineKey];
