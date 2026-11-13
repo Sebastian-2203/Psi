@@ -11,6 +11,8 @@ setup.beforeAll(async () => {
   });
   try {
     await sql`truncate public.rate_limit_counters`;
+    // shells.spec switches the persona's remembered locale to en; sign-in must land on /es again.
+    await sql`update public.profiles set locale = 'es' where id = 'a1000000-0000-4000-8000-000000000002'`;
   } finally {
     await sql.end();
   }

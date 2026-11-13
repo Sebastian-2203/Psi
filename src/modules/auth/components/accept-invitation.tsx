@@ -40,7 +40,7 @@ let fragmentToken: string | null = null;
  * it from the address bar immediately and only sends it in server-action POST bodies
  * (SECURITY.md §3.8 point 5).
  */
-function takeTokenFromFragment(): string | null {
+export function takeTokenFromFragment(): string | null {
   if (window.location.hash) {
     const token = new URLSearchParams(window.location.hash.slice(1)).get('token');
     fragmentToken = token && /^[A-Za-z0-9_-]{43}$/.test(token) ? token : null;

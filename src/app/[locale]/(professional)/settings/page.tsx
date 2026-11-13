@@ -23,8 +23,10 @@ export default async function SettingsPage({ params }: { params: Promise<{ local
   if (!ctx) return null;
   const t = await getTranslations('auth.settings');
   const tb = await getTranslations('branding');
+  const tcn = await getTranslations('consents.templates');
   const format = await getFormatter();
   const canBrand = evaluatePermission(ctx, 'org.branding.manage').allowed;
+  const canTemplates = evaluatePermission(ctx, 'consent.template.manage').allowed;
   const canInvite = evaluatePermission(ctx, 'org.invitations.manage').allowed;
   const invitations = canInvite ? await listStaffInvitations(ctx) : null;
   const statusLabel = {
@@ -96,6 +98,22 @@ export default async function SettingsPage({ params }: { params: Promise<{ local
           </Link>
         ) : (
           <p className="text-muted-foreground">{tb('ownerOnly')}</p>
+        )}
+      </Card>
+      <Card className="max-w-2xl">
+        <CardHeader>
+          <CardTitle>{tcn('cardTitle')}</CardTitle>
+          <CardDescription>{tcn('cardDescription')}</CardDescription>
+        </CardHeader>
+        {canTemplates ? (
+          <Link
+            href="/settings/consents"
+            className="font-semibold text-primary underline underline-offset-4"
+          >
+            {tcn('open')}
+          </Link>
+        ) : (
+          <p className="text-muted-foreground">{tcn('ownerOnly')}</p>
         )}
       </Card>
       <Card className="max-w-2xl">

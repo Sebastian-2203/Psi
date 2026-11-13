@@ -41,9 +41,9 @@ import { SkipLink } from './skip-link';
 
 type NavKey = 'dashboard' | 'patients' | 'activities' | 'settings';
 // `href` only for routes that exist. Phase 2 routes are listed disabled so the shell shows the final structure.
-const NAV: { key: NavKey; icon: LucideIcon; href?: '/dashboard' | '/settings' }[] = [
+const NAV: { key: NavKey; icon: LucideIcon; href?: '/dashboard' | '/patients' | '/settings' }[] = [
   { key: 'dashboard', icon: Home, href: '/dashboard' },
-  { key: 'patients', icon: Users },
+  { key: 'patients', icon: Users, href: '/patients' },
   { key: 'activities', icon: Shapes },
   { key: 'settings', icon: Settings, href: '/settings' },
 ];

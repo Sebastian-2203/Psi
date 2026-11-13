@@ -1,8 +1,13 @@
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { Card } from '@/components/ui/card';
 import { getRouteLocale } from '@/i18n/route-locale';
-import { AcceptInvitation } from '@/modules/auth';
-import { acceptInvitationAction, previewInvitationAction } from '@/modules/auth/server/actions';
+import { InvitationEntry } from '@/modules/auth';
+import {
+  acceptInvitationAction,
+  acceptPortalInvitationAction,
+  previewInvitationAction,
+  previewPortalInvitationAction,
+} from '@/modules/auth/server/actions';
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }) {
   const locale = await getRouteLocale(params);
@@ -19,9 +24,12 @@ export default async function InvitationPage({ params }: { params: Promise<{ loc
   return (
     <Card className="w-full">
       <h1>{t('title')}</h1>
-      <AcceptInvitation
-        previewAction={previewInvitationAction}
-        acceptAction={acceptInvitationAction}
+      <InvitationEntry
+        staff={{ previewAction: previewInvitationAction, acceptAction: acceptInvitationAction }}
+        portal={{
+          previewAction: previewPortalInvitationAction,
+          acceptAction: acceptPortalInvitationAction,
+        }}
       />
     </Card>
   );

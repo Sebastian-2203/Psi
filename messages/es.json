@@ -231,6 +231,18 @@
       "mfaResetBody": "Hola:\n\nSe usó un código de recuperación en tu cuenta y desactivamos tu app de autenticación. Todas tus sesiones se cerraron.\n\nSi no fuiste tú, comunícate de inmediato con la titular de tu consulta o con soporte.",
       "portalInvitationSubject": "Te invitaron al portal de tu consulta en Psi",
       "portalInvitationBody": "Hola:\n\nTe invitaron a usar el portal de tu consulta. Para aceptar, abre este enlace:\n\n{link}\n\nEl enlace vence en {days} días y solo sirve una vez. Si no esperabas esta invitación, ignora este correo."
+    },
+    "portalInvitation": {
+      "loading": "Revisando tu invitación…",
+      "invalidTitle": "Esta invitación no es válida",
+      "invalidBody": "Puede que haya vencido o que ya se haya usado. Pide una nueva a la consulta.",
+      "introPatient": "{organization} te invitó a su portal. Crea tu acceso para continuar.",
+      "introGuardian": "{organization} te invitó a su portal como persona responsable. Crea tu acceso para continuar.",
+      "email": "Correo electrónico",
+      "displayName": "Tu nombre",
+      "password": "Contraseña",
+      "passwordHint": "Si ya tienes una cuenta con este correo, escribe tu contraseña actual.",
+      "submit": "Crear mi acceso"
     }
   },
   "home": {
@@ -375,6 +387,140 @@
       "staffCannotBePatient": "Esta cuenta pertenece al equipo de la consulta y no puede ser paciente.",
       "endReasonRequired": "Escribe el motivo para terminar la asignación.",
       "notInvitable": "No se puede invitar a esta persona al portal en este momento."
+    },
+    "title": "Pacientes",
+    "description": "Las personas que acompañas y, aparte, el directorio de la consulta.",
+    "create": "Nuevo paciente",
+    "createDescription": "Registra a una persona adulta o menor de edad. Si es menor, después podrás agregar a su persona responsable.",
+    "createSubmit": "Crear paciente",
+    "createForbidden": "Solo el equipo con rol de psicóloga puede crear pacientes.",
+    "back": "Volver a pacientes",
+    "searchLabel": "Buscar paciente",
+    "searchPlaceholder": "Nombre o apellido",
+    "myPatients": "Mis pacientes",
+    "emptyTitle": "Aún no tienes pacientes",
+    "emptyDescription": "Cuando crees un paciente o te sumen a su equipo de atención, aparecerá aquí.",
+    "noResults": "No encontramos pacientes con esa búsqueda.",
+    "directoryTitle": "Directorio de la consulta",
+    "directoryDescription": "Solo nombre y estado. No eres parte del equipo de atención de estas personas, por eso no puedes abrir su ficha.",
+    "notOnCareTeam": "Fuera de tu equipo",
+    "loadErrorTitle": "No pudimos cargar los pacientes",
+    "loadErrorDescription": "Tus datos están a salvo. Recarga la página en unos segundos.",
+    "unavailableTitle": "Esta ficha no está disponible",
+    "unavailableDescription": "Puede que no exista o que no seas parte del equipo de atención de esta persona.",
+    "minor": "Menor de edad",
+    "adult": "Adulto/a",
+    "reload": "Recargar datos",
+    "saved": "Cambios guardados.",
+    "save": "Guardar cambios",
+    "readOnlyNote": "Este registro está cerrado: ya no se puede editar.",
+    "status": {
+      "intake": "Ingreso",
+      "active": "Activo",
+      "paused": "En pausa",
+      "discharged": "Alta",
+      "archived": "Archivado",
+      "change": "Cambiar estado",
+      "changeTitle": "Cambiar el estado de {name}",
+      "changeDescription": "Solo se ofrecen los cambios permitidos desde el estado actual.",
+      "confirm": "Cambiar estado",
+      "newStatus": "Nuevo estado"
+    },
+    "duplicate": {
+      "title": "Posible duplicado",
+      "document": "Ya existe alguien con el mismo documento.",
+      "nameDob": "Ya existe alguien con el mismo nombre y fecha de nacimiento.",
+      "review": "Revisar los datos",
+      "confirm": "Es otra persona, crear de todos modos"
+    },
+    "fields": {
+      "firstName": "Nombres",
+      "lastName": "Apellidos",
+      "preferredName": "Nombre preferido",
+      "pronouns": "Pronombres",
+      "dateOfBirth": "Fecha de nacimiento",
+      "dateOfBirthHint": "Con la fecha sabremos si es menor de edad.",
+      "documentType": "Tipo de documento",
+      "documentNumber": "Número de documento",
+      "email": "Correo electrónico",
+      "phone": "Teléfono",
+      "sex": "Sexo",
+      "genderIdentity": "Identidad de género",
+      "preferredLocale": "Idioma preferido",
+      "emergencyContactName": "Contacto de emergencia",
+      "emergencyContactPhone": "Teléfono del contacto de emergencia",
+      "none": "Sin especificar"
+    },
+    "documentTypes": {
+      "cc": "Cédula de ciudadanía",
+      "ti": "Tarjeta de identidad",
+      "rc": "Registro civil",
+      "ce": "Cédula de extranjería",
+      "pa": "Pasaporte",
+      "ppt": "Permiso por protección temporal",
+      "nit": "NIT",
+      "other": "Otro"
+    },
+    "tabs": {
+      "label": "Secciones de la ficha",
+      "details": "Datos",
+      "careTeam": "Equipo de atención",
+      "preferences": "Preferencias",
+      "guardians": "Personas responsables",
+      "consents": "Consentimientos"
+    },
+    "invite": {
+      "title": "Invitar a {name} al portal",
+      "description": "Enviaremos un enlace por correo para que cree su acceso al portal.",
+      "trigger": "Invitar al portal",
+      "hasLogin": "Esta persona ya tiene acceso al portal."
+    },
+    "activation": {
+      "title": "Faltan requisitos para activar a esta persona",
+      "jurisdiction_not_configured": "Falta configurar el país de la consulta para saber si es menor de edad.",
+      "legal_representative": "Falta una persona responsable con representación legal verificada."
+    },
+    "careTeam": {
+      "title": "Equipo de atención",
+      "description": "Quién acompaña a esta persona. Solo el equipo ve su ficha.",
+      "you": "Tú",
+      "member": "Integrante del equipo",
+      "since": "Desde {date}",
+      "roles": {
+        "primary": "Principal",
+        "secondary": "Secundario/a",
+        "supervisor": "Supervisión"
+      },
+      "end": "Terminar asignación",
+      "endTitle": "Terminar esta asignación",
+      "endDescription": "La persona dejará de ver la ficha de este paciente. Queda registrado el motivo.",
+      "endConfirm": "Terminar asignación",
+      "endReason": "Motivo",
+      "assignSelf": "Sumarme al equipo",
+      "assignDescription": "Quedará registrado quién te sumó y cuándo.",
+      "role": "Rol",
+      "reason": "Motivo",
+      "reasonHint": "Obligatorio (mínimo 10 caracteres) si ya hay una persona principal.",
+      "assign": "Sumarme"
+    },
+    "preferences": {
+      "title": "Preferencias del portal",
+      "description": "Cómo ve y recibe la información esta persona en su portal.",
+      "portalMode": "Modo del portal",
+      "portalModeHint": "Adolescentes y niños/as usan el modo infantil.",
+      "modes": {
+        "adult": "Adulto",
+        "adolescent": "Adolescente",
+        "child": "Niño/a"
+      },
+      "locale": "Idioma del portal",
+      "localeDefault": "El de la consulta",
+      "textSize": "Tamaño del texto",
+      "notifyEmail": "Recibir avisos por correo",
+      "reducedMotion": "Reducir animaciones",
+      "audioInstructions": "Instrucciones en audio",
+      "save": "Guardar preferencias",
+      "saved": "Preferencias guardadas."
     }
   },
   "guardians": {
@@ -390,6 +536,182 @@
       "suspensionReasonRequired": "Elige el motivo de la suspensión.",
       "revokeReasonRequired": "Escribe el motivo para revocar la relación.",
       "notLegalRepresentative": "Esta persona no está registrada como representante legal."
+    },
+    "title": "Personas responsables",
+    "description": "Solo ven lo que les des permiso explícito de ver.",
+    "add": "Agregar persona responsable",
+    "createTitle": "Nueva persona responsable",
+    "createDescription": "Después de crearla deberás verificar la relación y elegir sus permisos.",
+    "createSubmit": "Crear persona responsable",
+    "emptyTitle": "Aún no hay personas responsables",
+    "emptyDescription": "Para un paciente menor de edad, agrega a quien tiene su representación.",
+    "loadError": "No pudimos cargar las personas responsables. Recarga la página.",
+    "primaryContact": "Contacto principal",
+    "status": {
+      "pending_verification": "Por verificar",
+      "active": "Activa",
+      "suspended": "Suspendida",
+      "revoked": "Revocada"
+    },
+    "relationships": {
+      "mother": "Madre",
+      "father": "Padre",
+      "legal_guardian": "Tutor/a legal",
+      "grandparent": "Abuelo/a",
+      "other_relative": "Otro familiar",
+      "other": "Otra relación"
+    },
+    "legalBases": {
+      "parental_authority": "Patria potestad",
+      "legal_guardianship": "Tutela legal",
+      "court_order": "Orden judicial",
+      "other": "Otra"
+    },
+    "documentTypes": {
+      "cc": "Cédula de ciudadanía",
+      "ti": "Tarjeta de identidad",
+      "rc": "Registro civil",
+      "ce": "Cédula de extranjería",
+      "pa": "Pasaporte",
+      "ppt": "Permiso por protección temporal",
+      "nit": "NIT",
+      "other": "Otro"
+    },
+    "suspensionReasons": {
+      "custody_review": "Revisión de custodia",
+      "safety_concern": "Preocupación de seguridad",
+      "other": "Otro motivo",
+      "age_of_majority": "Mayoría de edad"
+    },
+    "legal": {
+      "verified": "Representación legal verificada",
+      "unverified": "Representación legal sin verificar",
+      "notLegal": "Sin representación legal"
+    },
+    "fields": {
+      "firstName": "Nombres",
+      "lastName": "Apellidos",
+      "relationship": "Relación con el paciente",
+      "email": "Correo electrónico",
+      "phone": "Teléfono",
+      "documentType": "Tipo de documento",
+      "documentNumber": "Número de documento",
+      "isLegalRepresentative": "Es representante legal",
+      "isLegalRepresentativeHint": "Para firmar consentimientos por el menor, la representación debe verificarse.",
+      "legalBasis": "Fundamento legal",
+      "isPrimaryContact": "Es el contacto principal",
+      "none": "Sin especificar",
+      "choose": "Elige una opción"
+    },
+    "verify": {
+      "trigger": "Verificar relación",
+      "title": "Verificar la relación con {name}",
+      "description": "Confirma que revisaste la relación. Podrás dar permisos solo después.",
+      "note": "Nota de verificación",
+      "validFrom": "Vigente desde",
+      "validUntil": "Vigente hasta",
+      "verifyLegalBasis": "También verifico el fundamento legal",
+      "verifyLegalBasisHint": "Necesario para activar a un paciente menor de edad.",
+      "confirm": "Verificar"
+    },
+    "suspend": {
+      "trigger": "Suspender",
+      "title": "Suspender a {name}",
+      "description": "Mientras esté suspendida no verá nada del portal.",
+      "reason": "Motivo",
+      "confirm": "Suspender"
+    },
+    "reactivate": "Reactivar",
+    "revoke": {
+      "trigger": "Revocar",
+      "title": "Revocar la relación con {name}",
+      "description": "Es definitivo: la persona perderá todo acceso. Queda registrado el motivo.",
+      "reason": "Motivo",
+      "confirm": "Revocar relación"
+    },
+    "invite": {
+      "title": "Invitar a {name} al portal",
+      "description": "Enviaremos un enlace por correo para que cree su acceso.",
+      "trigger": "Invitar al portal",
+      "hasLogin": "Ya tiene acceso al portal."
+    },
+    "caveat": {
+      "label": "Precaución de seguridad",
+      "scheduleRestricted": "El calendario de sesiones no se comparte.",
+      "careTeamOnly": "Solo la ven integrantes del equipo de atención.",
+      "add": "Agregar precaución",
+      "edit": "Editar precaución",
+      "title": "Precaución de seguridad",
+      "description": "Nota interna del equipo. Nunca se muestra en el portal ni a la persona responsable.",
+      "text": "Precaución",
+      "restrictSchedule": "No compartir el calendario de sesiones",
+      "restrictScheduleHint": "Se quita el permiso de ver el calendario y no se puede dar mientras dure.",
+      "save": "Guardar",
+      "end": "Quitar precaución"
+    },
+    "permissions": {
+      "title": "Permisos",
+      "description": "Marca solo lo que esta persona puede ver o hacer. Todo lo demás queda oculto.",
+      "needsVerification": "Verifica la relación antes de dar permisos.",
+      "locked": "No se pueden dar permisos mientras la relación esté suspendida.",
+      "saved": "Permisos guardados.",
+      "save": "Guardar permisos",
+      "scheduleRestricted": "Bloqueado por una precaución de seguridad.",
+      "items": {
+        "view_assignments": {
+          "label": "Ver actividades asignadas",
+          "hint": "Ve qué actividades tiene el paciente."
+        },
+        "complete_assignments": {
+          "label": "Completar actividades",
+          "hint": "Puede responder por el paciente cuando corresponda."
+        },
+        "view_responses": {
+          "label": "Ver respuestas",
+          "hint": "Las reflexiones privadas del menor nunca se incluyen."
+        },
+        "view_shared_resources": {
+          "label": "Ver recursos compartidos",
+          "hint": "Material que compartas con la familia."
+        },
+        "sign_consents": {
+          "label": "Firmar consentimientos",
+          "hint": "Exige representación legal verificada."
+        },
+        "view_session_schedule": {
+          "label": "Ver calendario de sesiones",
+          "hint": "Fechas y horas de las sesiones."
+        },
+        "manage_portal_preferences": {
+          "label": "Cambiar preferencias del portal",
+          "hint": "Idioma, tamaño de texto y avisos."
+        },
+        "receive_notifications": {
+          "label": "Recibir avisos",
+          "hint": "Correos sobre citas y actividades."
+        },
+        "view_shared_documents": {
+          "label": "Ver documentos compartidos",
+          "hint": "Solo los que marques como compartidos."
+        },
+        "view_patient_facing_goals": {
+          "label": "Ver metas para la familia",
+          "hint": "Solo metas redactadas para compartir."
+        }
+      },
+      "portal": {
+        "none": "Por ahora no puede ver nada.",
+        "view_assignments": "Ver las actividades asignadas",
+        "complete_assignments": "Completar actividades",
+        "view_responses": "Ver las respuestas a las actividades",
+        "view_shared_resources": "Ver los recursos compartidos",
+        "sign_consents": "Firmar consentimientos",
+        "view_session_schedule": "Ver el calendario de sesiones",
+        "manage_portal_preferences": "Cambiar las preferencias del portal",
+        "receive_notifications": "Recibir avisos por correo",
+        "view_shared_documents": "Ver los documentos compartidos",
+        "view_patient_facing_goals": "Ver las metas compartidas"
+      }
     }
   },
   "consents": {
@@ -410,6 +732,186 @@
       "withdrawalReasonRequired": "Escribe el motivo del retiro.",
       "templateHasNoPublishedVersion": "Publica una versión antes de activar la plantilla.",
       "invalidVersionTransition": "Ese cambio no está disponible para esta versión."
+    },
+    "title": "Consentimientos",
+    "description": "Estado de cada documento por persona que decide. La evidencia no se muestra aquí.",
+    "loadError": "No pudimos cargar los consentimientos. Recarga la página.",
+    "emptyTitle": "Aún no hay decisiones registradas",
+    "emptyDescription": "Cuando alguien firme en el portal o registres una decisión verbal, aparecerá aquí.",
+    "activationTitle": "Hay requisitos pendientes para activar",
+    "activationBody": "Revisa la pestaña de personas responsables y los consentimientos obligatorios.",
+    "status": {
+      "accepted": "Aceptado",
+      "declined": "No aceptado",
+      "withdrawn": "Retirado"
+    },
+    "signers": {
+      "patient": "Paciente",
+      "guardian": "Persona responsable",
+      "professional_recorded": "Registrado por el equipo"
+    },
+    "methods": {
+      "portal_typed_name": "Firma en el portal",
+      "verbal_recorded": "Decisión verbal registrada",
+      "paper_scan": "Documento escaneado"
+    },
+    "recordedOn": "{date} · {method}",
+    "withdrawnOn": "Retirado el {date}",
+    "withdraw": {
+      "trigger": "Retirar decisión",
+      "title": "Retirar la decisión sobre «{title}»",
+      "description": "La decisión queda como retirada y se conserva el historial.",
+      "reason": "Motivo",
+      "confirm": "Retirar"
+    },
+    "record": {
+      "trigger": "Registrar decisión verbal",
+      "title": "Registrar una decisión verbal",
+      "description": "Para cuando la persona decidió de palabra. Queda registrado que lo anotó el equipo.",
+      "document": "Documento",
+      "signer": "Quién decide",
+      "signerPatient": "El paciente",
+      "signerGuardian": "Una persona responsable",
+      "guardian": "Persona responsable",
+      "decision": "Decisión",
+      "accepted": "Acepta",
+      "declined": "No acepta",
+      "decidedAt": "Fecha y hora de la decisión",
+      "decidedAtHint": "Cuándo la dijo, no cuándo la registras.",
+      "confirm": "Registrar"
+    },
+    "sign": {
+      "pending": "Por firmar",
+      "unreadable": "No pudimos mostrar este documento. Avísale a tu psicóloga.",
+      "typedName": "Escribe tu nombre completo",
+      "typedNameHint": "Es tu firma. Debe ser tu nombre real.",
+      "checkbox": "Leí este documento completo y confirmo mi decisión.",
+      "accept": "Acepto",
+      "decline": "No acepto",
+      "doneAccepted": "Gracias. Registramos que aceptaste este documento.",
+      "doneDeclined": "Gracias. Registramos que no aceptaste este documento.",
+      "alreadyDecided": "Ya registraste tu decisión sobre este documento."
+    },
+    "templates": {
+      "pageTitle": "Plantillas de consentimiento",
+      "pageDescription": "Crea plantillas, redacta una versión y publícala. Una versión publicada ya no se puede cambiar.",
+      "back": "Volver a configuración",
+      "ownerOnly": "Solo la persona propietaria de la consulta puede gestionar las plantillas.",
+      "cardTitle": "Plantillas de consentimiento",
+      "cardDescription": "Documentos que tus pacientes y sus personas responsables firman en el portal.",
+      "open": "Gestionar plantillas",
+      "newTitle": "Nueva plantilla",
+      "newDescription": "Define para quién aplica y quién firma. Luego redactas el texto.",
+      "title": "Título",
+      "key": "Clave interna",
+      "keyHint": "Minúsculas, números y guion bajo; empieza con una letra (por ejemplo: tratamiento).",
+      "consentType": "Tipo de documento",
+      "signer": "Quién firma",
+      "appliesTo": "Aplica a",
+      "minors": "Pacientes menores de edad",
+      "adults": "Pacientes adultos",
+      "requiredForActivation": "Obligatorio para activar al paciente",
+      "requiredForActivationHint": "Sin este documento, el paciente no pasa de ingreso a activo.",
+      "create": "Crear plantilla",
+      "types": {
+        "treatment_informed_consent": "Consentimiento informado de tratamiento",
+        "personal_data_processing": "Tratamiento de datos personales",
+        "minor_assent": "Asentimiento del menor",
+        "guardian_authorization": "Autorización de la persona responsable",
+        "portal_use": "Uso del portal",
+        "other": "Otro"
+      },
+      "signers": {
+        "patient": "El paciente",
+        "guardian": "La persona responsable",
+        "patient_and_guardian": "Paciente y persona responsable"
+      },
+      "sessionNote": "Aquí aparecen las plantillas que crees en esta sesión. Por ahora no hay un listado de las plantillas anteriores.",
+      "published": "Publicada",
+      "draft": "Borrador",
+      "versionDescription": "Redacta el texto de una versión por idioma.",
+      "legalNotice": "[NEEDS LEGAL VERIFICATION] El texto de cada consentimiento debe ser revisado por la persona responsable legal antes de publicarse.",
+      "locale": "Idioma de esta versión",
+      "noTranslate": "El texto clínico y legal no se traduce automáticamente: redáctalo en cada idioma.",
+      "versionTitle": "Título de la versión",
+      "legalReference": "Referencia de revisión legal",
+      "legalReferenceHint": "Opcional. Por ejemplo, el número del concepto jurídico.",
+      "preview": "Vista previa",
+      "saveDraft": "Guardar borrador",
+      "publish": "Publicar versión",
+      "publishTitle": "Publicar «{title}»",
+      "publishDescription": "Al publicar, el texto queda fijo y ya no se puede editar. Los pacientes verán exactamente este texto.",
+      "publishConfirm": "Publicar",
+      "publishAck": "Confirmación",
+      "publishAckOption": "Entiendo que el texto no se podrá cambiar",
+      "publishedBody": "Versión publicada. Huella del texto:",
+      "saveBeforePublish": "Guarda los cambios antes de publicar.",
+      "draftFirst": "Guarda el borrador para poder publicar."
+    },
+    "editor": {
+      "invalidBody": "El texto no es válido: revisa que haya al menos un bloque con texto.",
+      "bold": "Negrita",
+      "italic": "Cursiva",
+      "removeSegment": "Quitar fragmento",
+      "addSegment": "Agregar fragmento",
+      "block": "Bloque {n}",
+      "types": {
+        "heading": "Título",
+        "paragraph": "Párrafo",
+        "list": "Lista"
+      },
+      "level": "Nivel",
+      "ordered": "Lista numerada",
+      "item": "Elemento {n}",
+      "removeItem": "Quitar elemento",
+      "addItem": "Agregar elemento",
+      "text": "Texto",
+      "moveUp": "Subir",
+      "moveDown": "Bajar",
+      "removeBlock": "Quitar bloque",
+      "addHeading": "Agregar título",
+      "addParagraph": "Agregar párrafo",
+      "addList": "Agregar lista"
+    }
+  },
+  "portalInvite": {
+    "email": "Correo electrónico",
+    "emailLocale": "Idioma del correo",
+    "send": "Enviar invitación",
+    "sent": "Invitación enviada. El enlace llegará por correo."
+  },
+  "portal": {
+    "guardian": {
+      "welcomeTitle": "Te damos la bienvenida",
+      "welcomeBody": "Aquí ves lo que el equipo de la consulta te permite ver del proceso de la persona a tu cargo.",
+      "noAccessTitle": "Todavía no tienes acceso",
+      "noAccessDescription": "Cuando el equipo verifique tu relación y te dé permisos, lo verás aquí.",
+      "forPatient": "Acompañando a {name}",
+      "permissionsIntro": "Esto es lo que puedes ver o hacer:",
+      "switchPatient": "Cambiar de persona"
+    },
+    "consents": {
+      "title": "Documentos por firmar",
+      "empty": "No tienes documentos pendientes."
+    },
+    "privacy": {
+      "cardTitle": "Tu privacidad",
+      "cardDescription": "Mira quién puede ver qué de lo tuyo.",
+      "open": "Ver mi privacidad",
+      "title": "Tu privacidad",
+      "intro": "Esto es lo que puede ver cada persona responsable de ti. Se actualiza cada vez que entras.",
+      "privateNote": "Lo que escribes solo para ti no se comparte, a menos que tú lo decidas.",
+      "canSee": "Puede:",
+      "emptyTitle": "Nadie más tiene acceso",
+      "emptyDescription": "Ninguna persona responsable puede ver tu portal por ahora.",
+      "back": "Volver al inicio",
+      "patientsOnly": "Esta página es solo para pacientes."
+    },
+    "capacity": {
+      "title": "¿Con cuál acceso quieres entrar?",
+      "description": "Tienes más de un acceso en esta consulta.",
+      "patient": "Como paciente",
+      "guardian": "Como persona responsable"
     }
   }
 }

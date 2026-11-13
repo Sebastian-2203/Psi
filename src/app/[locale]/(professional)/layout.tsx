@@ -3,9 +3,10 @@ import type { ReactNode } from 'react';
 import { rememberLocaleAction } from '@/modules/profiles/server/actions';
 import { ProfessionalShell } from '@/components/shared/professional-shell';
 import { getRouteLocale } from '@/i18n/route-locale';
+import { redirect } from '@/i18n/navigation';
 import { AccessDenied } from '@/modules/auth';
 import { signOutAction } from '@/modules/auth/server/actions';
-import { requireStaffAccess } from '@/modules/auth/server/guards';
+import { requirePortalAccess, requireStaffAccess } from '@/modules/auth/server/guards';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,6 +25,10 @@ export default async function ProfessionalLayout({
   const locale = await getRouteLocale(params);
   setRequestLocale(locale);
   const access = await requireStaffAccess(locale);
+  if (!access.ok && access.reason === 'no_access' && (await requirePortalAccess()).ok) {
+    // A patient/guardian who landed here (sign-in always ends on /dashboard) belongs in the portal.
+    redirect({ href: '/portal', locale });
+  }
   if (!access.ok) return <AccessDenied reason={access.reason} signOutAction={signOutAction} />;
   return (
     <ProfessionalShell signOutAction={signOutAction} rememberLocaleAction={rememberLocaleAction}>

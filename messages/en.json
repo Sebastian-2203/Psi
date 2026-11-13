@@ -231,6 +231,18 @@
       "mfaResetBody": "Hello,\n\nA recovery code was used on your account and we turned off your authenticator app. All your sessions were signed out.\n\nIf this was not you, contact your practice owner or support right away.",
       "portalInvitationSubject": "You were invited to your practice portal on Psi",
       "portalInvitationBody": "Hello,\n\nYou were invited to use your practice portal. To accept, open this link:\n\n{link}\n\nThe link expires in {days} days and works only once. If you were not expecting this invitation, ignore this email."
+    },
+    "portalInvitation": {
+      "loading": "Checking your invitation…",
+      "invalidTitle": "This invitation is not valid",
+      "invalidBody": "It may have expired or already been used. Ask the practice for a new one.",
+      "introPatient": "{organization} invited you to their portal. Create your access to continue.",
+      "introGuardian": "{organization} invited you to their portal as a guardian. Create your access to continue.",
+      "email": "Email",
+      "displayName": "Your name",
+      "password": "Password",
+      "passwordHint": "If you already have an account with this email, enter your current password.",
+      "submit": "Create my access"
     }
   },
   "home": {
@@ -375,6 +387,140 @@
       "staffCannotBePatient": "This account belongs to the practice team and can't be a patient.",
       "endReasonRequired": "Write the reason for ending the assignment.",
       "notInvitable": "This person can't be invited to the portal right now."
+    },
+    "title": "Patients",
+    "description": "The people you care for and, separately, the practice directory.",
+    "create": "New patient",
+    "createDescription": "Register an adult or a minor. For a minor you can then add their guardian.",
+    "createSubmit": "Create patient",
+    "createForbidden": "Only team members with the psychologist role can create patients.",
+    "back": "Back to patients",
+    "searchLabel": "Search patients",
+    "searchPlaceholder": "First or last name",
+    "myPatients": "My patients",
+    "emptyTitle": "You have no patients yet",
+    "emptyDescription": "When you create a patient or join their care team, they will appear here.",
+    "noResults": "No patients match your search.",
+    "directoryTitle": "Practice directory",
+    "directoryDescription": "Name and status only. You are not on the care team of these people, so you cannot open their record.",
+    "notOnCareTeam": "Not on your team",
+    "loadErrorTitle": "We could not load patients",
+    "loadErrorDescription": "Your data is safe. Reload the page in a few seconds.",
+    "unavailableTitle": "This record is not available",
+    "unavailableDescription": "It may not exist, or you may not be on this person’s care team.",
+    "minor": "Minor",
+    "adult": "Adult",
+    "reload": "Reload data",
+    "saved": "Changes saved.",
+    "save": "Save changes",
+    "readOnlyNote": "This record is closed and can no longer be edited.",
+    "status": {
+      "intake": "Intake",
+      "active": "Active",
+      "paused": "Paused",
+      "discharged": "Discharged",
+      "archived": "Archived",
+      "change": "Change status",
+      "changeTitle": "Change the status of {name}",
+      "changeDescription": "Only changes allowed from the current status are offered.",
+      "confirm": "Change status",
+      "newStatus": "New status"
+    },
+    "duplicate": {
+      "title": "Possible duplicate",
+      "document": "Someone with the same document already exists.",
+      "nameDob": "Someone with the same name and date of birth already exists.",
+      "review": "Review the data",
+      "confirm": "Different person, create anyway"
+    },
+    "fields": {
+      "firstName": "First name",
+      "lastName": "Last name",
+      "preferredName": "Preferred name",
+      "pronouns": "Pronouns",
+      "dateOfBirth": "Date of birth",
+      "dateOfBirthHint": "The date tells us whether the person is a minor.",
+      "documentType": "Document type",
+      "documentNumber": "Document number",
+      "email": "Email",
+      "phone": "Phone",
+      "sex": "Sex",
+      "genderIdentity": "Gender identity",
+      "preferredLocale": "Preferred language",
+      "emergencyContactName": "Emergency contact",
+      "emergencyContactPhone": "Emergency contact phone",
+      "none": "Not specified"
+    },
+    "documentTypes": {
+      "cc": "National ID (CC)",
+      "ti": "Identity card (TI)",
+      "rc": "Civil registry (RC)",
+      "ce": "Foreigner ID (CE)",
+      "pa": "Passport",
+      "ppt": "Temporary protection permit",
+      "nit": "Tax ID (NIT)",
+      "other": "Other"
+    },
+    "tabs": {
+      "label": "Record sections",
+      "details": "Details",
+      "careTeam": "Care team",
+      "preferences": "Preferences",
+      "guardians": "Guardians",
+      "consents": "Consents"
+    },
+    "invite": {
+      "title": "Invite {name} to the portal",
+      "description": "We will email a link so they can create their portal access.",
+      "trigger": "Invite to the portal",
+      "hasLogin": "This person already has portal access."
+    },
+    "activation": {
+      "title": "Requirements are missing to activate this person",
+      "jurisdiction_not_configured": "The practice country is not set, so the age of majority is unknown.",
+      "legal_representative": "A guardian with verified legal representation is missing."
+    },
+    "careTeam": {
+      "title": "Care team",
+      "description": "Who cares for this person. Only the team can see their record.",
+      "you": "You",
+      "member": "Team member",
+      "since": "Since {date}",
+      "roles": {
+        "primary": "Primary",
+        "secondary": "Secondary",
+        "supervisor": "Supervisor"
+      },
+      "end": "End assignment",
+      "endTitle": "End this assignment",
+      "endDescription": "They will stop seeing this patient’s record. The reason is recorded.",
+      "endConfirm": "End assignment",
+      "endReason": "Reason",
+      "assignSelf": "Join the team",
+      "assignDescription": "Who added you and when will be recorded.",
+      "role": "Role",
+      "reason": "Reason",
+      "reasonHint": "Required (at least 10 characters) if there is already a primary clinician.",
+      "assign": "Join"
+    },
+    "preferences": {
+      "title": "Portal preferences",
+      "description": "How this person sees and receives information in their portal.",
+      "portalMode": "Portal mode",
+      "portalModeHint": "Teenagers and children use the child mode.",
+      "modes": {
+        "adult": "Adult",
+        "adolescent": "Adolescent",
+        "child": "Child"
+      },
+      "locale": "Portal language",
+      "localeDefault": "Practice default",
+      "textSize": "Text size",
+      "notifyEmail": "Receive email notices",
+      "reducedMotion": "Reduce motion",
+      "audioInstructions": "Audio instructions",
+      "save": "Save preferences",
+      "saved": "Preferences saved."
     }
   },
   "guardians": {
@@ -390,6 +536,182 @@
       "suspensionReasonRequired": "Choose the reason for the suspension.",
       "revokeReasonRequired": "Write the reason for revoking the relationship.",
       "notLegalRepresentative": "This person isn't registered as a legal representative."
+    },
+    "title": "Guardians",
+    "description": "They only see what you explicitly allow.",
+    "add": "Add guardian",
+    "createTitle": "New guardian",
+    "createDescription": "After creating, you must verify the relationship and choose their permissions.",
+    "createSubmit": "Create guardian",
+    "emptyTitle": "No guardians yet",
+    "emptyDescription": "For a minor patient, add the person who legally represents them.",
+    "loadError": "We could not load guardians. Reload the page.",
+    "primaryContact": "Primary contact",
+    "status": {
+      "pending_verification": "Pending verification",
+      "active": "Active",
+      "suspended": "Suspended",
+      "revoked": "Revoked"
+    },
+    "relationships": {
+      "mother": "Mother",
+      "father": "Father",
+      "legal_guardian": "Legal guardian",
+      "grandparent": "Grandparent",
+      "other_relative": "Other relative",
+      "other": "Other"
+    },
+    "legalBases": {
+      "parental_authority": "Parental authority",
+      "legal_guardianship": "Legal guardianship",
+      "court_order": "Court order",
+      "other": "Other"
+    },
+    "documentTypes": {
+      "cc": "National ID (CC)",
+      "ti": "Identity card (TI)",
+      "rc": "Civil registry (RC)",
+      "ce": "Foreigner ID (CE)",
+      "pa": "Passport",
+      "ppt": "Temporary protection permit",
+      "nit": "Tax ID (NIT)",
+      "other": "Other"
+    },
+    "suspensionReasons": {
+      "custody_review": "Custody review",
+      "safety_concern": "Safety concern",
+      "other": "Other reason",
+      "age_of_majority": "Age of majority"
+    },
+    "legal": {
+      "verified": "Legal representation verified",
+      "unverified": "Legal representation not verified",
+      "notLegal": "Not a legal representative"
+    },
+    "fields": {
+      "firstName": "First name",
+      "lastName": "Last name",
+      "relationship": "Relationship to the patient",
+      "email": "Email",
+      "phone": "Phone",
+      "documentType": "Document type",
+      "documentNumber": "Document number",
+      "isLegalRepresentative": "Is a legal representative",
+      "isLegalRepresentativeHint": "To sign consents for the minor, the representation must be verified.",
+      "legalBasis": "Legal basis",
+      "isPrimaryContact": "Is the primary contact",
+      "none": "Not specified",
+      "choose": "Choose an option"
+    },
+    "verify": {
+      "trigger": "Verify relationship",
+      "title": "Verify the relationship with {name}",
+      "description": "Confirm that you reviewed the relationship. Permissions can be granted only afterwards.",
+      "note": "Verification note",
+      "validFrom": "Valid from",
+      "validUntil": "Valid until",
+      "verifyLegalBasis": "I also verify the legal basis",
+      "verifyLegalBasisHint": "Needed to activate a minor patient.",
+      "confirm": "Verify"
+    },
+    "suspend": {
+      "trigger": "Suspend",
+      "title": "Suspend {name}",
+      "description": "While suspended they will not see anything in the portal.",
+      "reason": "Reason",
+      "confirm": "Suspend"
+    },
+    "reactivate": "Reactivate",
+    "revoke": {
+      "trigger": "Revoke",
+      "title": "Revoke the relationship with {name}",
+      "description": "This is final: the person loses all access. The reason is recorded.",
+      "reason": "Reason",
+      "confirm": "Revoke relationship"
+    },
+    "invite": {
+      "title": "Invite {name} to the portal",
+      "description": "We will email a link so they can create their access.",
+      "trigger": "Invite to the portal",
+      "hasLogin": "Already has portal access."
+    },
+    "caveat": {
+      "label": "Safety caveat",
+      "scheduleRestricted": "The session schedule is not shared.",
+      "careTeamOnly": "Only care team members can see this.",
+      "add": "Add caveat",
+      "edit": "Edit caveat",
+      "title": "Safety caveat",
+      "description": "Internal team note. It is never shown in the portal or to the guardian.",
+      "text": "Caveat",
+      "restrictSchedule": "Do not share the session schedule",
+      "restrictScheduleHint": "The schedule permission is removed and cannot be granted while this applies.",
+      "save": "Save",
+      "end": "Remove caveat"
+    },
+    "permissions": {
+      "title": "Permissions",
+      "description": "Check only what this person may see or do. Everything else stays hidden.",
+      "needsVerification": "Verify the relationship before granting permissions.",
+      "locked": "Permissions cannot be granted while the relationship is suspended.",
+      "saved": "Permissions saved.",
+      "save": "Save permissions",
+      "scheduleRestricted": "Blocked by a safety caveat.",
+      "items": {
+        "view_assignments": {
+          "label": "View assigned activities",
+          "hint": "Sees which activities the patient has."
+        },
+        "complete_assignments": {
+          "label": "Complete activities",
+          "hint": "Can answer on behalf of the patient when applicable."
+        },
+        "view_responses": {
+          "label": "View responses",
+          "hint": "The minor’s private reflections are never included."
+        },
+        "view_shared_resources": {
+          "label": "View shared resources",
+          "hint": "Material you share with the family."
+        },
+        "sign_consents": {
+          "label": "Sign consents",
+          "hint": "Requires verified legal representation."
+        },
+        "view_session_schedule": {
+          "label": "View session schedule",
+          "hint": "Dates and times of sessions."
+        },
+        "manage_portal_preferences": {
+          "label": "Change portal preferences",
+          "hint": "Language, text size and notices."
+        },
+        "receive_notifications": {
+          "label": "Receive notices",
+          "hint": "Emails about appointments and activities."
+        },
+        "view_shared_documents": {
+          "label": "View shared documents",
+          "hint": "Only those you mark as shared."
+        },
+        "view_patient_facing_goals": {
+          "label": "View family-facing goals",
+          "hint": "Only goals written to be shared."
+        }
+      },
+      "portal": {
+        "none": "They cannot see anything for now.",
+        "view_assignments": "See the assigned activities",
+        "complete_assignments": "Complete activities",
+        "view_responses": "See the answers to activities",
+        "view_shared_resources": "See shared resources",
+        "sign_consents": "Sign consents",
+        "view_session_schedule": "See the session schedule",
+        "manage_portal_preferences": "Change portal preferences",
+        "receive_notifications": "Receive email notices",
+        "view_shared_documents": "See shared documents",
+        "view_patient_facing_goals": "See shared goals"
+      }
     }
   },
   "consents": {
@@ -410,6 +732,186 @@
       "withdrawalReasonRequired": "Write the reason for withdrawing.",
       "templateHasNoPublishedVersion": "Publish a version before activating the template.",
       "invalidVersionTransition": "That change isn't available for this version."
+    },
+    "title": "Consents",
+    "description": "Status of each document per deciding person. Evidence is not shown here.",
+    "loadError": "We could not load consents. Reload the page.",
+    "emptyTitle": "No decisions recorded yet",
+    "emptyDescription": "When someone signs in the portal or you record a verbal decision, it will appear here.",
+    "activationTitle": "There are pending requirements to activate",
+    "activationBody": "Check the guardians tab and the required consents.",
+    "status": {
+      "accepted": "Accepted",
+      "declined": "Declined",
+      "withdrawn": "Withdrawn"
+    },
+    "signers": {
+      "patient": "Patient",
+      "guardian": "Guardian",
+      "professional_recorded": "Recorded by the team"
+    },
+    "methods": {
+      "portal_typed_name": "Portal signature",
+      "verbal_recorded": "Recorded verbal decision",
+      "paper_scan": "Scanned document"
+    },
+    "recordedOn": "{date} · {method}",
+    "withdrawnOn": "Withdrawn on {date}",
+    "withdraw": {
+      "trigger": "Withdraw decision",
+      "title": "Withdraw the decision on “{title}”",
+      "description": "The decision is marked as withdrawn and the history is kept.",
+      "reason": "Reason",
+      "confirm": "Withdraw"
+    },
+    "record": {
+      "trigger": "Record verbal decision",
+      "title": "Record a verbal decision",
+      "description": "For when the person decided verbally. It is recorded as noted by the team.",
+      "document": "Document",
+      "signer": "Who decides",
+      "signerPatient": "The patient",
+      "signerGuardian": "A guardian",
+      "guardian": "Guardian",
+      "decision": "Decision",
+      "accepted": "Accepts",
+      "declined": "Declines",
+      "decidedAt": "Date and time of the decision",
+      "decidedAtHint": "When it was said, not when you record it.",
+      "confirm": "Record"
+    },
+    "sign": {
+      "pending": "To sign",
+      "unreadable": "We could not display this document. Let your psychologist know.",
+      "typedName": "Type your full name",
+      "typedNameHint": "This is your signature. It must be your real name.",
+      "checkbox": "I read this whole document and confirm my decision.",
+      "accept": "I accept",
+      "decline": "I do not accept",
+      "doneAccepted": "Thank you. We recorded that you accepted this document.",
+      "doneDeclined": "Thank you. We recorded that you did not accept this document.",
+      "alreadyDecided": "You have already recorded your decision on this document."
+    },
+    "templates": {
+      "pageTitle": "Consent templates",
+      "pageDescription": "Create templates, write a version and publish it. A published version can no longer be changed.",
+      "back": "Back to settings",
+      "ownerOnly": "Only the practice owner can manage templates.",
+      "cardTitle": "Consent templates",
+      "cardDescription": "Documents your patients and their guardians sign in the portal.",
+      "open": "Manage templates",
+      "newTitle": "New template",
+      "newDescription": "Define who it applies to and who signs. Then write the text.",
+      "title": "Title",
+      "key": "Internal key",
+      "keyHint": "Lowercase letters, numbers and underscores; starts with a letter (for example: treatment).",
+      "consentType": "Document type",
+      "signer": "Who signs",
+      "appliesTo": "Applies to",
+      "minors": "Minor patients",
+      "adults": "Adult patients",
+      "requiredForActivation": "Required to activate the patient",
+      "requiredForActivationHint": "Without this document the patient cannot move from intake to active.",
+      "create": "Create template",
+      "types": {
+        "treatment_informed_consent": "Informed consent to treatment",
+        "personal_data_processing": "Personal data processing",
+        "minor_assent": "Minor assent",
+        "guardian_authorization": "Guardian authorization",
+        "portal_use": "Portal use",
+        "other": "Other"
+      },
+      "signers": {
+        "patient": "The patient",
+        "guardian": "The guardian",
+        "patient_and_guardian": "Patient and guardian"
+      },
+      "sessionNote": "Templates you create in this session appear here. There is no list of earlier templates yet.",
+      "published": "Published",
+      "draft": "Draft",
+      "versionDescription": "Write the text of one version per language.",
+      "legalNotice": "[NEEDS LEGAL VERIFICATION] The text of every consent must be reviewed by the person legally responsible before publishing.",
+      "locale": "Language of this version",
+      "noTranslate": "Clinical and legal text is never translated automatically: write it in each language.",
+      "versionTitle": "Version title",
+      "legalReference": "Legal review reference",
+      "legalReferenceHint": "Optional. For example, the legal opinion number.",
+      "preview": "Preview",
+      "saveDraft": "Save draft",
+      "publish": "Publish version",
+      "publishTitle": "Publish “{title}”",
+      "publishDescription": "Once published the text is fixed and can no longer be edited. Patients will see exactly this text.",
+      "publishConfirm": "Publish",
+      "publishAck": "Confirmation",
+      "publishAckOption": "I understand the text cannot be changed",
+      "publishedBody": "Version published. Text fingerprint:",
+      "saveBeforePublish": "Save your changes before publishing.",
+      "draftFirst": "Save the draft to be able to publish."
+    },
+    "editor": {
+      "invalidBody": "The text is not valid: make sure there is at least one block with text.",
+      "bold": "Bold",
+      "italic": "Italic",
+      "removeSegment": "Remove segment",
+      "addSegment": "Add segment",
+      "block": "Block {n}",
+      "types": {
+        "heading": "Heading",
+        "paragraph": "Paragraph",
+        "list": "List"
+      },
+      "level": "Level",
+      "ordered": "Numbered list",
+      "item": "Item {n}",
+      "removeItem": "Remove item",
+      "addItem": "Add item",
+      "text": "Text",
+      "moveUp": "Move up",
+      "moveDown": "Move down",
+      "removeBlock": "Remove block",
+      "addHeading": "Add heading",
+      "addParagraph": "Add paragraph",
+      "addList": "Add list"
+    }
+  },
+  "portalInvite": {
+    "email": "Email",
+    "emailLocale": "Email language",
+    "send": "Send invitation",
+    "sent": "Invitation sent. The link will arrive by email."
+  },
+  "portal": {
+    "guardian": {
+      "welcomeTitle": "Welcome",
+      "welcomeBody": "Here you see what the practice team allows you to see about the person in your care.",
+      "noAccessTitle": "You do not have access yet",
+      "noAccessDescription": "When the team verifies your relationship and grants permissions, you will see it here.",
+      "forPatient": "Supporting {name}",
+      "permissionsIntro": "This is what you can see or do:",
+      "switchPatient": "Switch person"
+    },
+    "consents": {
+      "title": "Documents to sign",
+      "empty": "You have no pending documents."
+    },
+    "privacy": {
+      "cardTitle": "Your privacy",
+      "cardDescription": "See who can see what of yours.",
+      "open": "See my privacy",
+      "title": "Your privacy",
+      "intro": "This is what each person responsible for you can see. It updates every time you open this page.",
+      "privateNote": "What you write only for yourself is not shared unless you decide so.",
+      "canSee": "They can:",
+      "emptyTitle": "No one else has access",
+      "emptyDescription": "No guardian can see your portal for now.",
+      "back": "Back to home",
+      "patientsOnly": "This page is for patients only."
+    },
+    "capacity": {
+      "title": "Which access do you want to use?",
+      "description": "You have more than one access in this practice.",
+      "patient": "As a patient",
+      "guardian": "As a guardian"
     }
   }
 }
