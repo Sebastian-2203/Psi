@@ -14,6 +14,7 @@ import { requirePortalAccess } from '@/modules/auth/server/guards';
 import { SignConsentList } from '@/modules/consents/components/sign-consent';
 import { signConsentAction } from '@/modules/consents/server/actions';
 import { listSignableConsents } from '@/modules/consents/server/queries';
+import { PortalClinicalSections } from '@/modules/documents/panels/portal-clinical-sections';
 import { PermissionList } from '@/modules/guardians/components/permission-list';
 import { getMyRelationships } from '@/modules/guardians/server/queries';
 import { getMyPortalMode } from '@/modules/patients/server/queries';
@@ -142,6 +143,9 @@ export default async function PortalHomePage({
       ? await listSignableConsents(ctx, isGuardian ? relationship?.patientId : undefined)
       : null;
   const copy = mode === 'child' ? 'child' : 'adult';
+  const has = (permission: string) =>
+    !isGuardian || (relationship?.permissions.includes(permission) ?? false);
+  const clinicalVisible = !isGuardian || relationship !== null;
 
   return (
     <PortalShell mode={mode}>
@@ -226,6 +230,16 @@ export default async function PortalHomePage({
             </CardHeader>
             <EmptyState icon={Shapes} title={t(`${copy}.activitiesEmpty`)} />
           </Card>
+        ) : null}
+
+        {clinicalVisible ? (
+          <PortalClinicalSections
+            ctx={ctx}
+            patientId={isGuardian ? relationship?.patientId : undefined}
+            canGoals={has('view_patient_facing_goals')}
+            canSessions={has('view_session_schedule')}
+            canDocuments={has('view_shared_documents')}
+          />
         ) : null}
 
         <Card>

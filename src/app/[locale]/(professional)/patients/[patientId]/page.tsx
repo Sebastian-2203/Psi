@@ -31,6 +31,11 @@ import {
   updatePatientPreferencesAction,
 } from '@/modules/patients/server/actions';
 import { getPatient } from '@/modules/patients/server/queries';
+import {
+  PatientClinicalPanel,
+  isClinicalTab,
+} from '@/modules/clinical-records/panels/patient-clinical-panel';
+import { evaluatePermission } from '@/server/authz';
 
 export const metadata = { robots: { index: false } };
 
@@ -41,10 +46,18 @@ export const metadata = { robots: { index: false } };
  */
 export default async function PatientProfilePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ locale: string; patientId: string }>;
+  searchParams: Promise<{ tab?: string | string[]; session?: string | string[] }>;
 }) {
   const { patientId } = await params;
+  const query = await searchParams;
+  const tabParam = typeof query.tab === 'string' ? query.tab : undefined;
+  const sessionParam =
+    typeof query.session === 'string' && z.uuid().safeParse(query.session).success
+      ? query.session
+      : undefined;
   const locale = await getRouteLocale(params);
   setRequestLocale(locale);
   const ctx = await getStaffPageContext(locale, `/patients/${patientId}`);
@@ -87,9 +100,18 @@ export default async function PatientProfilePage({
   const readOnly = patient.data.status === 'archived' || patient.data.status === 'discharged';
   const guardianList = guardians?.ok ? guardians.data : [];
 
+  // Phase 3: clinical tabs for the care team only (RLS re-checks every read). Only the tab named in
+  // the URL is loaded, so the other tabs trigger no clinical read.
+  const showClinical = evaluatePermission(ctx, 'clinical.record.read').allowed;
+  const clinicalTab = showClinical && isClinicalTab(tabParam) ? tabParam : null;
+  const clinicalNode = clinicalTab
+    ? await PatientClinicalPanel({ ctx, tab: clinicalTab, patientId, sessionId: sessionParam })
+    : null;
+
   return (
     <PatientProfile
       patient={patient.data}
+      clinical={showClinical ? { loadedTab: clinicalTab, node: clinicalNode } : undefined}
       myMembershipId={ctx.membership?.id ?? ''}
       actions={{
         update: updatePatientAction,

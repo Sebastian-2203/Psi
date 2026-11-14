@@ -25,9 +25,11 @@ export default async function SettingsPage({ params }: { params: Promise<{ local
   const tb = await getTranslations('branding');
   const tcn = await getTranslations('consents.templates');
   const tdr = await getTranslations('dataRequests.settingsCard');
+  const tcc = await getTranslations('clinical.config');
   const format = await getFormatter();
   const canBrand = evaluatePermission(ctx, 'org.branding.manage').allowed;
   const canTemplates = evaluatePermission(ctx, 'consent.template.manage').allowed;
+  const canClinicalConfig = evaluatePermission(ctx, 'clinical.config.manage').allowed;
   const canInvite = evaluatePermission(ctx, 'org.invitations.manage').allowed;
   const invitations = canInvite ? await listStaffInvitations(ctx) : null;
   const statusLabel = {
@@ -115,6 +117,22 @@ export default async function SettingsPage({ params }: { params: Promise<{ local
           </Link>
         ) : (
           <p className="text-muted-foreground">{tcn('ownerOnly')}</p>
+        )}
+      </Card>
+      <Card className="max-w-2xl">
+        <CardHeader>
+          <CardTitle>{tcc('cardTitle')}</CardTitle>
+          <CardDescription>{tcc('cardDescription')}</CardDescription>
+        </CardHeader>
+        {canClinicalConfig ? (
+          <Link
+            href="/settings/clinical"
+            className="font-semibold text-primary underline underline-offset-4"
+          >
+            {tcc('open')}
+          </Link>
+        ) : (
+          <p className="text-muted-foreground">{tcc('ownerOnly')}</p>
         )}
       </Card>
       <Card className="max-w-2xl">

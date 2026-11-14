@@ -5,7 +5,7 @@
 ## Phase 3 progress
 
 - [x] Backend: clinical schema, RLS, immutability, server modules; pgTAP 375, Vitest 1440.
-- [ ] Frontend: clinical record, sessions, notes + addenda, plans, documents
+- [x] Frontend: clinical record, sessions, notes + addenda, plans, documents, portal sections; Vitest 1451, e2e 45.
 - [ ] Security review + QA
       **Branch:** `claude/vibrant-dijkstra-gsnsfx`.
 

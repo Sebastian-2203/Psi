@@ -2,19 +2,23 @@
 
 import { ArrowLeft, TriangleAlert } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import { useSearchParams } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { InviteDialog } from '@/components/shared/invite-dialog';
 import { ReasonDialog } from '@/components/shared/reason-dialog';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Link, useRouter } from '@/i18n/navigation';
+import { LoadingState } from '@/components/shared/loading-state';
+import { Link, usePathname, useRouter } from '@/i18n/navigation';
 import { CareTeamTab } from './care-team-tab';
 import type { UpdatePatientInput } from '@/modules/patients/schemas';
 import { DetailsTab } from './details-tab';
 import { MajoritySoonBadge, MinorBadge, PatientStatusBadge } from './patient-status-badge';
 import { PreferencesTab, type PreferencesInput } from './preferences-tab';
 import type { Action, PatientDetailDto, PatientStatus } from './types';
+
+const CLINICAL_TAB_KEYS = ['record', 'sessions', 'notes', 'plan', 'documents'] as const;
 
 const TRANSITIONS: Record<PatientStatus, PatientStatus[]> = {
   intake: ['active', 'archived'],
@@ -51,15 +55,35 @@ export function PatientProfile({
   actions,
   guardiansTab,
   consentsTab,
+  clinical,
 }: {
   patient: PatientDetailDto;
   myMembershipId: string;
   actions: PatientProfileActions;
   guardiansTab: ReactNode;
   consentsTab: ReactNode;
+  /**
+   * Phase 3 clinical tabs (care team only; omitted otherwise). Only the tab named in `?tab=` is
+   * loaded by the server page (`node`); the other clinical tabs show a loading state until the
+   * URL changes and the page re-renders with their data.
+   */
+  clinical?: { loadedTab: string | null; node: ReactNode };
 }) {
   const t = useTranslations('patients');
+  const tcl = useTranslations('clinical.tabs');
   const router = useRouter();
+  const pathname = usePathname();
+  const params = useSearchParams();
+  const requested = params.get('tab') ?? 'details';
+  const available = [
+    'details',
+    'careTeam',
+    'preferences',
+    ...(patient.isMinor !== false ? ['guardians'] : []),
+    'consents',
+    ...(clinical ? CLINICAL_TAB_KEYS : []),
+  ];
+  const tab = available.includes(requested) ? requested : 'details';
   const readOnly = patient.status === 'archived' || patient.status === 'discharged';
   const targets = TRANSITIONS[patient.status];
   const name = `${patient.firstName} ${patient.lastName}`;
@@ -132,7 +156,10 @@ export function PatientProfile({
         </Alert>
       ) : null}
 
-      <Tabs defaultValue="details">
+      <Tabs
+        value={tab}
+        onValueChange={(next) => router.replace(`${pathname}?tab=${next}`, { scroll: false })}
+      >
         <TabsList aria-label={t('tabs.label')}>
           <TabsTrigger value="details">{t('tabs.details')}</TabsTrigger>
           <TabsTrigger value="careTeam">{t('tabs.careTeam')}</TabsTrigger>
@@ -141,6 +168,13 @@ export function PatientProfile({
             <TabsTrigger value="guardians">{t('tabs.guardians')}</TabsTrigger>
           ) : null}
           <TabsTrigger value="consents">{t('tabs.consents')}</TabsTrigger>
+          {clinical
+            ? CLINICAL_TAB_KEYS.map((k) => (
+                <TabsTrigger key={k} value={k}>
+                  {tcl(k)}
+                </TabsTrigger>
+              ))
+            : null}
         </TabsList>
         <TabsContent value="details">
           <DetailsTab
@@ -166,6 +200,13 @@ export function PatientProfile({
           <TabsContent value="guardians">{guardiansTab}</TabsContent>
         ) : null}
         <TabsContent value="consents">{consentsTab}</TabsContent>
+        {clinical
+          ? CLINICAL_TAB_KEYS.map((k) => (
+              <TabsContent key={k} value={k}>
+                {clinical.loadedTab === k ? clinical.node : <LoadingState />}
+              </TabsContent>
+            ))
+          : null}
       </Tabs>
     </div>
   );
