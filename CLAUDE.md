@@ -7,11 +7,11 @@ This file is loaded by every Claude Code session and subagent. Read it before do
 
 ## Current phase
 
-**Phase 2 — Patient management** (authorized 2026-11-09): patients (adult/minor), care team, guardians and
-granular guardian permissions, patient/guardian invitations and portal identities, consent templates, versions,
-records with evidence, minor assent and revocation. Phase 1 is accepted (gate passed for internal alpha with
-synthetic data). ADR-019 Option A applies. Provisional defaults for Q-03/Q-04/Q-17 are in `docs/DECISIONS.md`
-(client decisions log). Do not start Phase 3 (clinical records, notes) or Phase 4 (activities) without authorization.
+**Phase 3 — Clinical module** (authorized 2026-11-14): clinical records with structured sections and revisions,
+assessments, professional-entered diagnoses, treatment plans and goals, therapy sessions (record only), clinical notes
+(draft → finalized, immutable, addenda), clinical documents (private storage, signed URLs). Record section keys and
+note types are configurable per organization; seeded examples are fictional and tagged `[NEEDS PSYCHOLOGIST INPUT]`
+until Daniela provides hers. Phases 0–2 accepted. ADR-019 Option A applies. Do not start Phase 4 without authorization.
 Follow the resource budget rules in `docs/AGENT_WORKFLOW.md`.
 
 ## Source of truth

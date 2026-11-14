@@ -639,6 +639,7 @@ if native support exists, prefer it and supersede this ADR. The app also cannot 
 | 2026-11-08 | Vector logo to be supplied later by the client | BRAND_GUIDELINES |
 | 2026-11-08 | **Phase 0 foundation approved; ADR-001…021 accepted; ADR-019 Option A** (no Data API for users; server queries Postgres as the user). Phase 1 authorized. | All |
 | 2026-11-09 | **Phase 1 accepted; Phase 2 (patients, guardians, consents) authorized.** Open questions proceed with the documented defaults, provisional until the client confirms: Q-03 owner sees directory fields only for patients outside their care team; Q-04 guardians never see adolescents' reflections by default, guardian access suspended at 18 `[NEEDS PSYCHOLOGIST INPUT]` `[NEEDS LEGAL VERIFICATION]`; Q-17 typed name + checkbox + stored evidence `[NEEDS LEGAL VERIFICATION]`; clinical intake sections deferred to Phase 3 pending Daniela's input. | PRODUCT_REQUIREMENTS, SECURITY, DATABASE |
+| 2026-11-14 | **Phase 2 accepted; Phase 3 (clinical module) authorized.** Record sections and note types configurable per organization; fictional seeded examples until Daniela provides hers `[NEEDS PSYCHOLOGIST INPUT]`. | DATABASE, PRODUCT_REQUIREMENTS |
 
 ## Open questions requiring client input
 
