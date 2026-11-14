@@ -192,6 +192,37 @@ export const PERMISSIONS = {
     ...portal(['guardian']),
     mirrorsPolicy: 'function app.guardian_patient_summary',
   },
+  // --- Phase 2 QA: data-subject requests (PAT-09, Q-14) ----------------------------------
+  'dsr.submit.self': {
+    ...portal(['patient']),
+    mirrorsPolicy: 'function app.submit_data_subject_request (app.is_patient_self)',
+  },
+  'dsr.submit.guardian': {
+    ...portal(['guardian']),
+    mirrorsPolicy: 'function app.submit_data_subject_request (own guardian record)',
+  },
+  'dsr.read.own': {
+    ...portal(['patient', 'guardian']),
+    mirrorsPolicy: 'dsr_select_patient + dsr_select_guardian',
+  },
+  'dsr.read': {
+    actingAs: ['staff'],
+    roles: ['organization_owner', 'psychologist'],
+    scope: 'organization',
+    orgAccess: 'staff_read',
+    requiresAal2: true,
+    recentMfaSeconds: null,
+    mirrorsPolicy: 'dsr_select_staff (app.dsr_staff_scope)',
+  },
+  'dsr.manage': {
+    actingAs: ['staff'],
+    roles: ['organization_owner', 'psychologist'],
+    scope: 'organization',
+    orgAccess: 'staff_write',
+    requiresAal2: true,
+    recentMfaSeconds: null,
+    mirrorsPolicy: 'function app.update_data_subject_request (app.dsr_staff_scope)',
+  },
   'profile.self.update': {
     actingAs: ['staff', 'patient', 'guardian', 'platform_admin'],
     roles: [],

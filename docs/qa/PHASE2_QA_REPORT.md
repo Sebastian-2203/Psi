@@ -61,6 +61,13 @@ Should items (PAT-08, GRD-08, CON-07, CON-08): GRD-08 caveats and PAT-08 invitat
 
 No critical or high defects found. No source files were modified.
 
+## Closure (2026-11-14, same day)
+
+D-1 (PAT-04 server-side search by name/document, RLS-bound, directory rows name-only), D-2 (PAT-06 dashboard card and
+patient badge, `MAJORITY_NOTICE_DAYS`, default 60), D-3 (PAT-09 portal request, care-team/owner resolution, audit;
+deadlines `[NEEDS LEGAL VERIFICATION]`) and D-4 (locator scoped to the visible form) are implemented. D-5 counts are in
+`PROJECT_STATUS.md`. S2-07 in `docs/SECURITY.md` §15 awaits security review.
+
 ## Tests added
 
 `/home/user/Psi/supabase/tests/12_minor_assent.sql` (6 pgTAP assertions, passing).

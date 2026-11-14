@@ -10,6 +10,7 @@ import {
   invitePatientSchema,
   listMyPatientsSchema,
   patientIdSchema,
+  searchPatientsSchema,
   updatePatientPreferencesSchema,
   updatePatientSchema,
   type AssignCareTeamMemberInput,
@@ -19,6 +20,7 @@ import {
   type InvitePatientInput,
   type ListMyPatientsInput,
   type PatientIdInput,
+  type SearchPatientsInput,
   type UpdatePatientInput,
   type UpdatePatientPreferencesInput,
 } from '@/modules/patients/schemas';
@@ -35,6 +37,8 @@ import {
   getPrivacyView,
   listDirectory,
   listMyPatients,
+  listUpcomingMajority,
+  searchPatients,
   type DirectoryEntry,
   type PatientDetail,
   type PatientSummary,
@@ -109,6 +113,14 @@ export async function listDirectoryAction() {
 
 export async function listMyPatientsAction(input: ListMyPatientsInput = {}) {
   return runAction(listMyPatientsSchema, input, (ctx, data) => listMyPatients(ctx, data));
+}
+
+export async function searchPatientsAction(input: SearchPatientsInput = {}) {
+  return runAction(searchPatientsSchema, input, (ctx, data) => searchPatients(ctx, data));
+}
+
+export async function listUpcomingMajorityAction() {
+  return runAction(emptyInput, {}, (ctx) => listUpcomingMajority(ctx));
 }
 
 export async function getPatientAction(input: PatientIdInput) {

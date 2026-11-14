@@ -101,6 +101,11 @@ const BASE: Record<Permission, Record<Kind, boolean>> = {
   'portal.mode.read': NONE,
   'portal.privacy.read': NONE,
   'portal.guardian.read': NONE,
+  'dsr.submit.self': NONE,
+  'dsr.submit.guardian': NONE,
+  'dsr.read.own': NONE,
+  'dsr.read': STAFF, // owner or psychologist; scope is DB-side (app.dsr_staff_scope)
+  'dsr.manage': STAFF,
   'platform.org.read': PLATFORM,
   'platform.org.provision': PLATFORM,
   'platform.org.suspend': PLATFORM,

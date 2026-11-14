@@ -24,6 +24,7 @@ export default async function SettingsPage({ params }: { params: Promise<{ local
   const t = await getTranslations('auth.settings');
   const tb = await getTranslations('branding');
   const tcn = await getTranslations('consents.templates');
+  const tdr = await getTranslations('dataRequests.settingsCard');
   const format = await getFormatter();
   const canBrand = evaluatePermission(ctx, 'org.branding.manage').allowed;
   const canTemplates = evaluatePermission(ctx, 'consent.template.manage').allowed;
@@ -115,6 +116,18 @@ export default async function SettingsPage({ params }: { params: Promise<{ local
         ) : (
           <p className="text-muted-foreground">{tcn('ownerOnly')}</p>
         )}
+      </Card>
+      <Card className="max-w-2xl">
+        <CardHeader>
+          <CardTitle>{tdr('cardTitle')}</CardTitle>
+          <CardDescription>{tdr('cardDescription')}</CardDescription>
+        </CardHeader>
+        <Link
+          href="/settings/data-requests"
+          className="font-semibold text-primary underline underline-offset-4"
+        >
+          {tdr('open')}
+        </Link>
       </Card>
       <Card className="max-w-2xl">
         <CardHeader>

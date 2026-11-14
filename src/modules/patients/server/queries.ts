@@ -2,6 +2,7 @@ import 'server-only';
 import { recordAudit } from '@/server/audit';
 import { requirePermission, type AuthzContext } from '@/server/authz';
 import { withUserTransaction } from '@/server/db/server';
+import { env } from '@/server/env';
 import { failure, ok, type Outcome } from '@/server/errors';
 
 /**
@@ -21,10 +22,25 @@ export type DirectoryEntry = {
   onMyCareTeam: boolean;
 };
 
-/** `patient.directory_viewed` is audited with the result count only. */
-export async function listDirectory(ctx: AuthzContext): Promise<Outcome<DirectoryEntry[]>> {
+/** Escapes LIKE wildcards so a search term is always a literal substring (PAT-04). */
+function likePattern(search: string | undefined): string | null {
+  const term = search?.trim();
+  if (!term) return null;
+  return `%${term.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+}
+
+/**
+ * `patient.directory_viewed` is audited with the result count only (never the search term).
+ * The optional search matches NAME only: directory-only rows (Q-03) expose no identifiers, so a
+ * document number can never reveal that such a patient exists.
+ */
+export async function listDirectory(
+  ctx: AuthzContext,
+  filters: { search?: string } = {},
+): Promise<Outcome<DirectoryEntry[]>> {
   const permitted = await requirePermission(ctx, 'patient.directory.read');
   if (!permitted.ok) return permitted;
+  const pattern = likePattern(filters.search);
   const rows = await withUserTransaction(ctx.claims, async (tx) => {
     const found = await tx<
       {
@@ -37,6 +53,8 @@ export async function listDirectory(ctx: AuthzContext): Promise<Outcome<Director
       }[]
     >`select patient_id, first_name, last_name, preferred_name, status::text as status, on_my_care_team
       from app.patient_directory(${ctx.organizationId}::uuid)
+      where (${pattern}::text is null
+             or (first_name || ' ' || last_name || ' ' || coalesce(preferred_name, '')) ilike ${pattern})
       order by last_name, first_name`;
     await recordAudit(
       tx,
@@ -66,16 +84,24 @@ export type PatientSummary = {
   status: PatientStatus;
   isMinor: boolean | null;
   updatedAt: string;
+  /** PAT-06: days until the age of majority when inside the notice window, else null. */
+  majorityInDays: number | null;
 };
 
+/**
+ * `search` (PAT-04) matches name, preferred name or document number as a literal substring over
+ * the rows RLS lets the caller read (the care team's). The term is never audited or logged.
+ */
 export async function listMyPatients(
   ctx: AuthzContext,
-  filters: { status?: PatientStatus; limit?: number; offset?: number } = {},
+  filters: { status?: PatientStatus; search?: string; limit?: number; offset?: number } = {},
 ): Promise<Outcome<PatientSummary[]>> {
   const permitted = await requirePermission(ctx, 'patient.read');
   if (!permitted.ok) return permitted;
   const limit = Math.min(Math.max(filters.limit ?? 50, 1), 100);
   const offset = Math.max(filters.offset ?? 0, 0);
+  const pattern = likePattern(filters.search);
+  const noticeDays = env.MAJORITY_NOTICE_DAYS;
   const rows = await withUserTransaction(ctx.claims, async (tx) => {
     const found = await tx<
       {
@@ -86,12 +112,17 @@ export async function listMyPatients(
         status: PatientStatus;
         is_minor: boolean | null;
         updated_at: string;
+        majority_in_days: number | null;
       }[]
     >`select p.id, p.first_name, p.last_name, p.preferred_name, p.status::text as status,
-             app.patient_is_minor(p.organization_id, p.id) as is_minor, p.updated_at::text as updated_at
-      from public.patients p
+             app.patient_is_minor(p.organization_id, p.id) as is_minor, p.updated_at::text as updated_at,
+             app.majority_in_days(p.date_of_birth, o.country_code, ${noticeDays}::int) as majority_in_days
+      from public.patients p join public.organizations o on o.id = p.organization_id
       where p.organization_id = ${ctx.organizationId}
         and (${filters.status ?? null}::public.patient_status is null or p.status = ${filters.status ?? null}::public.patient_status)
+        and (${pattern}::text is null
+             or (p.first_name || ' ' || p.last_name || ' ' || coalesce(p.preferred_name, '')) ilike ${pattern}
+             or p.document_number ilike ${pattern})
       order by p.last_name, p.first_name
       limit ${limit} offset ${offset}`;
     await recordAudit(
@@ -111,8 +142,81 @@ export async function listMyPatients(
       status: r.status,
       isMinor: r.is_minor,
       updatedAt: r.updated_at,
+      majorityInDays: r.majority_in_days,
     })),
   );
+}
+
+/** PAT-04 on the patient list: care-team rows + directory-only rows, both searched server-side. */
+export async function searchPatients(
+  ctx: AuthzContext,
+  input: { search?: string },
+): Promise<Outcome<{ mine: PatientSummary[]; directory: DirectoryEntry[] }>> {
+  const [mine, directory] = await Promise.all([
+    listMyPatients(ctx, { search: input.search, limit: 100 }),
+    listDirectory(ctx, { search: input.search }),
+  ]);
+  // An owner without the psychologist role has no "my patients" (FORBIDDEN) but keeps the directory.
+  if (!mine.ok && mine.error.code !== 'FORBIDDEN') return mine;
+  if (!directory.ok) return directory;
+  return ok({ mine: mine.ok ? mine.data : [], directory: directory.data });
+}
+
+export type MajorityNoticeEntry = {
+  patientId: string;
+  firstName: string;
+  lastName: string;
+  majorityDate: string;
+  daysLeft: number;
+};
+
+/**
+ * PAT-06: minors of the caller's care team turning 18 inside the notice window
+ * (`MAJORITY_NOTICE_DAYS`, default 60). RLS-bound: care team only. A task prompt, not a decision:
+ * the psychologist reviews consent and guardian access deliberately [NEEDS LEGAL VERIFICATION].
+ */
+export async function listUpcomingMajority(
+  ctx: AuthzContext,
+): Promise<Outcome<{ windowDays: number; entries: MajorityNoticeEntry[] }>> {
+  const permitted = await requirePermission(ctx, 'patient.read');
+  if (!permitted.ok) return permitted;
+  const windowDays = env.MAJORITY_NOTICE_DAYS;
+  const rows = await withUserTransaction(ctx.claims, async (tx) => {
+    const found = await tx<
+      {
+        id: string;
+        first_name: string;
+        last_name: string;
+        majority_date: string;
+        days_left: number;
+      }[]
+    >`select p.id, p.first_name, p.last_name,
+             app.majority_date(p.date_of_birth, o.country_code)::text as majority_date,
+             app.majority_in_days(p.date_of_birth, o.country_code, ${windowDays}::int) as days_left
+      from public.patients p join public.organizations o on o.id = p.organization_id
+      where p.organization_id = ${ctx.organizationId}
+        and p.status in ('intake', 'active', 'paused')
+        and app.majority_in_days(p.date_of_birth, o.country_code, ${windowDays}::int) is not null
+      order by days_left, p.last_name, p.first_name
+      limit 100`;
+    await recordAudit(
+      tx,
+      'patient.list_viewed',
+      { result_count: found.length },
+      { organizationId: ctx.organizationId as string, requestId: ctx.requestId },
+    );
+    return found;
+  });
+  return ok({
+    windowDays,
+    entries: rows.map((r) => ({
+      patientId: r.id,
+      firstName: r.first_name,
+      lastName: r.last_name,
+      majorityDate: r.majority_date,
+      daysLeft: r.days_left,
+    })),
+  });
 }
 
 export type PatientDetail = PatientSummary & {
@@ -180,13 +284,15 @@ export async function getPatient(
         has_login: boolean;
         is_minor: boolean | null;
         updated_at: string;
+        majority_in_days: number | null;
       }[]
     >`select p.id, p.first_name, p.last_name, p.preferred_name, p.pronouns, p.date_of_birth::text as date_of_birth,
              app.majority_date(p.date_of_birth, o.country_code)::text as majority_date,
              p.document_type::text as document_type, p.document_number, p.email::text as email, p.phone, p.sex,
              p.gender_identity, p.preferred_locale, p.emergency_contact_name, p.emergency_contact_phone,
              p.status::text as status, (p.profile_id is not null) as has_login,
-             app.patient_is_minor(p.organization_id, p.id) as is_minor, p.updated_at::text as updated_at
+             app.patient_is_minor(p.organization_id, p.id) as is_minor, p.updated_at::text as updated_at,
+             app.majority_in_days(p.date_of_birth, o.country_code, ${env.MAJORITY_NOTICE_DAYS}::int) as majority_in_days
       from public.patients p join public.organizations o on o.id = p.organization_id
       where p.organization_id = ${ctx.organizationId} and p.id = ${patientId}`;
     if (!p) return null;
@@ -240,6 +346,7 @@ export async function getPatient(
     status: p.status,
     isMinor: p.is_minor,
     updatedAt: p.updated_at,
+    majorityInDays: p.majority_in_days,
     dateOfBirth: p.date_of_birth,
     majorityDate: p.majority_date,
     pronouns: p.pronouns,

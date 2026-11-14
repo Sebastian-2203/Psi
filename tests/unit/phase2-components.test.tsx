@@ -213,8 +213,10 @@ describe('PatientList', () => {
       status: 'active' as const,
       isMinor: false,
       updatedAt: 't',
+      majorityInDays: null,
     },
   ];
+  const noSearch = vi.fn();
   const directory = [
     {
       patientId: 'a',
@@ -235,26 +237,38 @@ describe('PatientList', () => {
   ];
 
   it('links only care-team rows; directory-only rows are plain text', () => {
-    render(wrap(<PatientList mine={mine} directory={directory} canCreate />));
+    render(wrap(<PatientList mine={mine} directory={directory} canCreate search={noSearch} />));
     expect(screen.getByRole('link', { name: /Ana Ficticia/ })).toBeTruthy();
     expect(screen.queryByRole('link', { name: /Beto Ficticio/ })).toBeNull();
     expect(screen.getByText('Beto Ficticio')).toBeTruthy();
   });
 
-  it('filters by search and shows the empty state with the create action', () => {
-    render(wrap(<PatientList mine={mine} directory={directory} canCreate />));
-    fireEvent.change(screen.getByLabelText('Buscar paciente'), { target: { value: 'zzz' } });
-    expect(
-      screen.getAllByText('No encontramos pacientes con esa búsqueda.').length,
-    ).toBeGreaterThan(0);
-    cleanup();
-    render(wrap(<PatientList mine={[]} directory={[]} canCreate />));
+  it('searches on the server (debounced) and renders the returned rows', async () => {
+    const search = vi.fn().mockResolvedValue({
+      ok: true,
+      data: {
+        mine: [],
+        directory: [{ ...directory[1], patientId: 'c', firstName: 'Cata', lastName: 'Ficticia' }],
+      },
+    });
+    render(wrap(<PatientList mine={mine} directory={directory} canCreate search={search} />));
+    fireEvent.change(screen.getByLabelText('Buscar paciente'), { target: { value: 'cata' } });
+    await waitFor(() => expect(search).toHaveBeenCalledWith({ search: 'cata' }));
+    await waitFor(() => expect(screen.getByText('Cata Ficticia')).toBeTruthy());
+    expect(screen.queryByText('Beto Ficticio')).toBeNull();
+    expect(screen.queryByRole('link', { name: /Ana Ficticia/ })).toBeNull();
+  });
+
+  it('shows the empty state with the create action when there are no patients', () => {
+    render(wrap(<PatientList mine={[]} directory={[]} canCreate search={noSearch} />));
     expect(screen.getByText('Aún no tienes pacientes')).toBeTruthy();
     expect(screen.getAllByRole('link', { name: /Nuevo paciente/ }).length).toBeGreaterThan(0);
   });
 
   it('hides the create action without permission (owner only)', () => {
-    render(wrap(<PatientList mine={[]} directory={directory} canCreate={false} />));
+    render(
+      wrap(<PatientList mine={[]} directory={directory} canCreate={false} search={noSearch} />),
+    );
     expect(screen.queryByRole('link', { name: /Nuevo paciente/ })).toBeNull();
   });
 });

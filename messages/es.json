@@ -396,7 +396,7 @@
     "createForbidden": "Solo el equipo con rol de psicóloga puede crear pacientes.",
     "back": "Volver a pacientes",
     "searchLabel": "Buscar paciente",
-    "searchPlaceholder": "Nombre o apellido",
+    "searchPlaceholder": "Nombre, apellido o documento",
     "myPatients": "Mis pacientes",
     "emptyTitle": "Aún no tienes pacientes",
     "emptyDescription": "Cuando crees un paciente o te sumen a su equipo de atención, aparecerá aquí.",
@@ -522,6 +522,14 @@
       "audioInstructions": "Instrucciones en audio",
       "save": "Guardar preferencias",
       "saved": "Preferencias guardadas."
+    },
+    "searching": "Buscando…",
+    "searchFailed": "No pudimos completar la búsqueda. Inténtalo de nuevo.",
+    "majority": {
+      "title": "Próximos a cumplir la mayoría de edad",
+      "description": "Pacientes menores de tu equipo que cumplen la mayoría de edad en los próximos {count, plural, one {# día} other {# días}}.",
+      "empty": "Nadie de tu equipo cumple la mayoría de edad en los próximos {count, plural, one {# día} other {# días}}.",
+      "badge": "{count, plural, one {Mayoría de edad en # día} other {Mayoría de edad en # días}}"
     }
   },
   "guardians": {
@@ -921,6 +929,74 @@
       "description": "Tienes más de un acceso en esta consulta.",
       "patient": "Como paciente",
       "guardian": "Como persona responsable"
+    },
+    "dataRequests": {
+      "cardTitle": "Tus datos personales",
+      "cardDescription": "Puedes pedir acceso a tus datos o que se corrijan, y ver cómo va tu solicitud.",
+      "open": "Solicitar o ver solicitudes"
+    }
+  },
+  "dataRequests": {
+    "status": {
+      "received": "Recibida",
+      "in_review": "En revisión",
+      "fulfilled": "Atendida",
+      "partially_fulfilled": "Atendida en parte",
+      "rejected": "No procede"
+    },
+    "type": {
+      "access": "Acceso a mis datos",
+      "rectification": "Corrección de mis datos"
+    },
+    "receivedOn": "Recibida el {date}",
+    "dueOn": "Fecha objetivo del equipo: {date}",
+    "resolution": "Respuesta:",
+    "errors": {
+      "alreadyOpen": "Ya tienes una solicitud abierta de este tipo. Espera su respuesta.",
+      "alreadyResolved": "Esta solicitud ya fue cerrada y no se puede cambiar.",
+      "typeNotSupported": "Este tipo de solicitud no está disponible.",
+      "summaryRequired": "Escribe la respuesta o decisión (mínimo 3 caracteres).",
+      "invalidTransition": "Ese cambio de estado no está disponible desde el estado actual.",
+      "dueDateInvalid": "La fecha objetivo no puede ser anterior a la recepción."
+    },
+    "portal": {
+      "pageTitle": "Solicitudes sobre tus datos",
+      "pageDescription": "Pide acceso a tus datos personales o su corrección. El equipo de la consulta revisa cada solicitud y te responde aquí.",
+      "back": "Volver al inicio",
+      "formTitle": "Nueva solicitud",
+      "formDescription": "Cuéntanos qué necesitas. El equipo puede contactarte para confirmar tu identidad.",
+      "typeLabel": "Qué necesitas",
+      "noteLabel": "Detalle (opcional)",
+      "noteHint": "No escribas información clínica aquí. Máximo 1000 caracteres.",
+      "submit": "Enviar solicitud",
+      "sent": "Recibimos tu solicitud. Verás aquí cómo avanza.",
+      "listTitle": "Tus solicitudes",
+      "empty": "Todavía no has enviado solicitudes."
+    },
+    "staff": {
+      "pageTitle": "Solicitudes sobre datos personales",
+      "pageDescription": "Solicitudes de acceso y corrección de las personas que acompañas. Tú decides qué se entrega o se corrige; la corrección de contenido clínico se hace con una adenda, nunca sobrescribiendo.",
+      "back": "Volver a configuración",
+      "empty": "No hay solicitudes.",
+      "subject": {
+        "patient": "Paciente",
+        "guardian": "Persona responsable"
+      },
+      "unknownSubject": "Persona responsable",
+      "manage": "Gestionar",
+      "manageTitle": "Gestionar solicitud de {name}",
+      "manageDescription": "Cada cambio queda registrado en la auditoría. Una solicitud cerrada no se puede reabrir.",
+      "newStatus": "Nuevo estado",
+      "summary": "Respuesta o decisión",
+      "summaryHint": "Explica qué entregaste o corregiste, o por qué no procede. No incluyas contenido clínico.",
+      "dueDate": "Fecha objetivo (opcional)",
+      "dueDateHint": "Los plazos legales están pendientes de verificación; define la fecha según la política de tu consulta.",
+      "save": "Guardar"
+    },
+    "settingsCard": {
+      "cardTitle": "Solicitudes sobre datos personales",
+      "cardDescription": "Solicitudes de acceso y corrección enviadas por pacientes y personas responsables.",
+      "open": "Ver solicitudes"
     }
   }
 }

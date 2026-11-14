@@ -3,6 +3,7 @@ import { ErrorState } from '@/components/shared/error-state';
 import { getRouteLocale } from '@/i18n/route-locale';
 import { getStaffPageContext } from '@/modules/auth/server/guards';
 import { PatientList } from '@/modules/patients/components/patient-list';
+import { searchPatientsAction } from '@/modules/patients/server/actions';
 import { listDirectory, listMyPatients } from '@/modules/patients/server/queries';
 import { evaluatePermission } from '@/server/authz';
 
@@ -43,6 +44,7 @@ export default async function PatientsPage({ params }: { params: Promise<{ local
           mine={mine.ok ? mine.data : []}
           directory={directory.ok ? directory.data : []}
           canCreate={evaluatePermission(ctx, 'patient.create').allowed}
+          search={searchPatientsAction}
         />
       )}
     </div>

@@ -2,50 +2,74 @@
 
 import { Lock, Search, UserPlus, Users } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { useId, useMemo, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { EmptyState } from '@/components/shared/empty-state';
 import { Button } from '@/components/ui/button';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Link } from '@/i18n/navigation';
-import { MinorBadge, PatientStatusBadge } from './patient-status-badge';
+import type { ActionResult } from '@/modules/auth/schemas/result';
+import { MajoritySoonBadge, MinorBadge, PatientStatusBadge } from './patient-status-badge';
 import type { DirectoryEntryDto, PatientSummaryDto } from './types';
 
 function displayName(p: { firstName: string; lastName: string; preferredName: string | null }) {
   return `${p.firstName} ${p.lastName}`;
 }
 
-function matches(
-  p: { firstName: string; lastName: string; preferredName: string | null },
-  q: string,
-) {
-  const hay = `${p.firstName} ${p.lastName} ${p.preferredName ?? ''}`.toLowerCase();
-  return hay.includes(q);
-}
+export type SearchPatientsAction = (input: {
+  search?: string;
+}) => Promise<ActionResult<{ mine: PatientSummaryDto[]; directory: DirectoryEntryDto[] }>>;
 
 /**
  * My patients (care-team rows, linked) + directory-only rows for people the viewer is NOT on the
- * care team of (name + status only, Q-03; no link, no detail). Search is client-side over the
- * already-authorized rows.
+ * care team of (name + status only, Q-03; no link, no detail). PAT-04: the search term goes to a
+ * server action (name / document, RLS-bound; the term never enters the URL or the audit log).
  */
 export function PatientList({
   mine,
   directory,
   canCreate,
+  search,
 }: {
   mine: PatientSummaryDto[];
   directory: DirectoryEntryDto[];
   canCreate: boolean;
+  search: SearchPatientsAction;
 }) {
   const t = useTranslations('patients');
   const searchId = useId();
   const [query, setQuery] = useState('');
-  const q = query.trim().toLowerCase();
-  const myRows = useMemo(() => mine.filter((p) => !q || matches(p, q)), [mine, q]);
-  const otherRows = useMemo(
-    () => directory.filter((p) => !p.onMyCareTeam && (!q || matches(p, q))),
-    [directory, q],
+  const [found, setFound] = useState<{
+    q: string;
+    mine: PatientSummaryDto[];
+    directory: DirectoryEntryDto[];
+  } | null>(null);
+  const [failed, setFailed] = useState(false);
+  const q = query.trim();
+  const searching = q !== '' && found?.q !== q && !failed;
+
+  useEffect(() => {
+    if (!q) return;
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      const result = await search({ search: q });
+      if (cancelled) return;
+      if (result.ok) {
+        setFailed(false);
+        setFound({ q, ...result.data });
+      } else setFailed(true);
+    }, 250);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [q, search]);
+
+  const active = q && found?.q === q ? found : null;
+  const myRows = q ? (active?.mine ?? []) : mine;
+  const otherRows = (q ? (active?.directory ?? directory) : directory).filter(
+    (p) => !p.onMyCareTeam,
   );
   const createButton = canCreate ? (
     <Button asChild>
@@ -72,12 +96,22 @@ export function PatientList({
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder={t('searchPlaceholder')}
+              maxLength={100}
               className="pl-10"
             />
           </div>
         </div>
         {createButton}
       </div>
+
+      {failed ? (
+        <p role="alert" className="text-sm font-semibold text-destructive">
+          {t('searchFailed')}
+        </p>
+      ) : null}
+      <p className="sr-only" aria-live="polite">
+        {searching ? t('searching') : ''}
+      </p>
 
       <Card>
         <CardHeader>
@@ -86,9 +120,9 @@ export function PatientList({
         {myRows.length === 0 ? (
           <EmptyState
             icon={Users}
-            title={mine.length === 0 ? t('emptyTitle') : t('noResults')}
-            description={mine.length === 0 ? t('emptyDescription') : undefined}
-            action={mine.length === 0 ? createButton : undefined}
+            title={q ? (searching ? t('searching') : t('noResults')) : t('emptyTitle')}
+            description={q ? undefined : t('emptyDescription')}
+            action={q ? undefined : createButton}
           />
         ) : (
           <ul className="flex flex-col divide-y" data-testid="my-patients">
@@ -104,6 +138,7 @@ export function PatientList({
                   ) : null}
                   <span className="ml-auto flex items-center gap-2">
                     <MinorBadge isMinor={p.isMinor} />
+                    <MajoritySoonBadge days={p.majorityInDays} />
                     <PatientStatusBadge status={p.status} />
                   </span>
                 </Link>
@@ -123,7 +158,9 @@ export function PatientList({
             </CardDescription>
           </CardHeader>
           {otherRows.length === 0 ? (
-            <p className="text-sm text-muted-foreground">{t('noResults')}</p>
+            <p className="text-sm text-muted-foreground">
+              {searching ? t('searching') : t('noResults')}
+            </p>
           ) : (
             <ul className="flex flex-col divide-y" data-testid="directory-patients">
               {otherRows.map((p) => (

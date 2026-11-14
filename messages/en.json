@@ -396,7 +396,7 @@
     "createForbidden": "Only team members with the psychologist role can create patients.",
     "back": "Back to patients",
     "searchLabel": "Search patients",
-    "searchPlaceholder": "First or last name",
+    "searchPlaceholder": "Name, last name or document",
     "myPatients": "My patients",
     "emptyTitle": "You have no patients yet",
     "emptyDescription": "When you create a patient or join their care team, they will appear here.",
@@ -522,6 +522,14 @@
       "audioInstructions": "Audio instructions",
       "save": "Save preferences",
       "saved": "Preferences saved."
+    },
+    "searching": "Searching…",
+    "searchFailed": "We could not complete the search. Try again.",
+    "majority": {
+      "title": "Turning 18 soon",
+      "description": "Minors on your team who reach the age of majority in the next {count, plural, one {# day} other {# days}}.",
+      "empty": "Nobody on your team reaches the age of majority in the next {count, plural, one {# day} other {# days}}.",
+      "badge": "{count, plural, one {Age of majority in # day} other {Age of majority in # days}}"
     }
   },
   "guardians": {
@@ -921,6 +929,74 @@
       "description": "You have more than one access in this practice.",
       "patient": "As a patient",
       "guardian": "As a guardian"
+    },
+    "dataRequests": {
+      "cardTitle": "Your personal data",
+      "cardDescription": "You can ask for access to your data or for it to be corrected, and follow your request.",
+      "open": "Make or view requests"
+    }
+  },
+  "dataRequests": {
+    "status": {
+      "received": "Received",
+      "in_review": "In review",
+      "fulfilled": "Fulfilled",
+      "partially_fulfilled": "Partially fulfilled",
+      "rejected": "Not granted"
+    },
+    "type": {
+      "access": "Access to my data",
+      "rectification": "Correction of my data"
+    },
+    "receivedOn": "Received on {date}",
+    "dueOn": "Practice target date: {date}",
+    "resolution": "Response:",
+    "errors": {
+      "alreadyOpen": "You already have an open request of this type. Wait for the response.",
+      "alreadyResolved": "This request is closed and can no longer be changed.",
+      "typeNotSupported": "This type of request is not available.",
+      "summaryRequired": "Write the response or decision (at least 3 characters).",
+      "invalidTransition": "That status change is not available from the current status.",
+      "dueDateInvalid": "The target date cannot be before the request was received."
+    },
+    "portal": {
+      "pageTitle": "Requests about your data",
+      "pageDescription": "Ask for access to your personal data or for it to be corrected. The practice team reviews each request and answers you here.",
+      "back": "Back to home",
+      "formTitle": "New request",
+      "formDescription": "Tell us what you need. The team may contact you to confirm your identity.",
+      "typeLabel": "What you need",
+      "noteLabel": "Details (optional)",
+      "noteHint": "Do not write clinical information here. 1000 characters at most.",
+      "submit": "Send request",
+      "sent": "We received your request. You will see its progress here.",
+      "listTitle": "Your requests",
+      "empty": "You have not sent any requests yet."
+    },
+    "staff": {
+      "pageTitle": "Personal data requests",
+      "pageDescription": "Access and correction requests from the people you support. You decide what is delivered or corrected; corrections to clinical content are made with an addendum, never by overwriting.",
+      "back": "Back to settings",
+      "empty": "There are no requests.",
+      "subject": {
+        "patient": "Patient",
+        "guardian": "Guardian"
+      },
+      "unknownSubject": "Guardian",
+      "manage": "Manage",
+      "manageTitle": "Manage the request from {name}",
+      "manageDescription": "Every change is recorded in the audit log. A closed request cannot be reopened.",
+      "newStatus": "New status",
+      "summary": "Response or decision",
+      "summaryHint": "Explain what you delivered or corrected, or why it does not apply. Do not include clinical content.",
+      "dueDate": "Target date (optional)",
+      "dueDateHint": "Legal deadlines are pending verification; set the date according to your practice policy.",
+      "save": "Save"
+    },
+    "settingsCard": {
+      "cardTitle": "Personal data requests",
+      "cardDescription": "Access and correction requests sent by patients and guardians.",
+      "open": "View requests"
     }
   }
 }

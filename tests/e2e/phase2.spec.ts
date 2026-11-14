@@ -14,16 +14,23 @@ const yearsAgo = (years: number) => {
 
 async function createPatient(
   page: Page,
-  data: { first: string; last: string; dob: string; email?: string },
+  data: { first: string; last: string; dob: string; email?: string; document?: string },
 ) {
   await page.goto('/es/patients/new');
   // Streaming keeps a hidden copy of the page until the swap: wait for the visible heading first.
   await expect(page.getByRole('heading', { level: 1, name: 'Nuevo paciente' })).toBeVisible();
-  await page.getByLabel('Nombres').fill(data.first);
-  await page.getByLabel('Apellidos').fill(data.last);
-  await page.getByLabel('Fecha de nacimiento').fill(data.dob);
-  if (data.email) await page.getByLabel('Correo electrónico').fill(data.email);
-  await page.getByRole('button', { name: 'Crear paciente' }).click();
+  // Scope every locator to the VISIBLE form: the hidden streaming copy has the same labels.
+  const form = page.locator('form:visible').first();
+  await expect(form).toBeVisible();
+  await form.getByLabel('Nombres').fill(data.first);
+  await form.getByLabel('Apellidos').fill(data.last);
+  await form.getByLabel('Fecha de nacimiento').fill(data.dob);
+  if (data.email) await form.getByLabel('Correo electrónico').fill(data.email);
+  if (data.document) {
+    await form.getByLabel('Tipo de documento').selectOption('cc');
+    await form.getByLabel('Número de documento').fill(data.document);
+  }
+  await form.getByRole('button', { name: 'Crear paciente' }).click();
   await expect(page).toHaveURL(/\/es\/patients\/[0-9a-f-]{36}$/);
   await expect(page.getByRole('heading', { level: 1 })).toContainText(data.first);
 }
@@ -133,7 +140,78 @@ test.describe('professional: patients (owner + psychologist A)', () => {
     await page.getByRole('tab', { name: 'Consentimientos' }).click();
     await expect(page.getByTestId('consent-records')).toContainText('Aceptado');
     await expect(page.getByTestId('consent-records')).toContainText('Firma en el portal');
+
+    // PAT-09: the patient asks for access; the care team resolves it; the patient sees the answer.
+    await p.goto('/es/portal/data-requests');
+    const form = p.locator('form:visible').first();
+    await form.getByLabel('Detalle (opcional)').fill('Quiero una copia de mis datos.');
+    await form.getByRole('button', { name: 'Enviar solicitud' }).click();
+    const mine = p.locator('[data-testid=my-data-requests]:visible');
+    await expect(mine).toContainText('Acceso a mis datos');
+    await expect(mine).toContainText('Recibida');
+    await form.getByRole('button', { name: 'Enviar solicitud' }).click();
+    await expect(
+      p.getByText('Ya tienes una solicitud abierta de este tipo.').first(),
+    ).toBeVisible();
+
+    await page.goto('/es/settings/data-requests');
+    const row = page
+      .locator('[data-testid^=data-request-]:visible')
+      .filter({ hasText: `Lucas Firma${run}` });
+    await expect(row).toContainText('Recibida');
+    await row.getByRole('button', { name: 'Gestionar' }).click();
+    const dialog = page.getByRole('dialog');
+    await dialog.getByLabel('Nuevo estado').selectOption('fulfilled');
+    await dialog.getByRole('button', { name: 'Guardar' }).click();
+    await expect(dialog.getByText('Este campo es obligatorio.')).toBeVisible();
+    await dialog.getByLabel('Respuesta o decisión').fill('Copia entregada en consulta.');
+    await dialog.getByRole('button', { name: 'Guardar' }).click();
+    await expect(row).toContainText('Atendida');
+    await expect(row.getByRole('button', { name: 'Gestionar' })).toHaveCount(0);
+
+    await p.reload();
+    await expect(p.locator('[data-testid=my-data-requests]:visible')).toContainText(
+      'Copia entregada en consulta.',
+    );
     await patient.context.close();
+  });
+
+  test('PAT-04 search by name and document; PAT-06 notice on the card and the badge', async ({
+    page,
+  }) => {
+    const doc = `E2E${run}`.toUpperCase();
+    await createPatient(page, {
+      first: 'Busca',
+      last: `Doc${run}`,
+      dob: '1985-05-05',
+      document: doc,
+    });
+    await page.goto('/es/patients');
+    const search = page.getByLabel('Buscar paciente').locator('visible=true');
+    const mine = page.locator('[data-testid=my-patients]:visible');
+    await search.fill(doc);
+    await expect(mine.getByRole('link', { name: `Busca Doc${run}` })).toBeVisible();
+    await search.fill(`Doc${run}`);
+    await expect(mine.getByRole('link', { name: `Busca Doc${run}` })).toBeVisible();
+    await search.fill('zzzz-no-existe');
+    await expect(
+      page.getByText('No encontramos pacientes con esa búsqueda.').first(),
+    ).toBeVisible();
+    await expect(mine.getByRole('link')).toHaveCount(0);
+
+    // Turns 18 in about 30 days.
+    const soon = new Date();
+    soon.setFullYear(soon.getFullYear() - 18);
+    soon.setDate(soon.getDate() + 30);
+    await createPatient(page, {
+      first: 'Mayo',
+      last: `Pronto${run}`,
+      dob: soon.toISOString().slice(0, 10),
+    });
+    await expect(page.getByText(/Mayoría de edad en \d+ días?/).first()).toBeVisible();
+    await page.goto('/es/dashboard');
+    const card = page.locator('[data-testid=majority-notice-card]:visible');
+    await expect(card).toContainText(`Mayo Pronto${run}`);
   });
 
   test('390px: list and profile fit the viewport', async ({ page }) => {
@@ -157,6 +235,16 @@ test.describe('owner off the care team', () => {
     const directory = page.locator('[data-testid=directory-patients]:visible');
     await expect(directory).toContainText('Ana Ficticia');
     await expect(directory.getByRole('link')).toHaveCount(0);
+    // PAT-04: directory-only rows are searchable by name, never by document number.
+    const search = page.getByLabel('Buscar paciente').locator('visible=true');
+    await search.fill('FICT-1001');
+    await expect(
+      page.getByText('No encontramos pacientes con esa búsqueda.').first(),
+    ).toBeVisible();
+    await expect(directory.getByText('Ana Ficticia')).toHaveCount(0);
+    await search.fill('Ana');
+    await expect(directory).toContainText('Ana Ficticia');
+    await search.fill('');
     await expect(page.locator('[data-testid=my-patients]:visible')).toHaveCount(0);
     await expect(page.getByRole('link', { name: /Nuevo paciente/ })).toHaveCount(0);
     await page.goto(`/es/patients/${SEED.patients.adultA}`);

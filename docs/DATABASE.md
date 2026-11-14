@@ -734,8 +734,19 @@ Purpose: human-authored translations of therapeutic content with review.
   `received_at`, `channel text`, `status dsr_status`, `due_at null` (computed from
   configured policy, not hardcoded), `handled_by_membership_id null`, `resolution_summary text null`,
   `resolved_at null`, `export_file_id null`.
-- C: exactly one subject not null.
-- RLS: owners + care team of subject read/manage; patient/guardian may create and read own (portal intake, Q-14).
+- Implemented (migration `20261114110000`): adds `requester_note` (<= 1000, never in audit metadata) and
+  `created_by`; `export_file_id` waits for the file storage module; enum `dsr_type` has all documented values but
+  only `access` and `rectification` are accepted from the portal. `due_at` is never defaulted or computed
+  `[NEEDS LEGAL VERIFICATION]`; the owner/care team sets it.
+- C: exactly one subject not null; one OPEN request per subject + type (partial unique indexes); a final status
+  needs `resolved_at` + `resolution_summary`; resolved rows are final (guard trigger).
+- RLS: owners + care team of subject read (guardian subject: care team of any linked patient); patient/guardian read own
+  (portal intake, Q-14). No direct writes: `app.submit_data_subject_request` (portal, definer) and
+  `app.update_data_subject_request` (owner / care team, definer; `received -> in_review -> final`) write the row
+  and the audit (`data_subject_request.submitted | status_changed | due_date_set | list_viewed`, category `privacy`).
+- Rectification of clinical content is by addendum, never overwrite: resolving a request changes no clinical row.
+- `app.majority_in_days(dob, country, window)` (migration `20261114120000`): PAT-06 notice; the window is the server
+  setting `MAJORITY_NOTICE_DAYS` (default 60).
 
 #### `retention_policies`
 - Cols: `data_category text` (e.g. `clinical_record`, `audit_log`, `activity_response`),

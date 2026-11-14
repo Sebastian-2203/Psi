@@ -26,6 +26,8 @@ const serverEnvSchema = z.object({
   TRUSTED_PROXY: z.enum(['vercel', 'xff', 'none']).optional(),
   TRUSTED_PROXY_HOPS: z.coerce.number().int().min(1).max(10).default(1),
   VERCEL: z.string().optional(),
+  // PAT-06: care-team notice window (days) before a minor reaches the age of majority.
+  MAJORITY_NOTICE_DAYS: z.coerce.number().int().min(1).max(365).default(60),
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   // Set by Next.js; `phase-production-build` while `next build` collects page data.
   NEXT_PHASE: z.string().optional(),

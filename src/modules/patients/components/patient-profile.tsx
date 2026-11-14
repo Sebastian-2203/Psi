@@ -12,7 +12,7 @@ import { Link, useRouter } from '@/i18n/navigation';
 import { CareTeamTab } from './care-team-tab';
 import type { UpdatePatientInput } from '@/modules/patients/schemas';
 import { DetailsTab } from './details-tab';
-import { MinorBadge, PatientStatusBadge } from './patient-status-badge';
+import { MajoritySoonBadge, MinorBadge, PatientStatusBadge } from './patient-status-badge';
 import { PreferencesTab, type PreferencesInput } from './preferences-tab';
 import type { Action, PatientDetailDto, PatientStatus } from './types';
 
@@ -79,6 +79,7 @@ export function PatientProfile({
           <h1>{name}</h1>
           <PatientStatusBadge status={patient.status} />
           <MinorBadge isMinor={patient.isMinor} />
+          <MajoritySoonBadge days={patient.majorityInDays} />
         </div>
         <div className="mt-4 flex flex-wrap gap-2">
           {targets.length > 0 ? (

@@ -4,6 +4,9 @@ import { getRouteLocale } from '@/i18n/route-locale';
 import { EmptyState } from '@/components/shared/empty-state';
 import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { getStaffPageContext } from '@/modules/auth/server/guards';
+import { evaluatePermission } from '@/server/authz';
+import { MajorityNoticeCard } from '@/modules/patients/components/majority-notice-card';
+import { listUpcomingMajority } from '@/modules/patients/server/queries';
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }) {
   const locale = await getRouteLocale(params);
@@ -14,7 +17,12 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
 export default async function DashboardPage({ params }: { params: Promise<{ locale: string }> }) {
   const locale = await getRouteLocale(params);
   setRequestLocale(locale);
-  if (!(await getStaffPageContext(locale))) return null;
+  const ctx = await getStaffPageContext(locale);
+  if (!ctx) return null;
+  // PAT-06: care-team only. Owners without the psychologist role get FORBIDDEN -> no card.
+  const majority = evaluatePermission(ctx, 'patient.read').allowed
+    ? await listUpcomingMajority(ctx)
+    : null;
   const t = await getTranslations('shell.professional.dashboard');
 
   const cards = [
@@ -30,6 +38,7 @@ export default async function DashboardPage({ params }: { params: Promise<{ loca
         <p className="mt-1 text-muted-foreground">{t('subtitle')}</p>
       </div>
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {majority?.ok ? <MajorityNoticeCard {...majority.data} /> : null}
         {cards.map(({ key, icon, title, empty }) => (
           <Card key={key} className="p-4 sm:p-5">
             <CardHeader>

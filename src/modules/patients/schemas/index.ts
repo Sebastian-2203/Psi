@@ -154,6 +154,7 @@ export const listMyPatientsSchema = z
     status: z
       .enum(['intake', 'active', 'paused', 'discharged', 'archived'], 'choiceInvalid')
       .optional(),
+    search: z.string().trim().max(100, 'fieldTooLong').optional(),
     limit: z.number().int().min(1).max(100).default(50),
     offset: z.number().int().min(0).max(100_000).default(0),
   })
@@ -162,3 +163,9 @@ export type ListMyPatientsInput = z.input<typeof listMyPatientsSchema>;
 
 export const patientIdSchema = z.object({ patientId: uuidField }).strict();
 export type PatientIdInput = z.input<typeof patientIdSchema>;
+
+/** PAT-04: search term (name / document). Sent in the action body, never in the URL. */
+export const searchPatientsSchema = z
+  .object({ search: z.string().trim().max(100, 'fieldTooLong').optional() })
+  .strict();
+export type SearchPatientsInput = z.input<typeof searchPatientsSchema>;

@@ -264,6 +264,8 @@ All inputs exclude `organizationId` (from context). `Id` = uuid.
 | Contract | Input → Output | Permission | Audit |
 |---|---|---|---|
 | `listMyPatients` | filters (status), pagination → `PatientSummary[]` | care team | `patient.list_viewed` |
+| `searchPatientsAction` | `{ search? }` (<= 100, literal substring; sent in the body, never the URL) → `{ mine, directory }` (care team: name, preferred name, document number; directory rows: name only) (PAT-04) | `patient.read` / `patient.directory.read` | `patient.list_viewed`, `patient.directory_viewed` (count only, never the term) |
+| `listUpcomingMajorityAction` | `{}` → `{ windowDays, entries[] }` minors of MY care team turning 18 within `MAJORITY_NOTICE_DAYS` (default 60) (PAT-06; `PatientSummary.majorityInDays` drives the badge) | `patient.read` | `patient.list_viewed` |
 | `getPatient` | `{ patientId }` → `PatientDetail` | `patient.read` | `patient.viewed` |
 | `createPatientAction` | `{ firstName, lastName, preferredName?, dateOfBirth, documentType?, documentNumber?, email?, phone?, preferredLocale?, confirmDuplicate? }` → `{ patientId }` (`CONFLICT` + `fieldErrors.duplicate` = `document`\|`name_dob` until `confirmDuplicate`, PAT-07; `idempotencyKey` pending) (status `intake`; creator becomes primary care team, record opened) | `patient.create` | `patient.created`, `clinical_record.opened` |
 | `changePatientStatusAction` | `{ patientId, status: 'active'\|'paused'\|'discharged'\|'archived' }` → `{ status }` (no `reason`: no column, audit has no free text) (`PRECONDITION_FAILED` with missing items when consents/legal representative are missing) | `patient.status.manage` | `patient.status_changed` |
@@ -272,6 +274,16 @@ All inputs exclude `organizationId` (from context). `Id` = uuid.
 | `endCareTeamMemberAction` | `{ careTeamMemberId, reason }` → `{ ok }` | `patient.care_team.manage` | `care_team.ended` |
 | `invitePatientToPortalAction` | `{ patientId, email, emailLocale }` → `{ invitationId }` | `patient.portal.invite` | `invitation.created` |
 | `updatePatientPreferencesAction` | `{ patientId, portalMode?, locale?, notifyEmail?, textSize?, reducedMotion?, audioInstructions? }` → `{ changedFields }` | `patient.preferences.manage` (care team); patient/guardian self-service pending | `patient_preferences.updated` |
+
+### 8.4b data requests (PAT-09, Q-14)
+| Contract | Input → Output | Permission | Audit |
+|---|---|---|---|
+| `submitDataRequestAction` | `{ requestType: 'access'\|'rectification', note? (<= 1000) }` → `{ requestId }` (patient: herself; guardian: her own record; one open request per type: `PRECONDITION_FAILED` `dataRequests.errors.alreadyOpen`) | `dsr.submit.self` / `dsr.submit.guardian` | `data_subject_request.submitted` |
+| `listMyDataRequestsAction` | `{}` → own requests | `dsr.read.own` | none |
+| `listDataRequestsAction` | `{}` → requests (owner: all; psychologist: care-team patients and their linked guardians) | `dsr.read` | `data_subject_request.list_viewed` |
+| `updateDataRequestAction` | `{ requestId, status, resolutionSummary? (required for final statuses), dueDate? }` → `{ requestId }` (forward-only; resolved is final) | `dsr.manage` | `data_subject_request.status_changed`, `.due_date_set` |
+
+Deadlines, identity verification and what may be disclosed are NOT encoded `[NEEDS LEGAL VERIFICATION]`.
 
 ### 8.5 guardians
 | Contract | Input → Output | Permission | Audit |

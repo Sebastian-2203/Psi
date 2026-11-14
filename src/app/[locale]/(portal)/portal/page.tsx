@@ -228,6 +228,16 @@ export default async function PortalHomePage({
           </Card>
         ) : null}
 
+        <Card>
+          <CardHeader>
+            <CardTitle>{tp('dataRequests.cardTitle')}</CardTitle>
+            <CardDescription>{tp('dataRequests.cardDescription')}</CardDescription>
+          </CardHeader>
+          <Button asChild variant="outline" className="self-start">
+            <Link href="/portal/data-requests">{tp('dataRequests.open')}</Link>
+          </Button>
+        </Card>
+
         {!isGuardian ? (
           <Card>
             <CardHeader>

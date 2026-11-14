@@ -44,6 +44,20 @@ const consentRecordMeta = {
   consent_type: consentType,
 };
 
+const dsrStatus = z.enum(['received', 'in_review', 'fulfilled', 'partially_fulfilled', 'rejected']);
+const dsrMeta = {
+  data_subject_request_id: id,
+  request_type: z.enum([
+    'access',
+    'rectification',
+    'update',
+    'suppression',
+    'revoke_authorization',
+    'other',
+  ]),
+  patient_id: id.optional(),
+};
+
 type Writer = 'user' | 'system' | 'both';
 type Category =
   | 'auth'
@@ -57,7 +71,8 @@ type Category =
   | 'patient'
   | 'care_team'
   | 'guardian'
-  | 'consent';
+  | 'consent'
+  | 'privacy';
 
 type EventSpec = {
   category: Category;
@@ -556,6 +571,37 @@ export const AUDIT_EVENTS = {
     'user',
     false,
     z.object({ patient_id: id, consent_record_id: id }).strict(),
+  ),
+  // privacy (PAT-09). Written by the DB in definer functions; never any free text.
+  'data_subject_request.submitted': event(
+    'privacy',
+    'user',
+    false,
+    z
+      .object({
+        ...dsrMeta,
+        subject_type: z.enum(['patient', 'guardian']),
+      })
+      .strict(),
+  ),
+  'data_subject_request.status_changed': event(
+    'privacy',
+    'user',
+    false,
+    z
+      .object({
+        ...dsrMeta,
+        from_status: dsrStatus,
+        to_status: dsrStatus,
+      })
+      .strict(),
+  ),
+  'data_subject_request.due_date_set': event('privacy', 'user', false, z.object(dsrMeta).strict()),
+  'data_subject_request.list_viewed': event(
+    'privacy',
+    'user',
+    false,
+    z.object({ result_count: z.number().int().min(0) }).strict(),
   ),
   // security
   'access.denied': event(

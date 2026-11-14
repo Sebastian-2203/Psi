@@ -12,6 +12,8 @@ export type PatientSummaryDto = {
   status: PatientStatus;
   isMinor: boolean | null;
   updatedAt: string;
+  /** PAT-06: days to majority when inside the notice window, else null. */
+  majorityInDays: number | null;
 };
 
 export type DirectoryEntryDto = {
