@@ -998,5 +998,33 @@
       "cardDescription": "Solicitudes de acceso y corrección enviadas por pacientes y personas responsables.",
       "open": "Ver solicitudes"
     }
+  },
+  "clinical": {
+    "errors": {
+      "recordClosed": "La historia clínica está cerrada. Reábrela para modificarla.",
+      "closureSummaryRequired": "Escribe un resumen de cierre.",
+      "staleRevision": "Otra persona guardó esta sección. Recarga antes de continuar.",
+      "finalizeRejected": "No fue posible finalizar. Recarga e inténtalo de nuevo.",
+      "noteEmpty": "Una nota vacía no se puede finalizar.",
+      "noteTypeInactive": "Ese tipo de nota ya no está disponible.",
+      "noteNotFinalized": "Solo puedes agregar adendas a notas finalizadas.",
+      "addendumEmpty": "La adenda no puede estar vacía.",
+      "discardChangesContent": "Descarta el borrador sin modificar su contenido.",
+      "assessmentEmpty": "Registra los resultados antes de finalizar.",
+      "attachmentNotReady": "El archivo adjunto no está disponible.",
+      "correctsMustBeFinalized": "Solo se puede corregir una evaluación finalizada.",
+      "planNotDraft": "Solo puedes modificar planes en borrador.",
+      "planIsDraft": "Este plan ya es un borrador.",
+      "planNotActive": "El plan no está activo.",
+      "planWithoutGoals": "Agrega al menos un objetivo antes de activar el plan.",
+      "planSummaryEmpty": "Escribe el resumen del plan antes de activarlo.",
+      "invalidPlanTransition": "Ese cambio de estado del plan no está permitido.",
+      "fileNotReady": "El archivo no está disponible.",
+      "documentArchived": "El documento está archivado.",
+      "archiveReasonRequired": "Indica el motivo del archivo.",
+      "fileTypeNotAllowed": "Tipo de archivo no permitido.",
+      "fileTooLarge": "El archivo supera el tamaño máximo.",
+      "uploadFailed": "No fue posible subir el archivo. Inténtalo de nuevo."
+    }
   }
 }

@@ -15,7 +15,8 @@ select is((select count(*) from public.invitations), 0::bigint, 'no invitations'
 select is((select count(*) from public.profiles), 1::bigint, 'only own profile');
 select is((select count(*) from public.audit_logs where organization_id is not null and break_glass_grant_id is null), 0::bigint,
   'no tenant audit rows');
-select hasnt_function('app', 'can_read_clinical', 'no clinical helper exists yet (Phase 3): no clinical path at all');
+select is((select count(*) from public.clinical_records) + (select count(*) from public.clinical_notes), 0::bigint,
+  'Phase 3: platform admin reads no clinical rows (no break-glass path yet)');
 
 -- Grant requests: pending only, requester = auth.uid(), no self-activation.
 select lives_ok(

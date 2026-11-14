@@ -151,3 +151,75 @@ export async function serviceRoleDeleteBrandingObjects(
   }
   throw new Error('storage_delete_incomplete');
 }
+
+/* --------------------------- Clinical documents bucket (Phase 3) --------------------------- */
+
+const CLINICAL_BUCKET = 'clinical-documents';
+/** Signed URL validity for clinical objects (DOC-03: short-lived). */
+export const CLINICAL_SIGNED_URL_TTL_SECONDS = 60;
+export const CLINICAL_MIME_TYPES = new Set([
+  'application/pdf',
+  'image/png',
+  'image/jpeg',
+  'image/webp',
+  'audio/mpeg',
+  'audio/mp4',
+  'audio/ogg',
+  'audio/wav',
+]);
+
+/** org/<org>/patient/<patient>/<file id> — mirrors the file_objects_clinical_path CHECK. */
+function assertClinicalPath(path: string): void {
+  const [root, org, kind, patient, file, ...rest] = path.split('/');
+  if (
+    rest.length > 0 ||
+    root !== 'org' ||
+    kind !== 'patient' ||
+    !org ||
+    !UUID.test(org) ||
+    !patient ||
+    !UUID.test(patient) ||
+    !file ||
+    !UUID.test(file)
+  ) {
+    throw new Error('Invalid clinical object path.');
+  }
+}
+
+/**
+ * Writes validated clinical bytes. The bucket has NO authenticated write policy, so this is the
+ * only writer. Call it ONLY after the caller's RLS-bound transaction inserted the matching
+ * `file_objects` row (policy file_objects_insert_clinical = app.can_write_clinical). Never
+ * overwrites (upsert false): one object per file_objects id.
+ */
+export async function serviceRoleUploadClinicalObject(
+  path: string,
+  bytes: Uint8Array,
+  contentType: string,
+): Promise<void> {
+  assertClinicalPath(path);
+  if (!CLINICAL_MIME_TYPES.has(contentType)) throw new Error('Invalid clinical content type.');
+  const { error } = await getServiceClient()
+    .storage.from(CLINICAL_BUCKET)
+    .upload(path, bytes, { contentType, upsert: false, cacheControl: 'no-store' });
+  if (error) throw new Error('storage_upload_failed');
+}
+
+/**
+ * Short-lived signed download URL. Call it ONLY after `app.can_read_file(file_id)` returned true
+ * in the caller's RLS-bound transaction, and audit the issuance in that transaction.
+ */
+export async function serviceRoleSignClinicalObject(path: string): Promise<string> {
+  assertClinicalPath(path);
+  const { data, error } = await getServiceClient()
+    .storage.from(CLINICAL_BUCKET)
+    .createSignedUrl(path, CLINICAL_SIGNED_URL_TTL_SECONDS, { download: true });
+  if (error || !data?.signedUrl) throw new Error('storage_sign_failed');
+  return data.signedUrl;
+}
+
+/** Compensation: removes an object whose metadata row could not be finalized. */
+export async function serviceRoleRemoveClinicalObject(path: string): Promise<void> {
+  assertClinicalPath(path);
+  await getServiceClient().storage.from(CLINICAL_BUCKET).remove([path]);
+}

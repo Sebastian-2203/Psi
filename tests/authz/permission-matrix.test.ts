@@ -79,6 +79,24 @@ const BASE: Record<Permission, Record<Kind, boolean>> = {
   'org.audit.read': OWNERS,
   'org.professional_profile.manage': STAFF, // scope = own membership
   'profile.self.update': EVERYONE,
+  'clinical.config.read': STAFF,
+  'clinical.config.manage': STAFF, // owner or psychologist
+  'clinical.record.read': PSY, // + care team (RLS app.can_read_clinical)
+  'clinical.record.write': PSY,
+  'clinical.assessment.write': PSY,
+  'clinical.diagnosis.write': PSY,
+  'clinical.plan.write': PSY,
+  'clinical.session.read': PSY,
+  'clinical.session.write': PSY,
+  'clinical.note.write': PSY, // author-only drafts are DB-side
+  'clinical.note.finalize': PSY,
+  'clinical.note.addendum.create': PSY,
+  'clinical.document.read': PSY,
+  'clinical.document.upload': PSY,
+  'clinical.document.share': PSY,
+  'portal.goals.read': NONE,
+  'portal.sessions.read': NONE,
+  'portal.document.read': NONE,
   'patient.create': PSY,
   'patient.directory.read': STAFF,
   'patient.read': PSY, // + care team (RLS)
@@ -299,6 +317,21 @@ describe('portal capacities (patient / guardian)', () => {
       'guardian.permissions.manage',
     ] as const) {
       expect(decide('guardian', p)).toBe('FORBIDDEN');
+    }
+  });
+
+  it('Phase 3: portal identities hold no clinical.* permission; only the portal projections', () => {
+    const clinical = PERMISSION_NAMES.filter((p) => p.startsWith('clinical.'));
+    expect(clinical.length).toBeGreaterThan(10);
+    for (const who of ['patient', 'guardian'] as const) {
+      for (const p of clinical) expect(decide(who, p)).toBe('FORBIDDEN');
+      for (const p of [
+        'portal.goals.read',
+        'portal.sessions.read',
+        'portal.document.read',
+      ] as const) {
+        expect(decide(who, p)).toBe('allow');
+      }
     }
   });
 

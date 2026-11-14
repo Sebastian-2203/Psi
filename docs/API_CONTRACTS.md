@@ -299,11 +299,13 @@ Deadlines, identity verification and what may be disclosed are NOT encoded `[NEE
 ### 8.6 clinical-records
 | Contract | Input → Output | Permission | Audit |
 |---|---|---|---|
-| `getClinicalRecord` | `{ patientId }` → `RecordOverview` (sections, active plan, diagnoses) | `clinical.record.read` | `clinical_record.viewed` |
-| `updateRecordSectionAction` | `{ sectionId \| (recordId, sectionKey), content: RichTextAst, expectedRevision }` → `Section` | `clinical.record.write` | `clinical_record_section.updated` |
-| `listSectionRevisions` | `{ sectionId }` → `Revision[]` | `clinical.record.read` | `clinical_record_section.history_viewed` |
-| `closeClinicalRecordAction` / `reopen…` | `{ recordId, closureSummary }` → `Record` | `clinical.record.write` | `clinical_record.closed` / `.reopened` |
-| `createAssessmentAction` / `updateAssessmentDraftAction` / `finalizeAssessmentAction` | `{ recordId, assessedOn, instrumentName, results, interpretation, attachmentFileId? }` → `Assessment` | `clinical.assessment.*` | `clinical_assessment.created` / `.updated` / `.finalized` |
+| `getClinicalRecordAction` | `{ patientId }` → `RecordOverview` (record, `isMinor`, sections per org catalogue + age band, diagnoses, active plan summary, draft plan id) | `clinical.record.read` | `clinical_record.viewed` |
+| `openClinicalRecordAction` | `{ patientId }` → `{ recordId, recordNumber, status, created }` (idempotent get-or-create) | `clinical.record.write` | `clinical_record.opened` |
+| `listClinicalConfigAction` / `upsertSectionDefinitionAction` / `upsertNoteTypeAction` | `{}` / `{ id?, key, title, description?, audience, isRequired, position, isActive }` / `{ id?, key, label, description?, position, isActive }` → catalogue / `{ id }` | `clinical.config.read` / `clinical.config.manage` | — / `clinical_config.updated` |
+| `updateRecordSectionAction` | `{ recordId, sectionDefinitionId, content: RichTextAst, contentLocale, expectedRevision }` (0 = first save; mismatch `CONFLICT`) → `{ sectionId, revision, updatedAt }` | `clinical.record.write` | `clinical_record_section.updated` |
+| `listSectionRevisionsAction` | `{ sectionId }` → `Revision[]` | `clinical.record.read` | `clinical_record_section.history_viewed` |
+| `closeClinicalRecordAction` / `reopenClinicalRecordAction` | `{ recordId, closureSummary }` / `{ recordId }` → `{ recordId, recordNumber, status }` (closed record is read-only) | `clinical.record.write` | `clinical_record.closed` / `.reopened` |
+| `createAssessmentAction` / `updateAssessmentDraftAction` / `finalizeAssessmentAction` / `discardAssessmentDraftAction` / `listAssessmentsAction` | `{ recordId, assessedOn, instrumentName, instrumentReference?, administeredBy?, results, interpretation?, attachmentFileId?, correctsAssessmentId? }` / `{ assessmentId, expectedUpdatedAt, ...fields }` / `{ assessmentId }` / `{ patientId }` → `{ assessmentId, updatedAt }` / `{ finalizedAt, contentHash }` / `Assessment[]` | `clinical.assessment.write` / `clinical.record.read` | `clinical_assessment.created` / `.updated` / `.finalized` / `.discarded` / `.list_viewed` |
 | `addDiagnosisAction` | `{ recordId, codeSystem, code, label, status, diagnosedOn }` → `Diagnosis` | `clinical.diagnosis.write` | `clinical_diagnosis.added` |
 | `updateDiagnosisStatusAction` | `{ diagnosisId, status, resolvedOn? }` → `Diagnosis` | `clinical.diagnosis.write` | `clinical_diagnosis.status_changed` |
 
@@ -315,15 +317,18 @@ Deadlines, identity verification and what may be disclosed are NOT encoded `[NEE
 | `reviseTreatmentPlanAction` | `{ planId }` → `Plan` (new draft copy, version+1) | `clinical.plan.write` | `treatment_plan.revised` |
 | `updateGoalStatusAction` | `{ goalId, status: 'open'\|'in_progress'\|'achieved'\|'discontinued' }` → `Goal` | `clinical.plan.write` | `treatment_goal.status_changed` |
 | `setPatientFacingGoalTextAction` | `{ goalId, patientFacingText: RichTextAst \| null }` → `Goal` (draft plans only) | `clinical.plan.write` | `treatment_goal.patient_text_set` |
-| `listMyGoals` (portal) | `{ patientId? (guardian) }` → `PortalGoal[]` (patient-facing text + status only) | `portal.goal.read` | — |
+| `updateTreatmentPlanDraftAction` / `addGoalAction` / `endTreatmentPlanAction` / `withdrawPatientFacingGoalTextAction` | `{ planId, summary?, interventions?, frequency?, startDate?, reviewDate? }` / `{ planId, position, description, targetDate? }` / `{ planId, status: 'completed'\|'discontinued' }` / `{ goalId }` | `clinical.plan.write` | `treatment_plan.updated` / `treatment_goal.added` / `treatment_plan.status_changed` / `treatment_goal.patient_text_set` (`withdrawn`) |
+| `getTreatmentPlanAction` / `listTreatmentPlansAction` | `{ planId }` / `{ patientId }` → `Plan` (goals + patient-facing texts) / `PlanSummary[]` (all versions) | `clinical.record.read` | `treatment_plan.viewed` |
+| `listMyGoalsAction` (portal) | `{ patientId? (guardian) }` → `PortalGoal[]` (`goalId, patientFacingText, status`; active plan only) | `portal.goals.read` | — |
 
 ### 8.8 sessions
 | Contract | Input → Output | Permission | Audit |
 |---|---|---|---|
-| `scheduleSessionAction` | `{ patientId, start, end, modality }` → `Session` | care team | `therapy_session.scheduled` |
-| `updateSessionStatusAction` | `{ sessionId, status: 'scheduled'\|'held'\|'cancelled_by_patient'\|'cancelled_by_psychologist'\|'no_show', cancelledReason? }` → `Session` | care team | `therapy_session.status_changed` |
-| `listSessions` | `{ from, to, patientId? }` → `Session[]` | care team | — |
-| `listMyUpcomingSessions` (portal) | — → `PortalSession[]` (date/time/status only) | patient; guardian `view_session_schedule` | — |
+| `recordSessionAction` | `{ patientId, start, end, status (default held), modality, treatmentPlanId?, locationOrLink?, cancelledReason? }` → `{ sessionId }` (record only) | `clinical.session.write` | `therapy_session.recorded` |
+| `updateSessionAction` | `{ sessionId, status?, start?, end?, modality?, treatmentPlanId?, locationOrLink?, cancelledReason? }` → `{ sessionId, status }` | `clinical.session.write` | `therapy_session.updated` (from/to status) |
+| `listPendingNoteSessionsAction` | `{}` → `Session[]` (caller's held sessions without a finalized note, SES-04) | `clinical.session.read` | `therapy_session.list_viewed` |
+| `listSessionsAction` | `{ patientId?, from?, to?, limit? }` → `Session[]` (with `noteState`) | `clinical.session.read` | `therapy_session.list_viewed` |
+| `listMyUpcomingSessionsAction` (portal) | `{ patientId? (guardian) }` → `PortalSession[]` (`sessionId, start, end, status, modality`) | `portal.sessions.read` (patient; guardian `view_session_schedule`, no schedule caveat) | — |
 
 ### 8.9 notes
 | Contract | Input → Output | Permission | Audit |
@@ -333,17 +338,17 @@ Deadlines, identity verification and what may be disclosed are NOT encoded `[NEE
 | `finalizeNoteAction` | `{ noteId }` → `{ finalizedAt, contentHash }` (requires `aal2`, confirmation in UI) | `clinical.note.finalize` | `clinical_note.finalized` |
 | `discardNoteDraftAction` | `{ noteId, reason }` → `{ ok }` | author | `clinical_note.draft_discarded` |
 | `createAddendumAction` | `{ noteId, reason: AddendumReason, body, idempotencyKey }` → `Addendum` | `clinical.note.addendum.create` | `clinical_note.addendum_created` |
-| `getNote` / `listNotes` | `{ noteId }` / `{ patientId, pagination }` → `NoteWithAddenda` / `NoteSummary[]` | `clinical.record.read` | `clinical_note.viewed` |
+| `getNoteAction` / `listNotesAction` | `{ noteId }` / `{ patientId, limit?, before? }` → `NoteWithAddenda` / `NoteSummary[]` (finalized + own drafts) | `clinical.record.read` | `clinical_note.viewed` / `clinical_note.list_viewed` |
 
 ### 8.10 documents & files
 | Contract | Input → Output | Permission | Audit |
 |---|---|---|---|
-| `confirmUploadAction` | `{ fileObjectId, sha256, idempotencyKey }` → `FileObject` (verifies size/mime) | uploader | `file.uploaded` |
-| `attachClinicalDocumentAction` | `{ recordId, fileObjectId, documentType, title, documentDate? , supersedesDocumentId? }` → `ClinicalDocument` | `clinical.document.upload` | `clinical_document.attached` |
+| `uploadClinicalDocumentAction` | `FormData { recordId, documentType, title, documentDate?, description?, supersedesDocumentId?, file }` (≤ 20 MiB; MIME allowlist + magic bytes; server uploads with the service role after the RLS insert) → `{ documentId, fileObjectId }` (replaces `confirmUploadAction` + `attachClinicalDocumentAction`) | `clinical.document.upload` | `clinical_document.attached` |
+| `issueClinicalFileUrlAction` | `{ fileObjectId }` → `{ url, expiresInSeconds: 60 }` (`app.can_read_file`) | `clinical.document.read` | `file.download_url_issued` |
 | `archiveClinicalDocumentAction` | `{ documentId, reason }` → `{ ok }` | `clinical.document.upload` | `clinical_document.archived` |
-| `listClinicalDocuments` | `{ patientId }` → `ClinicalDocument[]` | `clinical.document.read` | `clinical_document.list_viewed` |
-| `shareClinicalDocumentAction` / `unshareClinicalDocumentAction` | `{ documentId, guardianVisible }` / `{ shareId }` → `DocumentShare` / `{ ok }` (warns on guardian caveat) | `clinical.document.share` | `document.shared` / `document.unshared` |
-| `listMySharedDocuments` (portal) | `{ patientId? (guardian) }` → `PortalDocument[]` | `portal.document.read` | `document.portal_list_viewed` (PRT-07 requires audit) |
+| `listClinicalDocumentsAction` | `{ patientId }` → `ClinicalDocument[]` (with `activeShare`) | `clinical.document.read` | `clinical_document.list_viewed` |
+| `shareClinicalDocumentAction` / `unshareClinicalDocumentAction` | `{ documentId, guardianVisible }` / `{ shareId }` → `{ shareId, guardianVisible, guardianCaveatActive }` / `{ ok }` | `clinical.document.share` | `document.shared` / `document.unshared` |
+| `listMySharedDocumentsAction` / `issuePortalDocumentUrlAction` (portal) | `{ patientId? (guardian) }` / `{ documentId, patientId? }` → `PortalDocument[]` / `{ url, expiresInSeconds }` | `portal.document.read` | `document.portal_list_viewed` / `document.portal_url_issued` (DB-written) |
 
 ### 8.11 consents
 | Contract | Input → Output | Permission | Audit |

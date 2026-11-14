@@ -31,6 +31,7 @@ const SERVICE_ROLE_IMPORTERS = [
   'src/server/auth/invitations.ts', // create invited user + compensation delete
   'src/server/auth/recovery-codes.ts', // MFA factor reset after a recovery code (ADR-021)
   'src/modules/branding/server/service.ts', // logo upload/removal after the RLS owner check (P1-16/18)
+  'src/modules/documents/server/service.ts', // clinical upload + signed URLs after the RLS check (Phase 3)
 ];
 
 // P1-20: the static-import allowlists above are only meaningful if the modules cannot be reached

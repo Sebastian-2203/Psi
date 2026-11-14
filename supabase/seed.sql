@@ -271,3 +271,71 @@ insert into public.consent_template_versions (id, organization_id, consent_templ
    'es', 'Consentimiento informado (texto ficticio) v2',
    '{"version":1,"blocks":[{"type":"heading","level":2,"children":[{"type":"text","text":"Consentimiento de prueba"}]},{"type":"paragraph","children":[{"type":"text","text":"[TEXTO FICTICIO, NO LEGAL] Versión 2 del consentimiento de prueba."}]}]}',
    'published', 'a1000000-0000-4000-8000-000000000001', 'a1000000-0000-4000-8000-000000000001');
+
+-- =============================================================================
+-- Phase 3 — clinical (ALL FICTIONAL). Configuration rows are GENERIC EXAMPLES only:
+-- section list, wording and note formats are [NEEDS PSYCHOLOGIST INPUT] (CLR-02/03, NOTE-01).
+-- Clinical rows are written AS the psychologist (a1..03, aal2) so every trigger / RLS rule
+-- applies exactly as in production. No clinical content below is real or clinically meaningful.
+-- =============================================================================
+insert into public.clinical_section_definitions (id, organization_id, key, title, description, audience, is_required, position) values
+  ('a6000000-0000-4000-8000-000000000001', '0a000000-0000-4000-8000-000000000001', 'consultation_reason', 'Motivo de consulta', 'Ejemplo genérico [NEEDS PSYCHOLOGIST INPUT]', 'any', true, 10),
+  ('a6000000-0000-4000-8000-000000000002', '0a000000-0000-4000-8000-000000000001', 'current_situation', 'Situación actual', 'Ejemplo genérico [NEEDS PSYCHOLOGIST INPUT]', 'any', false, 20),
+  ('a6000000-0000-4000-8000-000000000003', '0a000000-0000-4000-8000-000000000001', 'personal_history', 'Historia personal', 'Ejemplo genérico [NEEDS PSYCHOLOGIST INPUT]', 'any', false, 30),
+  ('a6000000-0000-4000-8000-000000000004', '0a000000-0000-4000-8000-000000000001', 'family_history', 'Historia familiar', 'Ejemplo genérico [NEEDS PSYCHOLOGIST INPUT]', 'any', false, 40),
+  ('a6000000-0000-4000-8000-000000000005', '0a000000-0000-4000-8000-000000000001', 'developmental_history', 'Historia del desarrollo', 'Solo menores. Ejemplo genérico [NEEDS PSYCHOLOGIST INPUT]', 'minor', false, 50),
+  ('a6000000-0000-4000-8000-000000000006', '0a000000-0000-4000-8000-000000000001', 'school_history', 'Historia escolar', 'Solo menores. Ejemplo genérico [NEEDS PSYCHOLOGIST INPUT]', 'minor', false, 60),
+  ('b6000000-0000-4000-8000-000000000001', '0b000000-0000-4000-8000-000000000001', 'consultation_reason', 'Motivo de consulta', 'Ejemplo genérico [NEEDS PSYCHOLOGIST INPUT]', 'any', true, 10);
+
+insert into public.clinical_note_types (id, organization_id, key, label, description, position) values
+  ('a5000000-0000-4000-8000-000000000001', '0a000000-0000-4000-8000-000000000001', 'free_text', 'Texto libre', 'Ejemplo genérico [NEEDS PSYCHOLOGIST INPUT]', 10),
+  ('a5000000-0000-4000-8000-000000000002', '0a000000-0000-4000-8000-000000000001', 'soap', 'SOAP', 'Ejemplo genérico [NEEDS PSYCHOLOGIST INPUT]', 20),
+  ('a5000000-0000-4000-8000-000000000003', '0a000000-0000-4000-8000-000000000001', 'dap', 'DAP', 'Ejemplo genérico [NEEDS PSYCHOLOGIST INPUT]', 30),
+  ('b5000000-0000-4000-8000-000000000001', '0b000000-0000-4000-8000-000000000001', 'free_text', 'Texto libre', 'Ejemplo genérico [NEEDS PSYCHOLOGIST INPUT]', 10);
+
+-- Act as psychologist Pablo (a1..03, membership a2..03) for the clinical rows of Ana (a3..01).
+select set_config('request.jwt.claims',
+  '{"sub":"a1000000-0000-4000-8000-000000000003","role":"authenticated","aal":"aal2"}', false);
+select set_config('request.jwt.claim.sub', 'a1000000-0000-4000-8000-000000000003', false);
+set role authenticated;
+
+insert into public.clinical_records (organization_id, patient_id, opened_by_membership_id) values
+  ('0a000000-0000-4000-8000-000000000001', 'a3000000-0000-4000-8000-000000000001', 'a2000000-0000-4000-8000-000000000003');
+
+insert into public.clinical_record_sections (organization_id, clinical_record_id, patient_id, section_definition_id, content, last_edited_by_membership_id)
+select '0a000000-0000-4000-8000-000000000001', (select id from public.clinical_records where patient_id = 'a3000000-0000-4000-8000-000000000001'), 'a3000000-0000-4000-8000-000000000001', 'a6000000-0000-4000-8000-000000000001',
+  '{"version":1,"blocks":[{"type":"paragraph","children":[{"type":"text","text":"Texto de ejemplo ficticio (motivo de consulta)."}]}]}', 'a2000000-0000-4000-8000-000000000003';
+
+insert into public.therapy_sessions (organization_id, patient_id, psychologist_membership_id, scheduled_start, scheduled_end, status, modality) values
+  ('0a000000-0000-4000-8000-000000000001', 'a3000000-0000-4000-8000-000000000001', 'a2000000-0000-4000-8000-000000000003', date_trunc('hour', now()) - interval '7 days', date_trunc('hour', now()) - interval '7 days' + interval '50 minutes', 'held', 'in_person'),
+  ('0a000000-0000-4000-8000-000000000001', 'a3000000-0000-4000-8000-000000000001', 'a2000000-0000-4000-8000-000000000003', date_trunc('hour', now()) + interval '7 days', date_trunc('hour', now()) + interval '7 days' + interval '50 minutes', 'scheduled', 'remote_external');
+
+insert into public.clinical_notes (organization_id, clinical_record_id, patient_id, therapy_session_id, note_type_id, body, author_membership_id)
+select '0a000000-0000-4000-8000-000000000001', (select id from public.clinical_records where patient_id = 'a3000000-0000-4000-8000-000000000001'), 'a3000000-0000-4000-8000-000000000001', (select id from public.therapy_sessions where patient_id = 'a3000000-0000-4000-8000-000000000001' and status = 'held'),
+  'a5000000-0000-4000-8000-000000000001',
+  '{"version":1,"blocks":[{"type":"paragraph","children":[{"type":"text","text":"Nota de ejemplo ficticia, finalizada."}]}]}', 'a2000000-0000-4000-8000-000000000003';
+select * from app.finalize_clinical_note('0a000000-0000-4000-8000-000000000001', (select id from public.clinical_notes where patient_id = 'a3000000-0000-4000-8000-000000000001'), 'seed');
+insert into public.clinical_notes (organization_id, clinical_record_id, patient_id, note_type_id, body, author_membership_id)
+select '0a000000-0000-4000-8000-000000000001', (select id from public.clinical_records where patient_id = 'a3000000-0000-4000-8000-000000000001'), 'a3000000-0000-4000-8000-000000000001', 'a5000000-0000-4000-8000-000000000002',
+  '{"version":1,"blocks":[{"type":"paragraph","children":[{"type":"text","text":"Borrador ficticio."}]}]}', 'a2000000-0000-4000-8000-000000000003';
+insert into public.clinical_note_addenda (organization_id, clinical_note_id, patient_id, reason, body, author_membership_id, content_hash)
+select '0a000000-0000-4000-8000-000000000001', (select id from public.clinical_notes where patient_id = 'a3000000-0000-4000-8000-000000000001' and status = 'finalized'), 'a3000000-0000-4000-8000-000000000001', 'clarification',
+  '{"version":1,"blocks":[{"type":"paragraph","children":[{"type":"text","text":"Adenda ficticia de aclaración."}]}]}', 'a2000000-0000-4000-8000-000000000003', '\x00';
+
+insert into public.clinical_diagnoses (organization_id, clinical_record_id, patient_id, code_system, code, label, status, diagnosed_on, recorded_by_membership_id)
+select '0a000000-0000-4000-8000-000000000001', (select id from public.clinical_records where patient_id = 'a3000000-0000-4000-8000-000000000001'), 'a3000000-0000-4000-8000-000000000001', 'other', null, 'Impresión de ejemplo ficticia (no es un diagnóstico)', 'provisional', current_date - 7, 'a2000000-0000-4000-8000-000000000003';
+
+insert into public.treatment_plans (organization_id, clinical_record_id, patient_id, version, summary, frequency, start_date, author_membership_id)
+select '0a000000-0000-4000-8000-000000000001', (select id from public.clinical_records where patient_id = 'a3000000-0000-4000-8000-000000000001'), 'a3000000-0000-4000-8000-000000000001', 1,
+  '{"version":1,"blocks":[{"type":"paragraph","children":[{"type":"text","text":"Resumen de plan ficticio."}]}]}', 'Semanal (ejemplo)', current_date - 7, 'a2000000-0000-4000-8000-000000000003';
+insert into public.treatment_goals (organization_id, treatment_plan_id, patient_id, position, description)
+select '0a000000-0000-4000-8000-000000000001', (select id from public.treatment_plans where patient_id = 'a3000000-0000-4000-8000-000000000001'), 'a3000000-0000-4000-8000-000000000001', 1,
+  '{"version":1,"blocks":[{"type":"paragraph","children":[{"type":"text","text":"Redacción clínica ficticia del objetivo."}]}]}';
+insert into public.treatment_goal_patient_texts (organization_id, treatment_goal_id, patient_id, patient_facing_text, author_membership_id)
+select '0a000000-0000-4000-8000-000000000001', (select id from public.treatment_goals where patient_id = 'a3000000-0000-4000-8000-000000000001'), 'a3000000-0000-4000-8000-000000000001',
+  '{"version":1,"blocks":[{"type":"paragraph","children":[{"type":"text","text":"Mi objetivo de ejemplo."}]}]}', 'a2000000-0000-4000-8000-000000000003';
+update public.treatment_plans set status = 'active' where patient_id = 'a3000000-0000-4000-8000-000000000001';
+
+reset role;
+select set_config('request.jwt.claims', '', false);
+select set_config('request.jwt.claim.sub', '', false);

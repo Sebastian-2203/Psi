@@ -17,6 +17,7 @@ function isPgLikeError(value: unknown): value is PgLikeError & { code: string; m
 const PREFIX_TO_CODE: ReadonlyArray<[prefix: string, code: ErrorCode]> = [
   ['IMMUTABLE:', 'IMMUTABLE_RECORD'],
   ['PRECONDITION:', 'PRECONDITION_FAILED'],
+  ['NOT_FOUND:', 'NOT_FOUND'],
   ['RATE_LIMITED:', 'RATE_LIMITED'],
   ['NOT_IMPLEMENTED:', 'PRECONDITION_FAILED'],
   ['AUDIT:', 'INTERNAL'],

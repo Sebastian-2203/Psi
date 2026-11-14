@@ -2,8 +2,8 @@ import 'server-only';
 
 /**
  * Permission registry — single source of truth in code (ARCHITECTURE §5, API_CONTRACTS §4).
- * Phase 1 + Phase 2 (patients, guardians, consents, portal reads) permissions; clinical and
- * activity permissions arrive with their modules. The permission-matrix tests (tests/authz) are
+ * Phase 1 + Phase 2 (patients, guardians, consents, portal reads) + Phase 3 (clinical)
+ * permissions; activity permissions arrive with their module. The permission-matrix tests (tests/authz) are
  * generated from this object.
  *
  * Care-team and relationship scope ("psychologist ON THE CARE TEAM", "guardian WITH
@@ -222,6 +222,79 @@ export const PERMISSIONS = {
     requiresAal2: true,
     recentMfaSeconds: null,
     mirrorsPolicy: 'function app.update_data_subject_request (app.dsr_staff_scope)',
+  },
+  // --- Phase 3: clinical (care team only; RLS app.can_read_clinical / can_write_clinical) ------
+  // platform_admin holds none of these (break-glass read is not implemented yet).
+  'clinical.config.read': {
+    actingAs: ['staff'],
+    roles: [],
+    scope: 'organization',
+    orgAccess: 'staff_read',
+    requiresAal2: true,
+    recentMfaSeconds: null,
+    mirrorsPolicy: 'clinical_section_definitions_select (app.is_org_member)',
+  },
+  'clinical.config.manage': {
+    actingAs: ['staff'],
+    roles: ['organization_owner', 'psychologist'],
+    scope: 'organization',
+    orgAccess: 'staff_write',
+    requiresAal2: true,
+    recentMfaSeconds: null,
+    mirrorsPolicy: 'clinical_section_definitions_insert (app.can_manage_clinical_config)',
+  },
+  'clinical.record.read': {
+    ...psychologistRead,
+    mirrorsPolicy: 'clinical_records_select (app.can_read_clinical)',
+  },
+  'clinical.record.write': {
+    ...psychologistWrite,
+    mirrorsPolicy: 'clinical_records_update (app.can_write_clinical)',
+  },
+  'clinical.assessment.write': {
+    ...psychologistWrite,
+    mirrorsPolicy: 'clinical_assessments_update (author draft + app.can_write_clinical)',
+  },
+  'clinical.diagnosis.write': { ...psychologistWrite, mirrorsPolicy: 'clinical_diagnoses_insert' },
+  'clinical.plan.write': { ...psychologistWrite, mirrorsPolicy: 'treatment_plans_update' },
+  'clinical.session.read': { ...psychologistRead, mirrorsPolicy: 'therapy_sessions_select' },
+  'clinical.session.write': { ...psychologistWrite, mirrorsPolicy: 'therapy_sessions_insert' },
+  'clinical.note.write': {
+    ...psychologistWrite,
+    mirrorsPolicy: 'clinical_notes_insert / clinical_notes_update_own_draft',
+  },
+  'clinical.note.finalize': {
+    ...psychologistWrite,
+    mirrorsPolicy: 'function app.finalize_clinical_note (author, guard trigger)',
+  },
+  'clinical.note.addendum.create': {
+    ...psychologistWrite,
+    mirrorsPolicy: 'clinical_note_addenda_insert',
+  },
+  'clinical.document.read': {
+    ...psychologistRead,
+    mirrorsPolicy: 'clinical_documents_select + function app.can_read_file',
+  },
+  'clinical.document.upload': {
+    ...psychologistWrite,
+    mirrorsPolicy: 'file_objects_insert_clinical + clinical_documents_insert',
+  },
+  'clinical.document.share': {
+    ...psychologistWrite,
+    mirrorsPolicy: 'clinical_document_shares_insert',
+  },
+  // --- Phase 3: portal projections (own / permitted patient only) -------------------------
+  'portal.goals.read': {
+    ...portal(['patient', 'guardian']),
+    mirrorsPolicy: 'function app.portal_patient_goals (self or view_patient_facing_goals)',
+  },
+  'portal.sessions.read': {
+    ...portal(['patient', 'guardian']),
+    mirrorsPolicy: 'function app.portal_upcoming_sessions (self or view_session_schedule, caveat)',
+  },
+  'portal.document.read': {
+    ...portal(['patient', 'guardian']),
+    mirrorsPolicy: 'function app.portal_shared_documents / app.can_read_file (active share)',
   },
   'profile.self.update': {
     actingAs: ['staff', 'patient', 'guardian', 'platform_admin'],

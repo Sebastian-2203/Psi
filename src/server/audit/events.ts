@@ -58,6 +58,25 @@ const dsrMeta = {
   patient_id: id.optional(),
 };
 
+// Clinical (Phase 3). Ids, enum values, counts and field NAMES only — never note bodies,
+// section content, diagnosis labels, titles or file names. The entity id is resource_id.
+const pid = { patient_id: id };
+const onlyPatient = z.object(pid).strict();
+const counted = z.object({ ...pid, result_count: z.number().int().min(0) }).strict();
+const changed = z.object({ ...pid, changed_fields: fieldNames }).strict();
+const transition = <T extends readonly [string, ...string[]]>(values: T) =>
+  z.object({ ...pid, from_status: z.enum(values), to_status: z.enum(values) }).strict();
+const planStatus = ['draft', 'active', 'completed', 'superseded', 'discontinued'] as const;
+const goalStatus = ['open', 'in_progress', 'achieved', 'discontinued'] as const;
+const diagnosisStatus = ['provisional', 'confirmed', 'ruled_out', 'resolved'] as const;
+const sessionStatus = [
+  'scheduled',
+  'held',
+  'cancelled_by_patient',
+  'cancelled_by_psychologist',
+  'no_show',
+] as const;
+
 type Writer = 'user' | 'system' | 'both';
 type Category =
   | 'auth'
@@ -72,7 +91,9 @@ type Category =
   | 'care_team'
   | 'guardian'
   | 'consent'
-  | 'privacy';
+  | 'privacy'
+  | 'clinical'
+  | 'file';
 
 type EventSpec = {
   category: Category;
@@ -602,6 +623,170 @@ export const AUDIT_EVENTS = {
     'user',
     false,
     z.object({ result_count: z.number().int().min(0) }).strict(),
+  ),
+  // clinical (Phase 3)
+  'clinical_config.updated': event(
+    'clinical',
+    'user',
+    false,
+    z
+      .object({
+        config_kind: z.enum(['section_definition', 'note_type']),
+        changed_fields: fieldNames,
+      })
+      .strict(),
+  ),
+  'clinical_record.opened': event('clinical', 'user', false, onlyPatient),
+  'clinical_record.viewed': event('clinical', 'user', false, onlyPatient),
+  'clinical_record.closed': event('clinical', 'user', false, onlyPatient),
+  'clinical_record.reopened': event('clinical', 'user', false, onlyPatient),
+  'clinical_record_section.updated': event(
+    'clinical',
+    'user',
+    false,
+    z.object({ ...pid, section_definition_id: id, revision: z.number().int().min(1) }).strict(),
+  ),
+  'clinical_record_section.history_viewed': event('clinical', 'user', false, counted),
+  'clinical_assessment.created': event('clinical', 'user', false, onlyPatient),
+  'clinical_assessment.updated': event('clinical', 'user', false, changed),
+  'clinical_assessment.finalized': event('clinical', 'user', false, onlyPatient),
+  'clinical_assessment.discarded': event('clinical', 'user', false, onlyPatient),
+  'clinical_assessment.list_viewed': event('clinical', 'user', false, counted),
+  'clinical_diagnosis.added': event(
+    'clinical',
+    'user',
+    false,
+    z
+      .object({
+        ...pid,
+        code_system: z.enum(['cie10', 'cie11', 'dsm5tr', 'other']),
+        status: z.enum(diagnosisStatus),
+      })
+      .strict(),
+  ),
+  'clinical_diagnosis.status_changed': event(
+    'clinical',
+    'user',
+    false,
+    transition(diagnosisStatus),
+  ),
+  'treatment_plan.created': event(
+    'clinical',
+    'user',
+    false,
+    z.object({ ...pid, goal_count: z.number().int().min(0) }).strict(),
+  ),
+  'treatment_plan.updated': event('clinical', 'user', false, changed),
+  'treatment_plan.activated': event('clinical', 'user', false, onlyPatient),
+  'treatment_plan.revised': event(
+    'clinical',
+    'user',
+    false,
+    z.object({ ...pid, supersedes_plan_id: id }).strict(),
+  ),
+  'treatment_plan.status_changed': event('clinical', 'user', false, transition(planStatus)),
+  'treatment_plan.viewed': event('clinical', 'user', false, onlyPatient),
+  'treatment_goal.added': event(
+    'clinical',
+    'user',
+    false,
+    z.object({ ...pid, plan_id: id }).strict(),
+  ),
+  'treatment_goal.status_changed': event('clinical', 'user', false, transition(goalStatus)),
+  'treatment_goal.patient_text_set': event(
+    'clinical',
+    'user',
+    false,
+    z.object({ ...pid, action: z.enum(['set', 'cleared', 'withdrawn']) }).strict(),
+  ),
+  'therapy_session.recorded': event(
+    'clinical',
+    'user',
+    false,
+    z
+      .object({
+        ...pid,
+        status: z.enum(sessionStatus),
+        modality: z.enum(['in_person', 'remote_external', 'phone']),
+      })
+      .strict(),
+  ),
+  'therapy_session.updated': event(
+    'clinical',
+    'user',
+    false,
+    z
+      .object({
+        ...pid,
+        changed_fields: fieldNames,
+        from_status: z.enum(sessionStatus).optional(),
+        to_status: z.enum(sessionStatus).optional(),
+      })
+      .strict(),
+  ),
+  'therapy_session.list_viewed': event(
+    'clinical',
+    'user',
+    false,
+    z.object({ patient_id: id.optional(), result_count: z.number().int().min(0) }).strict(),
+  ),
+  'clinical_note.created': event(
+    'clinical',
+    'user',
+    false,
+    z.object({ ...pid, session_id: id.optional() }).strict(),
+  ),
+  'clinical_note.draft_updated': event('clinical', 'user', false, changed),
+  'clinical_note.finalized': event('clinical', 'user', false, onlyPatient),
+  'clinical_note.draft_discarded': event('clinical', 'user', false, onlyPatient),
+  'clinical_note.addendum_created': event(
+    'clinical',
+    'user',
+    false,
+    z
+      .object({
+        ...pid,
+        addendum_id: id,
+        correction_kind: z.enum(['correction', 'clarification', 'late_entry', 'other']),
+      })
+      .strict(),
+  ),
+  'clinical_note.viewed': event('clinical', 'user', false, onlyPatient),
+  'clinical_note.list_viewed': event('clinical', 'user', false, counted),
+  'clinical_document.attached': event(
+    'clinical',
+    'user',
+    false,
+    z.object({ ...pid, file_object_id: id, replaces_id: id.optional() }).strict(),
+  ),
+  'clinical_document.archived': event('clinical', 'user', false, onlyPatient),
+  'clinical_document.list_viewed': event('clinical', 'user', false, counted),
+  'document.shared': event(
+    'clinical',
+    'user',
+    false,
+    z.object({ ...pid, share_id: id, guardian_visible: z.boolean() }).strict(),
+  ),
+  'document.unshared': event(
+    'clinical',
+    'user',
+    false,
+    z.object({ ...pid, share_id: id }).strict(),
+  ),
+  'document.portal_list_viewed': event('clinical', 'user', false, counted),
+  'document.portal_url_issued': event(
+    'file',
+    'user',
+    false,
+    z.object({ ...pid, file_object_id: id }).strict(),
+  ),
+  'file.download_url_issued': event(
+    'file',
+    'user',
+    false,
+    z
+      .object({ ...pid, file_object_id: id, ttl_seconds: z.number().int().min(1).max(300) })
+      .strict(),
   ),
   // security
   'access.denied': event(

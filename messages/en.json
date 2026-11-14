@@ -998,5 +998,33 @@
       "cardDescription": "Access and correction requests sent by patients and guardians.",
       "open": "View requests"
     }
+  },
+  "clinical": {
+    "errors": {
+      "recordClosed": "The clinical record is closed. Reopen it to make changes.",
+      "closureSummaryRequired": "Write a closure summary.",
+      "staleRevision": "Someone else saved this section. Reload before continuing.",
+      "finalizeRejected": "Could not finalize. Reload and try again.",
+      "noteEmpty": "An empty note cannot be finalized.",
+      "noteTypeInactive": "That note type is no longer available.",
+      "noteNotFinalized": "Addenda can only be added to finalized notes.",
+      "addendumEmpty": "The addendum cannot be empty.",
+      "discardChangesContent": "Discard the draft without changing its content.",
+      "assessmentEmpty": "Record the results before finalizing.",
+      "attachmentNotReady": "The attachment is not available.",
+      "correctsMustBeFinalized": "Only a finalized assessment can be corrected.",
+      "planNotDraft": "Only draft plans can be changed.",
+      "planIsDraft": "This plan is already a draft.",
+      "planNotActive": "The plan is not active.",
+      "planWithoutGoals": "Add at least one goal before activating the plan.",
+      "planSummaryEmpty": "Write the plan summary before activating it.",
+      "invalidPlanTransition": "That plan status change is not allowed.",
+      "fileNotReady": "The file is not available.",
+      "documentArchived": "The document is archived.",
+      "archiveReasonRequired": "Give a reason for archiving.",
+      "fileTypeNotAllowed": "File type not allowed.",
+      "fileTooLarge": "The file exceeds the maximum size.",
+      "uploadFailed": "Could not upload the file. Try again."
+    }
   }
 }

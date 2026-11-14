@@ -26,7 +26,7 @@ select results_eq(
 select tests.as_user('c0000000-0000-4000-8000-000000000002');
 select throws_ok($$ select app.write_audit('organization.updated', 'd1000000-0000-4000-8000-000000000001') $$,
   'P0001', 'AUDIT:organization_not_allowed', 'cannot write audit rows for a foreign org');
-select throws_ok($$ select app.write_audit('clinical_note.viewed', 'c1000000-0000-4000-8000-000000000001') $$,
+select throws_ok($$ select app.write_audit('clinical_note.exported_nowhere', 'c1000000-0000-4000-8000-000000000001') $$,
   'P0001', 'AUDIT:unknown_event', 'unknown events are rejected');
 select throws_ok($$ select app.write_audit('access.denied', null) $$,
   'P0001', 'AUDIT:wrong_writer', 'system-only events cannot be written from a user context');
