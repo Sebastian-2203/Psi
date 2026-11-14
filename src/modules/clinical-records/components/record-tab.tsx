@@ -24,7 +24,13 @@ import { DiagnosesPanel, type DiagnosisActions } from './diagnoses-panel';
 import { RichTextView, isRichTextEmpty } from './rich-text';
 import { RichTextField } from './rich-text-field';
 import { SectionCard, type SectionActions } from './section-card';
-import type { Action, AssessmentDto, RecordOverviewDto, RichText } from './types';
+import type {
+  Action,
+  AssessmentDto,
+  ClinicalDocumentDto,
+  RecordOverviewDto,
+  RichText,
+} from './types';
 
 export type RecordActions = {
   open: Action<{ patientId: string }, { recordId: string }>;
@@ -105,6 +111,7 @@ export function RecordTab({
   patientId,
   overview,
   assessments,
+  documents,
   myMembershipId,
   loadFailed,
   actions,
@@ -112,6 +119,7 @@ export function RecordTab({
   patientId: string;
   overview: RecordOverviewDto | null;
   assessments: AssessmentDto[];
+  documents: ClinicalDocumentDto[];
   myMembershipId: string;
   loadFailed: boolean;
   actions: RecordActions;
@@ -244,6 +252,7 @@ export function RecordTab({
       <AssessmentsPanel
         recordId={record.id}
         assessments={assessments}
+        documents={documents}
         myMembershipId={myMembershipId}
         readOnly={closed}
         actions={actions.assessment}

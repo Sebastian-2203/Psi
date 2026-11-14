@@ -81,6 +81,18 @@ test.describe('psychologist: notes (owner + psychologist A)', () => {
     await expect(page.getByTestId('note-editor')).toHaveCount(0);
   });
 
+  test('an unlinked draft appears on the dashboard "drafts to finalize" card', async ({ page }) => {
+    const last = `Borrador${run}`;
+    await createPatient(page, 'Pendiente', last);
+    await openRecord(page);
+    await page.getByRole('tab', { name: 'Notas' }).click();
+    await page.getByRole('button', { name: 'Nueva nota' }).click();
+    await page.getByRole('button', { name: 'Crear borrador' }).click();
+    await expect(page.getByTestId('note-editor')).toBeVisible();
+    await page.goto('/es/dashboard');
+    await expect(page.getByTestId('drafts-list')).toContainText(last);
+  });
+
   test('psychologist off the care team is denied the clinical record', async ({ page }) => {
     // ownerPsyA is NOT on the care team of the seeded adult patient (care team: psychologist A).
     await page.goto(`/es/patients/${SEED.patients.adultA}?tab=notes`);
@@ -155,6 +167,26 @@ test.describe('patient portal sees shared content only', () => {
     const fetched = await sp.request.get(signed);
     expect(fetched.status()).toBe(200);
     expect(await fetched.body()).toEqual(Buffer.from('%PDF-1.4\n% fictional test file\n%%EOF\n'));
+
+    // A replacement upload links to the earlier document (supersedes).
+    await sp.getByRole('button', { name: 'Subir documento' }).click();
+    const second = sp.getByRole('dialog');
+    await second.getByLabel('Nombre del documento').fill(`${title} v2`);
+    await second
+      .getByLabel('Reemplaza un documento anterior (opcional)')
+      .selectOption({ label: title });
+    await second.getByLabel('Archivo').setInputFiles({
+      name: 'informe2.pdf',
+      mimeType: 'application/pdf',
+      buffer: Buffer.from('%PDF-1.4\n% fictional replacement\n%%EOF\n'),
+    });
+    await second.getByRole('button', { name: 'Subir' }).click();
+    await expect(
+      sp
+        .getByTestId('document-active')
+        .filter({ hasText: `${title} v2` })
+        .getByTestId('document-supersedes'),
+    ).toContainText(`Reemplaza: ${title}`);
 
     // The patient sees the document and the patient-facing goal text, and nothing from the notes.
     const ctx = await browser.newContext();

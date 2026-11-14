@@ -1,10 +1,15 @@
 'use client';
 
-import { ClipboardList, Lock, PencilLine, Plus } from 'lucide-react';
+import { ClipboardList, Lock, Paperclip, PencilLine, Plus } from 'lucide-react';
 import { useFormatter, useTranslations } from 'next-intl';
 import { useRef, useState } from 'react';
 import { EmptyState } from '@/components/shared/empty-state';
-import { FormError, FormField, useValidationMessage } from '@/components/shared/form-kit';
+import {
+  FormError,
+  FormField,
+  SelectField,
+  useValidationMessage,
+} from '@/components/shared/form-kit';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -20,7 +25,7 @@ import { ConfirmDialog } from './confirm-dialog';
 import { todayIso, useServerFieldError } from './field-error';
 import { RichTextView, isRichTextEmpty } from './rich-text';
 import { RichTextField } from './rich-text-field';
-import type { Action, AssessmentDto, RichText } from './types';
+import type { Action, AssessmentDto, ClinicalDocumentDto, RichText } from './types';
 
 type Fields = {
   assessedOn: string;
@@ -33,11 +38,15 @@ type Fields = {
 
 export type AssessmentActions = {
   create: Action<
-    Fields & { recordId: string; correctsAssessmentId?: string },
+    Fields & { recordId: string; correctsAssessmentId?: string; attachmentFileId?: string },
     { assessmentId: string; updatedAt: string }
   >;
   update: Action<
-    Partial<Fields> & { assessmentId: string; expectedUpdatedAt: string },
+    Partial<Fields> & {
+      assessmentId: string;
+      expectedUpdatedAt: string;
+      attachmentFileId?: string | null;
+    },
     { assessmentId: string; updatedAt: string }
   >;
   finalize: Action<{ assessmentId: string }>;
@@ -52,11 +61,13 @@ type Mode =
 function AssessmentDialog({
   recordId,
   mode,
+  documents,
   actions,
   onClose,
 }: {
   recordId: string;
   mode: Mode;
+  documents: ClinicalDocumentDto[];
   actions: AssessmentActions;
   onClose: () => void;
 }) {
@@ -75,9 +86,15 @@ function AssessmentDialog({
   const [interpretation, setInterpretation] = useState<RichText>(
     source?.interpretation ?? { version: 1, blocks: [] },
   );
+  const [attachment, setAttachment] = useState(source?.attachmentFileId ?? '');
   const [errors, setErrors] = useState<Record<string, string | undefined>>({});
   const [error, setError] = useState<ActionError | null>(null);
   const [busy, setBusy] = useState(false);
+  // Ready, non-archived clinical documents of this record (uploaded in the Documents tab); the
+  // currently linked file stays selectable even if its document was archived since.
+  const options = documents.filter(
+    (d) => !d.archivedAt || d.fileObjectId === source?.attachmentFileId,
+  );
   const token = useRef(source?.updatedAt ?? '');
   const serverError = useServerFieldError(error);
 
@@ -103,11 +120,14 @@ function AssessmentDialog({
             assessmentId: mode.assessment.id,
             expectedUpdatedAt: token.current,
             ...fields,
+            // Editing may clear a linked file (null).
+            attachmentFileId: attachment === '' ? null : attachment,
           })
         : await actions.create({
             recordId,
             ...(mode.kind === 'correct' ? { correctsAssessmentId: mode.assessment.id } : {}),
             ...fields,
+            ...(attachment ? { attachmentFileId: attachment } : {}),
           });
     setBusy(false);
     if (result.ok) {
@@ -160,6 +180,19 @@ function AssessmentDialog({
             onChange={(e) => setBy(e.target.value)}
           />
         </div>
+        <SelectField
+          label={t('attachment')}
+          hint={t('attachmentHint')}
+          value={attachment}
+          onChange={(e) => setAttachment(e.target.value)}
+        >
+          <option value="">{t('attachmentNone')}</option>
+          {options.map((d) => (
+            <option key={d.id} value={d.fileObjectId}>
+              {d.title}
+            </option>
+          ))}
+        </SelectField>
         <RichTextField
           label={t('results')}
           hint={t('resultsHint')}
@@ -194,12 +227,14 @@ function AssessmentDialog({
 export function AssessmentsPanel({
   recordId,
   assessments,
+  documents,
   myMembershipId,
   readOnly,
   actions,
 }: {
   recordId: string;
   assessments: AssessmentDto[];
+  documents: ClinicalDocumentDto[];
   myMembershipId: string;
   readOnly: boolean;
   actions: AssessmentActions;
@@ -263,6 +298,21 @@ export function AssessmentsPanel({
                 )}
                 {a.correctsAssessmentId ? <Badge variant="info">{t('correction')}</Badge> : null}
               </div>
+              <p className="text-sm text-muted-foreground" data-testid="assessment-author">
+                {a.authorMembershipId === myMembershipId
+                  ? t('byYou')
+                  : t('byAuthor', { name: a.authorName ?? t('teamMember') })}
+              </p>
+              {a.attachmentFileId ? (
+                <p className="flex items-center gap-1 text-sm" data-testid="assessment-attachment">
+                  <Paperclip aria-hidden className="size-4" />
+                  {t('attachedFile', {
+                    name:
+                      documents.find((d) => d.fileObjectId === a.attachmentFileId)?.title ??
+                      t('attachedUnknown'),
+                  })}
+                </p>
+              ) : null}
               {a.administeredBy || a.instrumentReference ? (
                 <p className="text-sm text-muted-foreground">
                   {[a.administeredBy, a.instrumentReference].filter(Boolean).join(' · ')}
@@ -330,6 +380,7 @@ export function AssessmentsPanel({
           key={mode.kind === 'create' ? 'new' : mode.assessment.id + mode.kind}
           recordId={recordId}
           mode={mode}
+          documents={documents}
           actions={actions}
           onClose={() => setMode(null)}
         />

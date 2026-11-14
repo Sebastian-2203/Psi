@@ -92,7 +92,7 @@ export const updateAssessmentDraftSchema = z
     administeredBy: assessmentFields.administeredBy,
     results: assessmentFields.results.optional(),
     interpretation: assessmentFields.interpretation,
-    attachmentFileId: assessmentFields.attachmentFileId,
+    attachmentFileId: uuidField.nullable().optional(),
   })
   .strict();
 export type UpdateAssessmentDraftInput = z.input<typeof updateAssessmentDraftSchema>;

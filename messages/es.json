@@ -1082,7 +1082,10 @@
         "none": "Sin nota",
         "draft": "Nota en borrador",
         "finalized": "Nota finalizada"
-      }
+      },
+      "treatmentPlan": "Versión del plan de tratamiento (opcional)",
+      "treatmentPlanHint": "Vincula este registro de sesión con una versión del plan.",
+      "treatmentPlanNone": "Sin vincular a un plan"
     },
     "notes": {
       "title": "Notas clínicas",
@@ -1248,7 +1251,15 @@
         "discardTitle": "Descartar este borrador",
         "discardDescription": "El borrador dejará de aparecer en la lista.",
         "discardConfirm": "Descartar borrador",
-        "correct": "Corregir"
+        "correct": "Corregir",
+        "attachment": "Documento adjunto (opcional)",
+        "attachmentHint": "Elige un documento ya subido en la pestaña Documentos. Súbelo allí primero si no aparece.",
+        "attachmentNone": "Sin adjunto",
+        "byYou": "Por ti",
+        "byAuthor": "Por {name}",
+        "teamMember": "Otro miembro del equipo",
+        "attachedFile": "Adjunto: {name}",
+        "attachedUnknown": "un documento"
       }
     },
     "plan": {
@@ -1369,7 +1380,10 @@
         "notes": "Descripción (opcional)",
         "file": "Archivo",
         "fileHint": "PDF, PNG, JPEG, WebP o audio. Máximo 20 MB.",
-        "submit": "Subir"
+        "submit": "Subir",
+        "supersedes": "Reemplaza un documento anterior (opcional)",
+        "supersedesHint": "El documento anterior permanece en la historia; este queda vinculado como su reemplazo.",
+        "supersedesNone": "No reemplaza ningún documento"
       },
       "share": {
         "title": "Compartir «{name}»",
@@ -1377,7 +1391,9 @@
         "guardianVisible": "Mostrarlo también a las personas responsables",
         "guardianHint": "Solo lo verán quienes tengan permiso para ver documentos compartidos.",
         "confirm": "Compartir"
-      }
+      },
+      "replaces": "Reemplaza: {name}",
+      "replacesUnknown": "un documento anterior"
     },
     "config": {
       "cardTitle": "Configuración clínica",

@@ -752,7 +752,12 @@ export const AUDIT_EVENTS = {
       .strict(),
   ),
   'clinical_note.viewed': event('clinical', 'user', false, onlyPatient),
-  'clinical_note.list_viewed': event('clinical', 'user', false, counted),
+  'clinical_note.list_viewed': event(
+    'clinical',
+    'user',
+    false,
+    z.object({ patient_id: id.optional(), result_count: z.number().int().min(0) }).strict(),
+  ),
   'clinical_document.attached': event(
     'clinical',
     'user',

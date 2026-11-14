@@ -1,7 +1,13 @@
 import 'server-only';
 import type { z } from 'zod';
 import type { RichText } from '@/lib/rich-text';
-import { auditTarget, iso, notFound, runClinical } from '@/modules/clinical-records/server/shared';
+import {
+  auditTarget,
+  iso,
+  memberNames,
+  notFound,
+  runClinical,
+} from '@/modules/clinical-records/server/shared';
 import type {
   createAddendumSchema,
   createNoteDraftSchema,
@@ -125,6 +131,8 @@ export type AddendumDto = {
   body: RichText;
   contentLocale: 'es' | 'en';
   authorMembershipId: string;
+  /** Staff display name (org_member_directory); null when no longer listed. */
+  authorName: string | null;
   contentHash: string;
   createdAt: string;
 };
@@ -138,12 +146,13 @@ type AddendumRow = {
   content_hash: string;
   created_at: Date;
 };
-const toAddendum = (a: AddendumRow): AddendumDto => ({
+const toAddendum = (a: AddendumRow, name: (id: string) => string | null): AddendumDto => ({
   id: a.id,
   reason: a.reason,
   body: a.body,
   contentLocale: a.content_locale,
   authorMembershipId: a.author_membership_id,
+  authorName: name(a.author_membership_id),
   contentHash: a.content_hash,
   createdAt: iso(a.created_at) as string,
 });
@@ -163,7 +172,8 @@ export async function createAddendum(
       from public.clinical_note_addenda
       where organization_id = ${org} and clinical_note_id = ${input.noteId}
         and author_membership_id = app.my_membership_id(${org}::uuid) and idempotency_key = ${input.idempotencyKey}`;
-    if (existing) return toAddendum(existing);
+    const name = await memberNames(tx, org);
+    if (existing) return toAddendum(existing, name);
     const [row] = await tx<AddendumRow[]>`
       insert into public.clinical_note_addenda (organization_id, clinical_note_id, patient_id, reason, body,
         content_locale, author_membership_id, content_hash, idempotency_key)
@@ -178,7 +188,7 @@ export async function createAddendum(
       { patient_id: note.patient_id, addendum_id: row.id, correction_kind: input.reason },
       auditTarget(ctx, 'clinical_note', input.noteId),
     );
-    return toAddendum(row);
+    return toAddendum(row, name);
   });
 }
 
@@ -188,6 +198,7 @@ export type NoteSummaryDto = {
   therapySessionId: string | null;
   status: 'draft' | 'finalized';
   authorMembershipId: string;
+  authorName: string | null;
   createdAt: string;
   updatedAt: string;
   finalizedAt: string | null;
@@ -213,12 +224,13 @@ type NoteRow = {
   finalized_at: Date | null;
   addenda: number;
 };
-const toSummary = (n: NoteRow): NoteSummaryDto => ({
+const toSummary = (n: NoteRow, name: (id: string) => string | null): NoteSummaryDto => ({
   id: n.id,
   noteTypeId: n.note_type_id,
   therapySessionId: n.therapy_session_id,
   status: n.status,
   authorMembershipId: n.author_membership_id,
+  authorName: name(n.author_membership_id),
   createdAt: iso(n.created_at) as string,
   updatedAt: iso(n.updated_at) as string,
   finalizedAt: iso(n.finalized_at),
@@ -249,7 +261,8 @@ export async function listNotes(
       { patient_id: input.patientId, result_count: rows.length },
       auditTarget(ctx, 'patient', input.patientId),
     );
-    return rows.map(toSummary);
+    const name = await memberNames(tx, org);
+    return rows.map((r) => toSummary(r, name));
   });
 }
 
@@ -278,13 +291,62 @@ export async function getNote(
       { patient_id: n.patient_id },
       auditTarget(ctx, 'clinical_note', noteId),
     );
+    const name = await memberNames(tx, org);
     return {
-      ...toSummary({ ...n, addenda: addenda.length }),
+      ...toSummary({ ...n, addenda: addenda.length }, name),
       patientId: n.patient_id,
       body: n.body,
       contentLocale: n.content_locale,
       contentHash: n.content_hash,
-      addenda: addenda.map(toAddendum),
+      addenda: addenda.map((a) => toAddendum(a, name)),
     };
+  });
+}
+
+export type MyDraftNoteDto = {
+  noteId: string;
+  patientId: string;
+  therapySessionId: string | null;
+  noteTypeId: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+/**
+ * NOTE-02/SES-04: the caller's OWN undiscarded drafts across patients (including drafts not
+ * linked to a session). RLS (draft = author only + app.can_read_clinical) bounds the rows; the
+ * explicit author filter is belt and braces. No body is returned.
+ */
+export async function listMyDraftNotes(ctx: AuthzContext): Promise<Outcome<MyDraftNoteDto[]>> {
+  return runClinical(ctx, 'clinical.record.read', async (tx, org) => {
+    const rows = await tx<
+      {
+        id: string;
+        patient_id: string;
+        therapy_session_id: string | null;
+        note_type_id: string;
+        created_at: Date;
+        updated_at: Date;
+      }[]
+    >`
+      select n.id, n.patient_id, n.therapy_session_id, n.note_type_id, n.created_at, n.updated_at
+      from public.clinical_notes n
+      where n.organization_id = ${org} and n.status = 'draft' and n.discarded_at is null
+        and n.author_membership_id = app.my_membership_id(${org}::uuid)
+      order by n.updated_at desc limit 100`;
+    await recordAudit(
+      tx,
+      'clinical_note.list_viewed',
+      { result_count: rows.length },
+      auditTarget(ctx, 'clinical_note', null),
+    );
+    return rows.map((n) => ({
+      noteId: n.id,
+      patientId: n.patient_id,
+      therapySessionId: n.therapy_session_id,
+      noteTypeId: n.note_type_id,
+      createdAt: iso(n.created_at) as string,
+      updatedAt: iso(n.updated_at) as string,
+    }));
   });
 }

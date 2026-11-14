@@ -86,6 +86,7 @@ export type AssessmentDto = {
   correctsAssessmentId: string | null;
   status: 'draft' | 'finalized';
   authorMembershipId: string;
+  authorName: string | null;
   finalizedAt: string | null;
   updatedAt: string;
 };
@@ -97,6 +98,7 @@ export type AddendumDto = {
   body: RichText;
   contentLocale: 'es' | 'en';
   authorMembershipId: string;
+  authorName: string | null;
   contentHash: string;
   createdAt: string;
 };
@@ -106,6 +108,7 @@ export type NoteSummaryDto = {
   therapySessionId: string | null;
   status: 'draft' | 'finalized';
   authorMembershipId: string;
+  authorName: string | null;
   createdAt: string;
   updatedAt: string;
   finalizedAt: string | null;

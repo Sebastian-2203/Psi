@@ -83,11 +83,19 @@ export async function PatientClinicalPanel({
   const myMembershipId = ctx.membership?.id ?? '';
 
   if (tab === 'sessions') {
-    const sessions = await listSessions(ctx, { patientId, limit: 100 });
+    const [sessions, plans] = await Promise.all([
+      listSessions(ctx, { patientId, limit: 100 }),
+      listTreatmentPlans(ctx, patientId),
+    ]);
     return (
       <SessionsTab
         patientId={patientId}
         sessions={sessions.ok ? sessions.data : []}
+        plans={
+          plans.ok
+            ? plans.data.map((p) => ({ id: p.id, version: p.version, status: p.status }))
+            : []
+        }
         myMembershipId={myMembershipId}
         loadFailed={!sessions.ok}
         actions={{ record: recordSessionAction, update: updateSessionAction }}
@@ -100,12 +108,15 @@ export async function PatientClinicalPanel({
   const failed = !overview.ok && !noRecord;
 
   if (tab === 'record') {
-    const assessments = overview.ok ? await listAssessments(ctx, patientId) : null;
+    const [assessments, docs] = overview.ok
+      ? await Promise.all([listAssessments(ctx, patientId), listClinicalDocuments(ctx, patientId)])
+      : [null, null];
     return (
       <RecordTab
         patientId={patientId}
         overview={overview.ok ? overview.data : null}
         assessments={assessments?.ok ? assessments.data : []}
+        documents={docs?.ok ? docs.data : []}
         myMembershipId={myMembershipId}
         loadFailed={failed || (assessments !== null && !assessments.ok)}
         actions={{

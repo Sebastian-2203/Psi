@@ -48,10 +48,13 @@ export type DocumentsActions = {
 
 function UploadDialog({
   recordId,
+  replaceable,
   actions,
   onClose,
 }: {
   recordId: string;
+  /** Active (non-archived) documents of this record that the new file may supersede. */
+  replaceable: ClinicalDocumentDto[];
   actions: DocumentsActions;
   onClose: () => void;
 }) {
@@ -66,6 +69,7 @@ function UploadDialog({
   const [date, setDate] = useState('');
   const [description, setDescription] = useState('');
   const [file, setFile] = useState<File | null>(null);
+  const [supersedes, setSupersedes] = useState('');
   const [errors, setErrors] = useState<Record<string, string | undefined>>({});
   const [error, setError] = useState<ActionError | null>(null);
   const [busy, setBusy] = useState(false);
@@ -85,6 +89,7 @@ function UploadDialog({
     form.set('title', title.trim());
     if (date) form.set('documentDate', date);
     if (description.trim()) form.set('description', description.trim());
+    if (supersedes) form.set('supersedesDocumentId', supersedes);
     form.set('file', file);
     const result = await actions.upload(form);
     setBusy(false);
@@ -132,6 +137,21 @@ function UploadDialog({
           maxLength={1000}
           onChange={(e) => setDescription(e.target.value)}
         />
+        {replaceable.length > 0 ? (
+          <SelectField
+            label={t('supersedes')}
+            hint={t('supersedesHint')}
+            value={supersedes}
+            onChange={(e) => setSupersedes(e.target.value)}
+          >
+            <option value="">{t('supersedesNone')}</option>
+            {replaceable.map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.title}
+              </option>
+            ))}
+          </SelectField>
+        ) : null}
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="document-file">{t('file')}</Label>
           <input
@@ -289,6 +309,14 @@ export function DocumentsTab({
         {formatBytes(d.sizeBytes)}
         {d.description ? ` · ${d.description}` : ''}
       </p>
+      {d.supersedesDocumentId ? (
+        <p className="text-sm text-muted-foreground" data-testid="document-supersedes">
+          {t('replaces', {
+            name:
+              documents.find((x) => x.id === d.supersedesDocumentId)?.title ?? t('replacesUnknown'),
+          })}
+        </p>
+      ) : null}
       <div className="flex flex-wrap gap-2">
         <Button
           variant="outline"
@@ -392,7 +420,12 @@ export function DocumentsTab({
       ) : null}
 
       {uploading ? (
-        <UploadDialog recordId={recordId} actions={actions} onClose={() => setUploading(false)} />
+        <UploadDialog
+          recordId={recordId}
+          replaceable={active}
+          actions={actions}
+          onClose={() => setUploading(false)}
+        />
       ) : null}
       {sharing ? (
         <ShareDialog

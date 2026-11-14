@@ -144,7 +144,8 @@ export function NoteView({
   const typeLabel = noteTypes.find((n) => n.id === note.noteTypeId)?.label ?? t('unknownType');
   const when = (iso: string) =>
     format.dateTime(new Date(iso), { dateStyle: 'medium', timeStyle: 'short' });
-  const author = (id: string) => (id === myMembershipId ? t('you') : t('teamMember'));
+  const author = (id: string, name: string | null) =>
+    id === myMembershipId ? t('you') : (name ?? t('teamMember'));
 
   return (
     <article
@@ -169,7 +170,7 @@ export function NoteView({
         </div>
         <div className="flex flex-col gap-3 p-4 sm:p-6">
           <p className="text-sm text-muted-foreground">
-            {typeLabel} · {author(note.authorMembershipId)}
+            {typeLabel} · {author(note.authorMembershipId, note.authorName)}
           </p>
           <RichTextView body={note.body} testId="note-body" />
         </div>
@@ -196,7 +197,7 @@ export function NoteView({
               </Badge>
               <span className="font-semibold">{t(`addendum.reasons.${a.reason}`)}</span>
               <span className="text-muted-foreground">
-                {when(a.createdAt)} · {author(a.authorMembershipId)}
+                {when(a.createdAt)} · {author(a.authorMembershipId, a.authorName)}
               </span>
             </div>
             <RichTextView body={a.body} />

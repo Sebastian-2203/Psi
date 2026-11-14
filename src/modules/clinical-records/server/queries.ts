@@ -3,7 +3,7 @@ import type { RichText } from '@/lib/rich-text';
 import { recordAudit } from '@/server/audit';
 import type { AuthzContext } from '@/server/authz';
 import type { Outcome } from '@/server/errors';
-import { auditTarget, iso, notFound, runClinical } from './shared';
+import { auditTarget, iso, memberNames, notFound, runClinical } from './shared';
 
 /**
  * Clinical record reads (care team only, RLS). Every read is audited in the same transaction
@@ -268,6 +268,8 @@ export type AssessmentDto = {
   correctsAssessmentId: string | null;
   status: 'draft' | 'finalized';
   authorMembershipId: string;
+  /** Staff display name (org_member_directory); null when no longer listed. */
+  authorName: string | null;
   finalizedAt: string | null;
   updatedAt: string;
 };
@@ -308,6 +310,7 @@ export async function listAssessments(
       { patient_id: patientId, result_count: rows.length },
       auditTarget(ctx, 'patient', patientId),
     );
+    const name = await memberNames(tx, org);
     return rows.map((a) => ({
       id: a.id,
       assessedOn: a.assessed_on,
@@ -320,6 +323,7 @@ export async function listAssessments(
       correctsAssessmentId: a.corrects_assessment_id,
       status: a.status,
       authorMembershipId: a.author_membership_id,
+      authorName: name(a.author_membership_id),
       finalizedAt: iso(a.finalized_at),
       updatedAt: iso(a.updated_at) as string,
     }));

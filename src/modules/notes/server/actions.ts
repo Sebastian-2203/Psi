@@ -1,5 +1,6 @@
 'use server';
 
+import { emptyInput } from '@/lib/validation';
 import {
   createAddendumSchema,
   createNoteDraftSchema,
@@ -21,6 +22,7 @@ import {
   discardNoteDraft,
   finalizeNote,
   getNote,
+  listMyDraftNotes,
   listNotes,
   updateNoteDraft,
 } from './service';
@@ -48,4 +50,7 @@ export async function getNoteAction(input: NoteIdInput) {
 }
 export async function listNotesAction(input: ListNotesInput) {
   return runAction(listNotesSchema, input, (ctx, d) => listNotes(ctx, d));
+}
+export async function listMyDraftNotesAction() {
+  return runAction(emptyInput, {}, (ctx) => listMyDraftNotes(ctx));
 }

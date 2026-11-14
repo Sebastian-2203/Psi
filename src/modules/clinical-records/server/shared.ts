@@ -82,6 +82,20 @@ export const CLINICAL_PRECONDITION_KEYS = {
   archive_reason_required: 'clinical.errors.archiveReasonRequired',
 } as const;
 
+/**
+ * Staff display names by membership id (care-team surfaces only), through the existing
+ * `app.org_member_directory` (SECURITY DEFINER, org members only). Unknown ids map to null.
+ */
+export async function memberNames(
+  tx: UserTransaction,
+  org: string,
+): Promise<(membershipId: string) => string | null> {
+  const rows = await tx<{ membership_id: string; display_name: string | null }[]>`
+    select membership_id, display_name from app.org_member_directory(${org}::uuid)`;
+  const names = new Map(rows.map((r) => [r.membership_id, r.display_name] as const));
+  return (id) => names.get(id) ?? null;
+}
+
 /** Row timestamps arrive as Date from postgres.js; DTOs carry ISO strings. */
 export const iso = (value: Date | string | null): string | null =>
   value === null ? null : value instanceof Date ? value.toISOString() : value;

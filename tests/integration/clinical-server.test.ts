@@ -251,8 +251,31 @@ describe.skipIf(!stack.available)('Phase 3 clinical server layer', () => {
         body: text('Solo autor'),
       }),
     );
+    // Own drafts across patients: listed for the author only (RLS), no body, includes `other`.
+    const mine = data<{ noteId: string; patientId: string }[]>(
+      await notes.listMyDraftNotesAction(),
+    );
+    expect(mine.map((d) => d.noteId)).toContain(other.noteId);
+    expect(mine.map((d) => d.noteId)).not.toContain(draft.noteId); // finalized
+    expect(Object.keys(mine[0]!).sort()).toEqual([
+      'createdAt',
+      'noteId',
+      'noteTypeId',
+      'patientId',
+      'therapySessionId',
+      'updatedAt',
+    ]);
+    // Author display names come from org_member_directory (care team only).
+    const full = data<{ authorName: string | null; addenda: { authorName: string | null }[] }>(
+      await notes.getNoteAction({ noteId: draft.noteId }),
+    );
+    expect(full.authorName).toEqual(expect.any(String));
+    expect(full.addenda[0]?.authorName).toEqual(expect.any(String));
+
     as(ownerPsyA);
     expect(codeOf(await notes.getNoteAction({ noteId: other.noteId }))).toBe('NOT_FOUND');
+    const theirs = data<{ noteId: string }[]>(await notes.listMyDraftNotesAction());
+    expect(theirs.map((d) => d.noteId)).not.toContain(other.noteId);
   });
 
   it('plans: draft with patient-facing goal -> active; portal sees wording + status only', async () => {

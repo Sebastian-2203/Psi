@@ -1082,7 +1082,10 @@
         "none": "No note",
         "draft": "Note in draft",
         "finalized": "Note finalized"
-      }
+      },
+      "treatmentPlan": "Treatment plan version (optional)",
+      "treatmentPlanHint": "Links this session record to a plan version.",
+      "treatmentPlanNone": "Not linked to a plan"
     },
     "notes": {
       "title": "Clinical notes",
@@ -1248,7 +1251,15 @@
         "discardTitle": "Discard this draft",
         "discardDescription": "The draft will no longer appear in the list.",
         "discardConfirm": "Discard draft",
-        "correct": "Correct"
+        "correct": "Correct",
+        "attachment": "Attached document (optional)",
+        "attachmentHint": "Choose a document already uploaded in the Documents tab. Upload it there first if it is not listed.",
+        "attachmentNone": "No attachment",
+        "byYou": "By you",
+        "byAuthor": "By {name}",
+        "teamMember": "Another team member",
+        "attachedFile": "Attachment: {name}",
+        "attachedUnknown": "a document"
       }
     },
     "plan": {
@@ -1369,7 +1380,10 @@
         "notes": "Description (optional)",
         "file": "File",
         "fileHint": "PDF, PNG, JPEG, WebP or audio. Maximum 20 MB.",
-        "submit": "Upload"
+        "submit": "Upload",
+        "supersedes": "Replaces an earlier document (optional)",
+        "supersedesHint": "The earlier document stays in the record; this one is linked as its replacement.",
+        "supersedesNone": "Does not replace any document"
       },
       "share": {
         "title": "Share \"{name}\"",
@@ -1377,7 +1391,9 @@
         "guardianVisible": "Also show it to guardians",
         "guardianHint": "Only guardians with permission to view shared documents will see it.",
         "confirm": "Share"
-      }
+      },
+      "replaces": "Replaces: {name}",
+      "replacesUnknown": "a previous document"
     },
     "config": {
       "cardTitle": "Clinical configuration",

@@ -27,6 +27,7 @@ import type {
   Action,
   SessionDto,
   SessionModality,
+  PlanStatus,
   SessionStatus,
 } from '@/modules/clinical-records/components/types';
 
@@ -41,6 +42,9 @@ const MODALITIES: SessionModality[] = ['in_person', 'remote_external', 'phone'];
 const isCancelled = (s: SessionStatus) =>
   s === 'cancelled_by_patient' || s === 'cancelled_by_psychologist';
 
+/** Plan versions of the patient that a session record can be linked to (SES-05). */
+export type SessionPlanOption = { id: string; version: number; status: PlanStatus };
+
 export type SessionsActions = {
   record: Action<
     {
@@ -49,6 +53,7 @@ export type SessionsActions = {
       end: string;
       status: SessionStatus;
       modality: SessionModality;
+      treatmentPlanId?: string;
       locationOrLink?: string;
       cancelledReason?: string;
     },
@@ -60,6 +65,7 @@ export type SessionsActions = {
     start?: string;
     end?: string;
     modality?: SessionModality;
+    treatmentPlanId?: string | null;
     locationOrLink?: string | null;
     cancelledReason?: string | null;
   }>;
@@ -81,6 +87,7 @@ function defaultStart(): string {
 function SessionDialog({
   patientId,
   session,
+  plans,
   open,
   onOpenChange,
   actions,
@@ -88,6 +95,7 @@ function SessionDialog({
 }: {
   patientId: string;
   session: SessionDto | null;
+  plans: SessionPlanOption[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
   actions: SessionsActions;
@@ -95,6 +103,7 @@ function SessionDialog({
 }) {
   const t = useTranslations('clinical.sessions');
   const tc = useTranslations('common');
+  const tp = useTranslations('clinical.plan');
   const v = useValidationMessage();
   const initialStart = session ? toLocalInput(session.start) : defaultStart();
   const [start, setStart] = useState(initialStart);
@@ -105,6 +114,7 @@ function SessionDialog({
   );
   const [status, setStatus] = useState<SessionStatus>(session?.status ?? 'held');
   const [modality, setModality] = useState<SessionModality>(session?.modality ?? 'in_person');
+  const [planId, setPlanId] = useState(session?.treatmentPlanId ?? '');
   const [location, setLocation] = useState(session?.locationOrLink ?? '');
   const [reason, setReason] = useState(session?.cancelledReason ?? '');
   const [errors, setErrors] = useState<{ start?: string; end?: string }>({});
@@ -131,6 +141,7 @@ function SessionDialog({
           start: startIso,
           end: endIso,
           modality,
+          treatmentPlanId: planId === '' ? null : planId,
           locationOrLink: place === '' ? null : place,
           cancelledReason: isCancelled(status) && why !== '' ? why : null,
         })
@@ -140,6 +151,7 @@ function SessionDialog({
           end: endIso,
           status,
           modality,
+          ...(planId ? { treatmentPlanId: planId } : {}),
           ...(place ? { locationOrLink: place } : {}),
           ...(isCancelled(status) && why ? { cancelledReason: why } : {}),
         });
@@ -194,6 +206,21 @@ function SessionDialog({
             ))}
           </SelectField>
         </div>
+        {plans.length > 0 || planId ? (
+          <SelectField
+            label={t('treatmentPlan')}
+            hint={t('treatmentPlanHint')}
+            value={planId}
+            onChange={(e) => setPlanId(e.target.value)}
+          >
+            <option value="">{t('treatmentPlanNone')}</option>
+            {plans.map((p) => (
+              <option key={p.id} value={p.id}>
+                {tp('version', { n: p.version })} · {tp(`statuses.${p.status}`)}
+              </option>
+            ))}
+          </SelectField>
+        ) : null}
         <FormField
           label={t('location')}
           hint={t('locationHint')}
@@ -229,18 +256,21 @@ function SessionDialog({
 export function SessionsTab({
   patientId,
   sessions,
+  plans,
   myMembershipId,
   loadFailed,
   actions,
 }: {
   patientId: string;
   sessions: SessionDto[];
+  plans: SessionPlanOption[];
   myMembershipId: string;
   loadFailed: boolean;
   actions: SessionsActions;
 }) {
   const t = useTranslations('clinical.sessions');
   const format = useFormatter();
+  const tp = useTranslations('clinical.plan');
   const router = useRouter();
   const pathname = usePathname();
   const [editing, setEditing] = useState<SessionDto | null>(null);
@@ -251,6 +281,8 @@ export function SessionsTab({
       s.psychologistMembershipId === myMembershipId &&
       s.noteState !== 'finalized',
   );
+  const planVersion = (s: SessionDto) =>
+    plans.find((p) => p.id === s.treatmentPlanId)?.version ?? null;
   const when = (iso: string) =>
     format.dateTime(new Date(iso), { dateStyle: 'medium', timeStyle: 'short' });
 
@@ -265,6 +297,7 @@ export function SessionsTab({
         <span className="text-sm text-muted-foreground">
           {t(`modality.${s.modality}`)}
           {s.locationOrLink ? ` · ${s.locationOrLink}` : ''}
+          {planVersion(s) ? ` · ${tp('version', { n: planVersion(s) as number })}` : ''}
         </span>
       </div>
       <Badge
@@ -339,6 +372,7 @@ export function SessionsTab({
         <SessionDialog
           patientId={patientId}
           session={null}
+          plans={plans}
           open
           onOpenChange={setCreating}
           actions={actions}
@@ -353,6 +387,7 @@ export function SessionsTab({
           key={editing.id + editing.updatedAt}
           patientId={patientId}
           session={editing}
+          plans={plans}
           open
           onOpenChange={(o) => !o && setEditing(null)}
           actions={actions}

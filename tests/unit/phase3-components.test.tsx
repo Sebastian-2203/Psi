@@ -70,6 +70,7 @@ const baseNote = {
   noteTypeId: ID(1),
   therapySessionId: null,
   authorMembershipId: ID(99),
+  authorName: 'Ana Ficticia',
   createdAt: '2026-11-10T10:00:00.000Z',
   updatedAt: '2026-11-10T10:00:00.000Z',
   patientId: ID(5),
@@ -89,7 +90,8 @@ const finalized: NoteWithAddendaDto = {
       reason: 'clarification',
       body: paragraph('Aclaración ficticia.'),
       contentLocale: 'es',
-      authorMembershipId: ID(99),
+      authorMembershipId: ID(98),
+      authorName: 'Luis Ficticio',
       contentHash: 'b'.repeat(64),
       createdAt: '2026-11-11T09:00:00.000Z',
     },
@@ -142,6 +144,7 @@ describe('NoteView (finalized, locked)', () => {
     expect(screen.getByTestId('note-body').textContent).toContain('Contenido ficticio finalizado.');
     expect(screen.getByTestId('addendum').textContent).toContain('Aclaración');
     expect(screen.getByTestId('addendum').textContent).toContain('Adenda');
+    expect(screen.getByTestId('addendum').textContent).toContain('Luis Ficticio');
     expect(screen.queryByRole('textbox')).toBeNull();
     expect(screen.queryByRole('button', { name: /finalizar|editar|guardar/i })).toBeNull();
   });
@@ -312,6 +315,7 @@ describe('SessionsTab', () => {
         <SessionsTab
           patientId={ID(5)}
           myMembershipId={ID(99)}
+          plans={[]}
           loadFailed={false}
           actions={{ record: vi.fn(), update: vi.fn() }}
           sessions={[
