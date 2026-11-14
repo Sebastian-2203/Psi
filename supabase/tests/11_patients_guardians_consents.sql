@@ -2,7 +2,7 @@
 begin;
 \ir _helpers.psql
 
-select plan(52);
+select plan(55);
 
 -- Portal users (FICTIONAL)
 select tests.create_user('c0000000-0000-4000-8000-000000000010', 'patient.x@example.test');
@@ -199,6 +199,17 @@ select throws_ok(format($$ select app.withdraw_consent('c1000000-0000-4000-8000-
   (select v from ids where k = 'rec')), 'P0001', 'PRECONDITION:consent_not_withdrawable', 'withdrawal is one-time (append-only)');
 select tests.as_user('d0000000-0000-4000-8000-000000000001');
 select is((select count(*) from public.consent_records), 0::bigint, 'cross-tenant: no consent records of X');
+
+-- S2-01 (SECURITY.md §15): portal identities may only write auth.* audit events, no patient_id.
+select tests.as_user('c0000000-0000-4000-8000-000000000010', 'aal1');
+select throws_ok(format($$ select app.write_audit('consent.recorded', 'c1000000-0000-4000-8000-000000000001',
+  'patient', %L, jsonb_build_object('patient_id', %L)) $$, (select v from ids where k = 'minor'), (select v from ids where k = 'minor')),
+  'P0001', 'AUDIT:event_not_allowed_for_portal', 'S2-01: portal patient cannot forge a care-team audit event');
+select throws_ok(format($$ select app.write_audit('auth.capacity_switched', 'c1000000-0000-4000-8000-000000000001',
+  null, null, jsonb_build_object('patient_id', %L)) $$, (select v from ids where k = 'minor')),
+  'P0001', 'AUDIT:event_not_allowed_for_portal', 'S2-01: portal auth event cannot carry a patient_id');
+select lives_ok($$ select app.write_audit('auth.capacity_switched', 'c1000000-0000-4000-8000-000000000001',
+  null, null, '{"to_acting_as":"patient"}'::jsonb) $$, 'S2-01: portal capacity switch is still audited');
 
 select * from finish();
 rollback;

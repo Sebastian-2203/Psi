@@ -870,3 +870,18 @@ storage), P1-22 (Low, alerting on reused pending recovery codes), P1-23 (Info). 
 before migration `20261108160000` could persist in a CDN cache (none exist outside local dev).
 The verdict is unchanged: **Phase 1 gate PASSED for internal alpha with synthetic data**; the pilot still
 requires the non-engineering and pre-pilot engineering items in §14.7.
+
+## 15. Phase 2 implementation review (2026-11-14)
+
+Scope: migrations `20261109100000`..`20261113110000`, `supabase/tests/11_*`, `src/modules/{patients,guardians,consents}`, portal invitation / capacity code (`src/server/{auth,authz}`), Phase 2 pages. Checked against CLAUDE.md non-negotiables, §4–5 and the provisional Q-03/Q-04/Q-17 defaults.
+
+| ID | Sev | Area | Finding | Status |
+|---|---|---|---|---|
+| S2-01 | High | `app.write_audit` (portal branch, 20261109100000) | Portal identities could write any user-writer event (e.g. `consent.recorded`, `patient_guardian.revoked`) with an arbitrary `metadata.patient_id`; `insert_audit_row` derives `audit_logs.patient_id` from it, so forged rows reached another patient's care-team audit view. | Fixed: `20261114100000_portal_audit_event_allowlist.sql` (portal: `auth.*` only, no `patient_id`); pgTAP in `11_*` (+3). |
+| S2-02 | Low | Staff branch of `app.write_audit` | Staff can still attach any `patient_id` of the org to user events (Phase 1 design). Actor is recorded truthfully. | Open: Phase 3 should validate `patient_id` against `is_on_care_team` before clinical audit relies on it. |
+| S2-03 | Low | `invitations_one_pending_per_email` | One pending invitation per email per org across kinds (staff/patient/guardian); a person who is both guardian and adult patient is invited sequentially. Fails safe. | Accepted (documented deviation). |
+| S2-04 | Low | `app.my_portal_mode` | Active guardian (no permission required, caveats not consulted) learns the age band of the minor. No personal data. | Accepted; revisit if caveats must hide the patient entirely. |
+| S2-05 | Info | Definer functions / `app_definer` read-all policies | All new definer functions have `search_path = ''`, owner `app_definer`, explicit grants; system-path functions (`peek_invitation`, `accept_portal_invitation`) reject user context and are `app_server`-only; link policies require `profile_id is null`. `record_consent` fix keeps checks and audit. Acceptance is single-use, email-bound to verified email, refuses staff of the org, never activates relationships. | OK. |
+| S2-06 | Info | Deviations | Guardians only for minors, no reactivation after majority, seed status insert: all stricter than the spec (fail closed). Majority age / post-majority access remain `[NEEDS LEGAL VERIFICATION]`. | Accepted pending legal review. |
+
+Verdict: Phase 2 **approved for internal alpha with synthetic data** (patients, guardians, consents, portal identities) after S2-01 fix. Tests on 2026-11-14: `db:test` 274 pass (11 files), `npm test` 962 pass, `phase2.spec.ts` 6 pass / 1 skipped.
