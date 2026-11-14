@@ -7,7 +7,7 @@ import { getRouteLocale } from '@/i18n/route-locale';
 import { getStaffPageContext } from '@/modules/auth/server/guards';
 import { PatientConsentsTab } from '@/modules/consents/components/patient-consents-tab';
 import { recordConsentAction, withdrawConsentAction } from '@/modules/consents/server/actions';
-import { getPatientConsentStatus } from '@/modules/consents/server/queries';
+import { getPatientConsentStatus, listRecordableConsents } from '@/modules/consents/server/queries';
 import { GuardiansTab } from '@/modules/guardians/components/guardians-tab';
 import {
   createGuardianAction,
@@ -79,9 +79,10 @@ export default async function PatientProfilePage({
       </div>
     );
   }
-  const [guardians, consents] = await Promise.all([
+  const [guardians, consents, recordable] = await Promise.all([
     patient.data.isMinor === false ? null : listGuardiansForPatient(ctx, patientId),
     getPatientConsentStatus(ctx, patientId),
+    listRecordableConsents(ctx, patientId),
   ]);
   const readOnly = patient.data.status === 'archived' || patient.data.status === 'discharged';
   const guardianList = guardians?.ok ? guardians.data : [];
@@ -122,7 +123,8 @@ export default async function PatientProfilePage({
           patientId={patientId}
           records={consents.ok ? consents.data.records : []}
           activationMissing={consents.ok ? consents.data.activationMissing : []}
-          loadFailed={!consents.ok}
+          loadFailed={!consents.ok || !recordable.ok}
+          recordable={recordable.ok ? recordable.data : []}
           readOnly={readOnly}
           guardians={guardianList
             .filter((g) => g.status === 'active')

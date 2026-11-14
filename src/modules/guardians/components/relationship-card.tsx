@@ -319,6 +319,7 @@ export function RelationshipCard({
               title={t('invite.title', { name })}
               description={t('invite.description')}
               triggerLabel={t('invite.trigger')}
+              defaultEmail={rel.email}
               action={(v) => actions.invite({ patientGuardianId: rel.patientGuardianId, ...v })}
             />
           ) : (

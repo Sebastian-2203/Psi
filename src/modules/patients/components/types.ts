@@ -48,6 +48,7 @@ export type PatientDetailDto = PatientSummaryDto & {
   careTeam: Array<{
     careTeamMemberId: string;
     membershipId: string;
+    displayName: string | null;
     careRole: 'primary' | 'secondary' | 'supervisor';
     startsAt: string;
   }>;

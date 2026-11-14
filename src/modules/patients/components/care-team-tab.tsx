@@ -145,7 +145,10 @@ export function CareTeamTab({
           const mine = m.membershipId === myMembershipId;
           return (
             <li key={m.careTeamMemberId} className="flex flex-wrap items-center gap-3 py-3">
-              <span className="font-semibold">{mine ? t('you') : t('member')}</span>
+              <span className="font-semibold">
+                {m.displayName ?? t('unknownMember')}
+                {mine ? ` (${t('you')})` : ''}
+              </span>
               <Badge variant={m.careRole === 'primary' ? 'brand' : 'neutral'}>
                 {t(`roles.${m.careRole}`)}
               </Badge>

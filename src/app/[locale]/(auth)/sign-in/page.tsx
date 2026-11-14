@@ -8,6 +8,7 @@ import { SignInForm } from '@/modules/auth';
 import { safeNextPath } from '@/modules/auth/schemas';
 import { signInAction } from '@/modules/auth/server/actions';
 import { getVerifiedClaims } from '@/server/auth/claims';
+import { requiresMfa } from '@/server/auth/session';
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }) {
   const locale = await getRouteLocale(params);
@@ -29,7 +30,11 @@ export default async function SignInPage({
   const search = await searchParams;
   const next = safeNextPath(search.next) ?? undefined;
   // Already signed in: the professional guard decides (MFA step-up, access or denial).
-  if (await getVerifiedClaims()) redirect({ href: next ?? '/dashboard', locale });
+  const signedIn = await getVerifiedClaims();
+  if (signedIn) {
+    const landing = (await requiresMfa(signedIn)) ? '/dashboard' : '/portal';
+    redirect({ href: next ?? landing, locale });
+  }
 
   const t = await getTranslations('auth.signIn');
   const notice =

@@ -16,7 +16,7 @@ import { signConsentAction } from '@/modules/consents/server/actions';
 import { listSignableConsents } from '@/modules/consents/server/queries';
 import { PermissionList } from '@/modules/guardians/components/permission-list';
 import { getMyRelationships } from '@/modules/guardians/server/queries';
-import { getPrivacyViewAction } from '@/modules/patients/server/actions';
+import { getMyPortalMode } from '@/modules/patients/server/queries';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,9 +25,8 @@ const previewEnabled = isPortalPreviewEnabled();
 /**
  * Portal home. Patient: own signable consents. Guardian: ONLY what the explicit permissions of the
  * selected relationship allow (consents need `sign_consents`, activities need `view_assignments`).
- * Mode: `portal-child` for minors, `portal-adult` otherwise. The patient-facing read of the stored
- * portal mode does not exist yet, so a patient with an active guardian (necessarily a minor) gets
- * child mode; see the report. Without a session only the dev-only static preview renders.
+ * Mode: the patient's stored portal mode (`app.my_portal_mode`): child and adolescent render
+ * `portal-child`, adult `portal-adult`. Without a session only the dev-only static preview renders.
  */
 export default async function PortalHomePage({
   params,
@@ -119,15 +118,18 @@ export default async function PortalHomePage({
     }
   }
 
-  let guardianCount = 0;
-  if (!isGuardian) {
-    const privacy = await getPrivacyViewAction();
-    guardianCount = privacy.ok ? privacy.data.length : 0;
-  }
+  // Stored experience mode (patient herself / a guardian of an effective relationship); adolescents
+  // render the child design context. If the read fails we fall back to the adult context.
+  const storedMode =
+    !isGuardian || relationship
+      ? await getMyPortalMode(ctx, isGuardian ? relationship?.patientId : undefined)
+      : null;
   const mode: PortalMode =
-    !isGuardian && (guardianCount > 0 || (previewEnabled && query.mode === 'child'))
+    !isGuardian && previewEnabled && query.mode === 'child'
       ? 'child'
-      : 'adult';
+      : storedMode?.ok && storedMode.data !== 'adult'
+        ? 'child'
+        : 'adult';
 
   const canSign = isGuardian
     ? (relationship?.permissions.includes('sign_consents') ?? false)

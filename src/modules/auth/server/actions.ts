@@ -31,7 +31,7 @@ import {
   type VerifyEnrollmentInput,
   type VerifyMfaInput,
 } from '@/modules/auth/schemas';
-import { getVerifiedClaims } from '@/server/auth/claims';
+import { getVerifiedClaims, type VerifiedClaims } from '@/server/auth/claims';
 import { getPreferredLocale } from '@/modules/profiles/server/locale';
 import {
   acceptPortalInvitation,
@@ -63,6 +63,7 @@ import {
   signOutCurrentSession,
   type PostSignInStep,
 } from '@/server/auth/sign-in';
+import { requiresMfa } from '@/server/auth/session';
 import { createRequestAuthClient } from '@/server/auth/supabase';
 import { getAuthzContext, switchCapacity, type ActingAs } from '@/server/authz';
 import { fail, toAppError, toErrorPayload, toResult, type Result } from '@/server/errors';
@@ -90,11 +91,21 @@ function internal(
   return { ok: false, error: toErrorPayload(toAppError(error), requestId) };
 }
 
-function stepHref(step: PostSignInStep, next: string | undefined): string {
+/**
+ * Post-sign-in destination by capacity: anyone who needs aal2 (staff, platform admin) lands on
+ * the dashboard; a patient/guardian-only identity lands on the portal. `next` (validated by the
+ * schema) wins. The route guards still decide access; this only picks the landing page.
+ */
+async function stepHref(
+  step: PostSignInStep,
+  next: string | undefined,
+  claims?: VerifiedClaims,
+): Promise<string> {
   const query = next ? `?next=${encodeURIComponent(next)}` : '';
   if (step === 'mfa') return `/mfa${query}`;
   if (step === 'mfa_enroll') return '/mfa/enroll';
-  return next ?? '/dashboard';
+  if (next) return next;
+  return !claims || (await requiresMfa(claims)) ? '/dashboard' : '/portal';
 }
 
 async function currentLocale(): Promise<Locale> {
@@ -114,7 +125,7 @@ export async function signInAction(input: SignInInput): Promise<Result<never>> {
     const client = await createRequestAuthClient();
     const outcome = await signInWithPassword(client, parsed.data, meta);
     if (!outcome.ok) return toResult(outcome, meta.requestId);
-    href = stepHref(outcome.data.step, parsed.data.next);
+    href = await stepHref(outcome.data.step, parsed.data.next, outcome.data.claims);
   } catch (error) {
     return internal(error, meta.requestId);
   }
@@ -335,7 +346,7 @@ export async function acceptInvitationAction(input: AcceptInvitationInput): Prom
       meta,
     );
     if (!outcome.ok) return toResult(outcome, meta.requestId);
-    href = stepHref(outcome.data.step, undefined);
+    href = await stepHref(outcome.data.step, undefined);
   } catch (error) {
     return internal(error, meta.requestId);
   }

@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { consentBodySchema } from '@/modules/consents/schemas';
 
 export type Run = { text: string; bold: boolean; italic: boolean };
 export type EditorBlock =
@@ -102,6 +103,24 @@ function RunsEditor({
  * Structured editor for the restricted consent body (heading / paragraph / list; bold + italic
  * text runs). It only produces the schema's AST: there is no HTML, link or script input anywhere.
  */
+/** Stored body AST -> editor state (inverse of `toBody`). Unknown shapes yield one empty paragraph. */
+export function fromBody(body: unknown): EditorBlock[] {
+  const parsed = consentBodySchema.safeParse(body);
+  const fallback: EditorBlock[] = [{ type: 'paragraph', runs: [emptyRun()] }];
+  if (!parsed.success) return fallback;
+  const runs = (
+    children: { text: string; bold?: boolean | undefined; italic?: boolean | undefined }[],
+  ): Run[] =>
+    children.map((c) => ({ text: c.text, bold: c.bold === true, italic: c.italic === true }));
+  return parsed.data.blocks.map((b): EditorBlock =>
+    b.type === 'heading'
+      ? { type: 'heading', level: b.level, runs: runs(b.children) }
+      : b.type === 'paragraph'
+        ? { type: 'paragraph', runs: runs(b.children) }
+        : { type: 'list', ordered: b.ordered, items: b.items.map(runs) },
+  );
+}
+
 export function BodyEditor({
   blocks,
   onChange,

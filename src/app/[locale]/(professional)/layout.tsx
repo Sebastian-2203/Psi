@@ -26,7 +26,7 @@ export default async function ProfessionalLayout({
   setRequestLocale(locale);
   const access = await requireStaffAccess(locale);
   if (!access.ok && access.reason === 'no_access' && (await requirePortalAccess()).ok) {
-    // A patient/guardian who landed here (sign-in always ends on /dashboard) belongs in the portal.
+    // A patient/guardian who landed here (sign-in lands portal identities on /portal; this covers direct visits) belongs in the portal.
     redirect({ href: '/portal', locale });
   }
   if (!access.ok) return <AccessDenied reason={access.reason} signOutAction={signOutAction} />;

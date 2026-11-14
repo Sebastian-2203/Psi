@@ -93,8 +93,8 @@ function PortalNav({ mode, variant }: { mode: PortalMode; variant: 'top' | 'bott
 
 /**
  * Patient/guardian portal shell. `mode` selects the design context (`portal-adult` / `portal-child`).
- * TODO(patient-profile): `mode` must be derived server-side from the patient profile (adolescents
- * render `portal-child`); it is a prop for now and a dev-only query in the page.
+ * `mode` is derived server-side from the patient's stored experience mode (`getMyPortalMode`;
+ * adolescents render `portal-child`); only the dev-only static preview takes it from the query.
  */
 export function PortalShell({
   mode,

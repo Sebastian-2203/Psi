@@ -98,6 +98,7 @@ const BASE: Record<Permission, Record<Kind, boolean>> = {
   'consent.sign.guardian': NONE,
   'consent.withdraw.own': NONE,
   'portal.consent.read': NONE,
+  'portal.mode.read': NONE,
   'portal.privacy.read': NONE,
   'portal.guardian.read': NONE,
   'platform.org.read': PLATFORM,
@@ -259,6 +260,7 @@ describe('portal capacities (patient / guardian)', () => {
       'consent.sign.self',
       'consent.withdraw.own',
       'portal.consent.read',
+      'portal.mode.read',
       'portal.privacy.read',
     ] as const) {
       expect(decide('patient', p)).toBe('allow');
@@ -280,6 +282,7 @@ describe('portal capacities (patient / guardian)', () => {
       'consent.sign.guardian',
       'consent.withdraw.own',
       'portal.consent.read',
+      'portal.mode.read',
       'portal.guardian.read',
     ] as const) {
       expect(decide('guardian', p)).toBe('allow');

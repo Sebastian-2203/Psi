@@ -2,7 +2,7 @@
 begin;
 \ir _helpers.psql
 
-select plan(47);
+select plan(52);
 
 -- Portal users (FICTIONAL)
 select tests.create_user('c0000000-0000-4000-8000-000000000010', 'patient.x@example.test');
@@ -117,6 +117,21 @@ select is((select count(*) from public.guardians), 1::bigint, 'guardian reads on
 select is((select count(*) from public.patient_guardian_caveats), 0::bigint, 'guardian never reads caveats');
 select tests.as_user('c0000000-0000-4000-8000-000000000012', 'aal1');
 select is((select count(*) from public.patient_guardians), 1::bigint, 'guardian 2 sees only its own relationship');
+
+-- Portal mode read (gap fix): the guardian reads the minor's mode; the patient her own; others null.
+select is(app.my_portal_mode('c1000000-0000-4000-8000-000000000001', (select v from ids where k = 'adult')), null::public.portal_mode,
+  'my_portal_mode: guardian 2 gets null for a patient she does not guard');
+select tests.as_user('c0000000-0000-4000-8000-000000000011', 'aal1');
+select is(app.my_portal_mode('c1000000-0000-4000-8000-000000000001', (select v from ids where k = 'minor')), 'child'::public.portal_mode,
+  'my_portal_mode: active guardian reads the minor mode (age default child)');
+select is(app.my_portal_mode('c1000000-0000-4000-8000-000000000001', (select v from ids where k = 'adult')), null::public.portal_mode,
+  'my_portal_mode: guardian gets null for a patient she does not guard');
+select tests.as_user('c0000000-0000-4000-8000-000000000010', 'aal1');
+select is(app.my_portal_mode('c1000000-0000-4000-8000-000000000001', (select v from ids where k = 'adult')), 'adult'::public.portal_mode,
+  'my_portal_mode: patient reads own mode');
+select tests.as_user('d0000000-0000-4000-8000-000000000001');
+select is(app.my_portal_mode('c1000000-0000-4000-8000-000000000001', (select v from ids where k = 'adult')), null::public.portal_mode,
+  'my_portal_mode: cross-tenant user gets null');
 
 -- Revocation (GRD-05) and majority (F-08)
 select tests.as_user('c0000000-0000-4000-8000-000000000003');

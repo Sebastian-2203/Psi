@@ -145,7 +145,7 @@ export type AuthzContext = {
 | `clinical.assessment.*`, `clinical.diagnosis.*`, `clinical.plan.*` | psychologist on care team |
 | `clinical.document.read`, `clinical.document.upload`, `clinical.document.share` | psychologist on care team |
 | `consent.withdraw`, `consent.withdraw.own` | care team psychologist / signer (patient, guardian) — own record |
-| `patient.preferences.manage`, `portal.consent.read`, `portal.privacy.read`, `portal.guardian.read` | care team / patient or guardian (own data only) |
+| `patient.preferences.manage`, `portal.consent.read`, `portal.mode.read`, `portal.privacy.read`, `portal.guardian.read` | care team / patient or guardian (own data only) |
 | `consent.template.manage` | organization_owner (PRD CON-01 also lists psychologist — product decision, F-24) |
 | `consent.request`, `consent.record.read` | psychologist on care team |
 | `consent.sign.self` | patient (own) |

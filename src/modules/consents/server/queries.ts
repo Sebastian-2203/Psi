@@ -202,3 +202,173 @@ export async function listSignableConsents(
     })),
   );
 }
+
+// --- Owner: template library --------------------------------------------------------------
+
+export type ConsentVersionSummary = {
+  versionId: string;
+  versionNumber: number;
+  locale: 'es' | 'en';
+  title: string;
+  status: 'draft' | 'published' | 'retired';
+  publishedAt: string | null;
+  /** Hex sha256, fixed at publish time. */
+  bodyHash: string | null;
+  legalReviewReference: string | null;
+  /** Draft only (so the owner can keep editing); published text is read through the portal DTO. */
+  draftBody: unknown;
+};
+
+export type ConsentTemplateSummary = {
+  templateId: string;
+  key: string;
+  title: string;
+  consentType: string;
+  signerRequirement: string;
+  appliesToMinors: boolean;
+  appliesToAdults: boolean;
+  requiredForActivation: boolean;
+  status: 'draft' | 'published' | 'archived';
+  versions: ConsentVersionSummary[];
+};
+
+/** Owner-only (`consent.template.manage`). RLS: staff of the organization; the DAL scopes explicitly. */
+export async function listConsentTemplates(
+  ctx: AuthzContext,
+): Promise<Outcome<ConsentTemplateSummary[]>> {
+  const permitted = await requirePermission(ctx, 'consent.template.manage');
+  if (!permitted.ok) return permitted;
+  const { templates, versions } = await withUserTransaction(ctx.claims, async (tx) => {
+    const templates = await tx<
+      {
+        id: string;
+        key: string;
+        title: string;
+        consent_type: string;
+        signer_requirement: string;
+        applies_to_minors: boolean;
+        applies_to_adults: boolean;
+        required_for_activation: boolean;
+        status: ConsentTemplateSummary['status'];
+      }[]
+    >`select id, key, title, consent_type::text as consent_type, signer_requirement::text as signer_requirement,
+             applies_to_minors, applies_to_adults, required_for_activation, status::text as status
+      from public.consent_templates
+      where organization_id = ${ctx.organizationId}
+      order by created_at desc, key`;
+    const versions = await tx<
+      {
+        id: string;
+        consent_template_id: string;
+        version_number: number;
+        locale: 'es' | 'en';
+        title: string;
+        status: ConsentVersionSummary['status'];
+        published_at: Date | null;
+        body_hash: Buffer | null;
+        legal_review_reference: string | null;
+        draft_body: unknown;
+      }[]
+    >`select id, consent_template_id, version_number, locale, title, status::text as status, published_at,
+             body_hash, legal_review_reference,
+             case when status = 'draft' then body end as draft_body
+      from public.consent_template_versions
+      where organization_id = ${ctx.organizationId}
+      order by consent_template_id, locale, version_number desc`;
+    return { templates, versions };
+  });
+  return ok(
+    templates.map((t) => ({
+      templateId: t.id,
+      key: t.key,
+      title: t.title,
+      consentType: t.consent_type,
+      signerRequirement: t.signer_requirement,
+      appliesToMinors: t.applies_to_minors,
+      appliesToAdults: t.applies_to_adults,
+      requiredForActivation: t.required_for_activation,
+      status: t.status,
+      versions: versions
+        .filter((v) => v.consent_template_id === t.id)
+        .map((v) => ({
+          versionId: v.id,
+          versionNumber: v.version_number,
+          locale: v.locale,
+          title: v.title,
+          status: v.status,
+          publishedAt: v.published_at ? v.published_at.toISOString() : null,
+          bodyHash: v.body_hash ? Buffer.from(v.body_hash).toString('hex') : null,
+          legalReviewReference: v.legal_review_reference,
+          draftBody: v.draft_body ?? null,
+        })),
+    })),
+  );
+}
+
+// --- Care team: documents a decision can be recorded for ---------------------------------
+
+export type RecordableConsent = {
+  templateId: string;
+  versionId: string;
+  title: string;
+  consentType: string;
+  signerRequirement: string;
+  requiredForActivation: boolean;
+  locale: 'es' | 'en';
+};
+
+/**
+ * Published versions the care team may record a verbal decision for, independent of existing
+ * records (so a new patient can be activated). One version per template (caller locale, else
+ * `es`), filtered by the patient's audience. The DB re-checks everything in `app.record_consent`.
+ */
+export async function listRecordableConsents(
+  ctx: AuthzContext,
+  patientId: string,
+): Promise<Outcome<RecordableConsent[]>> {
+  const permitted = await requirePermission(ctx, 'consent.request');
+  if (!permitted.ok) return permitted;
+  const result = await withUserTransaction(ctx.claims, async (tx) => {
+    const [visible] = await tx`
+      select 1 from public.patients where organization_id = ${ctx.organizationId} and id = ${patientId}`;
+    if (!visible) return null;
+    return tx<
+      {
+        template_id: string;
+        version_id: string;
+        title: string;
+        consent_type: string;
+        signer_requirement: string;
+        required: boolean;
+        locale: 'es' | 'en';
+      }[]
+    >`with minor as (select app.patient_is_minor(${ctx.organizationId}::uuid, ${patientId}::uuid) as v)
+      select * from (
+        select distinct on (t.id)
+               t.id as template_id, v.id as version_id, v.title, t.consent_type::text as consent_type,
+               t.signer_requirement::text as signer_requirement, t.required_for_activation as required, v.locale
+        from public.consent_templates t
+        join public.consent_template_versions v
+          on v.organization_id = t.organization_id and v.consent_template_id = t.id and v.status = 'published'
+        cross join minor
+        where t.organization_id = ${ctx.organizationId} and t.status = 'published'
+          and minor.v is not null
+          and ((minor.v and t.applies_to_minors) or (not minor.v and t.applies_to_adults))
+          and v.locale in (${ctx.locale}, 'es')
+        order by t.id, (v.locale = ${ctx.locale}) desc, v.version_number desc
+      ) x
+      order by required desc, title`;
+  });
+  if (!result) return failure('NOT_FOUND');
+  return ok(
+    result.map((r) => ({
+      templateId: r.template_id,
+      versionId: r.version_id,
+      title: r.title,
+      consentType: r.consent_type,
+      signerRequirement: r.signer_requirement,
+      requiredForActivation: r.required,
+      locale: r.locale,
+    })),
+  );
+}

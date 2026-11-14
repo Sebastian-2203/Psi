@@ -17,6 +17,8 @@ export type GuardianRelationship = {
   guardianId: string;
   firstName: string;
   lastName: string;
+  /** Care team only: prefills the portal invitation form. */
+  email: string | null;
   relationship: string;
   status: RelationshipStatus;
   suspensionReason: string | null;
@@ -46,6 +48,7 @@ export async function listGuardiansForPatient(
         guardian_id: string;
         first_name: string;
         last_name: string;
+        email: string | null;
         relationship: string;
         status: RelationshipStatus;
         suspension_reason: string | null;
@@ -60,7 +63,7 @@ export async function listGuardiansForPatient(
         caveat: string | null;
         restrict_schedule: boolean | null;
       }[]
-    >`select pg.id, g.id as guardian_id, g.first_name, g.last_name, pg.relationship::text as relationship,
+    >`select pg.id, g.id as guardian_id, g.first_name, g.last_name, g.email::text as email, pg.relationship::text as relationship,
              pg.status::text as status, pg.suspension_reason::text as suspension_reason,
              pg.is_legal_representative, pg.legal_basis::text as legal_basis,
              (pg.legal_basis_verified_at is not null) as legal_verified, pg.is_primary_contact,
@@ -84,6 +87,7 @@ export async function listGuardiansForPatient(
       guardianId: r.guardian_id,
       firstName: r.first_name,
       lastName: r.last_name,
+      email: r.email,
       relationship: r.relationship,
       status: r.status,
       suspensionReason: r.suspension_reason,

@@ -501,7 +501,8 @@
       "role": "Rol",
       "reason": "Motivo",
       "reasonHint": "Obligatorio (mínimo 10 caracteres) si ya hay una persona principal.",
-      "assign": "Sumarme"
+      "assign": "Sumarme",
+      "unknownMember": "Integrante del equipo"
     },
     "preferences": {
       "title": "Preferencias del portal",
@@ -778,7 +779,9 @@
       "declined": "No acepta",
       "decidedAt": "Fecha y hora de la decisión",
       "decidedAtHint": "Cuándo la dijo, no cuándo la registras.",
-      "confirm": "Registrar"
+      "confirm": "Registrar",
+      "requiredSuffix": "(obligatorio)",
+      "noDocuments": "No hay documentos publicados para este paciente. Publica una plantilla en Configuración."
     },
     "sign": {
       "pending": "Por firmar",
@@ -826,7 +829,6 @@
         "guardian": "La persona responsable",
         "patient_and_guardian": "Paciente y persona responsable"
       },
-      "sessionNote": "Aquí aparecen las plantillas que crees en esta sesión. Por ahora no hay un listado de las plantillas anteriores.",
       "published": "Publicada",
       "draft": "Borrador",
       "versionDescription": "Redacta el texto de una versión por idioma.",
@@ -846,7 +848,14 @@
       "publishAckOption": "Entiendo que el texto no se podrá cambiar",
       "publishedBody": "Versión publicada. Huella del texto:",
       "saveBeforePublish": "Guarda los cambios antes de publicar.",
-      "draftFirst": "Guarda el borrador para poder publicar."
+      "draftFirst": "Guarda el borrador para poder publicar.",
+      "emptyList": "Todavía no hay plantillas. Crea la primera arriba.",
+      "versionLine": "Versión {number}: {title}",
+      "versionStatus": {
+        "draft": "Borrador",
+        "published": "Publicada",
+        "retired": "Retirada"
+      }
     },
     "editor": {
       "invalidBody": "El texto no es válido: revisa que haya al menos un bloque con texto.",

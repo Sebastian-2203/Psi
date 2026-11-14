@@ -9,6 +9,8 @@ import {
   publishConsentVersionAction,
   saveConsentVersionDraftAction,
 } from '@/modules/consents/server/actions';
+import { listConsentTemplates } from '@/modules/consents/server/queries';
+import { ErrorState } from '@/components/shared/error-state';
 import { evaluatePermission } from '@/server/authz';
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }) {
@@ -29,6 +31,7 @@ export default async function ConsentTemplatesPage({
   if (!ctx) return null;
   const t = await getTranslations('consents.templates');
   const allowed = evaluatePermission(ctx, 'consent.template.manage').allowed;
+  const templates = allowed ? await listConsentTemplates(ctx) : null;
   return (
     <div className="flex flex-col gap-6">
       <div>
@@ -42,13 +45,18 @@ export default async function ConsentTemplatesPage({
         <p className="mt-1 text-muted-foreground">{t('pageDescription')}</p>
       </div>
       {allowed ? (
-        <TemplateManager
-          actions={{
-            createTemplate: createConsentTemplateAction,
-            saveDraft: saveConsentVersionDraftAction,
-            publish: publishConsentVersionAction,
-          }}
-        />
+        templates?.ok ? (
+          <TemplateManager
+            templates={templates.data}
+            actions={{
+              createTemplate: createConsentTemplateAction,
+              saveDraft: saveConsentVersionDraftAction,
+              publish: publishConsentVersionAction,
+            }}
+          />
+        ) : (
+          <ErrorState />
+        )
       ) : (
         <Card className="max-w-2xl">
           <p className="text-muted-foreground">{t('ownerOnly')}</p>

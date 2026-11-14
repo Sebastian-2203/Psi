@@ -9,6 +9,7 @@ export type GuardianRelationshipDto = {
   guardianId: string;
   firstName: string;
   lastName: string;
+  email: string | null;
   relationship: string;
   status: RelationshipStatus;
   suspensionReason: string | null;

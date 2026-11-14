@@ -1,7 +1,7 @@
 'use client';
 
 import { CheckCircle2, FileText, Save, Send } from 'lucide-react';
-import { useLocale, useTranslations } from 'next-intl';
+import { useFormatter, useLocale, useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import {
@@ -18,6 +18,7 @@ import { Alert } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useRouter } from '@/i18n/navigation';
 import type { ActionError } from '@/modules/auth/schemas/result';
 import {
   CONSENT_TYPES,
@@ -26,9 +27,9 @@ import {
   createConsentTemplateSchema,
   type CreateConsentTemplateInput,
 } from '@/modules/consents/schemas';
-import { BodyEditor, emptyRun, toBody, type EditorBlock } from './body-editor';
+import { BodyEditor, emptyRun, fromBody, toBody, type EditorBlock } from './body-editor';
 import { ConsentBodyView } from './consent-body';
-import type { TemplateActions } from './types';
+import type { ConsentTemplateDto, ConsentVersionDto, TemplateActions } from './types';
 
 type TemplateValues = {
   key: string;
@@ -39,7 +40,13 @@ type TemplateValues = {
   appliesToAdults: boolean;
   requiredForActivation: boolean;
 };
-type CreatedTemplate = { templateId: string; key: string; title: string };
+type CardTemplate = {
+  templateId: string;
+  key: string;
+  title: string;
+  status: ConsentTemplateDto['status'];
+  versions: ConsentVersionDto[];
+};
 
 const FIELDS = [
   'key',
@@ -55,7 +62,7 @@ function NewTemplateForm({
   onCreated,
 }: {
   action: TemplateActions['createTemplate'];
-  onCreated: (t: CreatedTemplate) => void;
+  onCreated: (t: CardTemplate) => void;
 }) {
   const t = useTranslations('consents.templates');
   const v = useValidationMessage();
@@ -78,7 +85,13 @@ function NewTemplateForm({
     setServerError(null);
     const result = await action(values as CreateConsentTemplateInput);
     if (result.ok) {
-      onCreated({ templateId: result.data.templateId, key: values.key, title: values.title });
+      onCreated({
+        templateId: result.data.templateId,
+        key: values.key,
+        title: values.title,
+        status: 'draft',
+        versions: [],
+      });
       form.reset();
     } else if (!applyFieldErrors(result.error, form.setError, FIELDS)) setServerError(result.error);
   });
@@ -175,23 +188,43 @@ function VersionEditor({
   template,
   actions,
 }: {
-  template: CreatedTemplate;
+  template: CardTemplate;
   actions: Pick<TemplateActions, 'saveDraft' | 'publish'>;
 }) {
   const t = useTranslations('consents.templates');
   const te = useTranslations('consents.editor');
   const v = useValidationMessage();
+  const router = useRouter();
+  const format = useFormatter();
   const uiLocale = useLocale() === 'en' ? 'en' : 'es';
+  const draftFor = (l: 'es' | 'en') =>
+    template.versions.find((x) => x.locale === l && x.status === 'draft');
+  const initial = draftFor(uiLocale);
   const [locale, setLocale] = useState<'es' | 'en'>(uiLocale);
-  const [title, setTitle] = useState(template.title);
-  const [review, setReview] = useState('');
-  const [blocks, setBlocks] = useState<EditorBlock[]>([{ type: 'paragraph', runs: [emptyRun()] }]);
-  const [versionId, setVersionId] = useState<string | null>(null);
+  const [title, setTitle] = useState(initial?.title ?? template.title);
+  const [review, setReview] = useState(initial?.legalReviewReference ?? '');
+  const [blocks, setBlocks] = useState<EditorBlock[]>(
+    initial ? fromBody(initial.draftBody) : [{ type: 'paragraph', runs: [emptyRun()] }],
+  );
+  const [versionId, setVersionId] = useState<string | null>(initial?.versionId ?? null);
   const [dirty, setDirty] = useState(false);
   const [published, setPublished] = useState<{ bodyHash: string } | null>(null);
   const [error, setError] = useState<ActionError | null>(null);
   const [localError, setLocalError] = useState<string>();
   const [busy, setBusy] = useState(false);
+
+  /** Switching language loads that language's draft (if any) or starts blank. */
+  function changeLocale(next: 'es' | 'en') {
+    const d = draftFor(next);
+    setLocale(next);
+    setTitle(d?.title ?? template.title);
+    setReview(d?.legalReviewReference ?? '');
+    setBlocks(d ? fromBody(d.draftBody) : [{ type: 'paragraph', runs: [emptyRun()] }]);
+    setVersionId(d?.versionId ?? null);
+    setDirty(false);
+    setError(null);
+    setLocalError(undefined);
+  }
 
   const body = toBody(blocks);
   const parsed = consentBodySchema.safeParse(body);
@@ -235,7 +268,7 @@ function VersionEditor({
         <div className="flex flex-wrap items-center gap-2">
           <CardTitle>{template.title}</CardTitle>
           <Badge variant="outline">{template.key}</Badge>
-          {published ? (
+          {published || template.status === 'published' ? (
             <Badge variant="success">
               <CheckCircle2 aria-hidden />
               {t('published')}
@@ -247,6 +280,24 @@ function VersionEditor({
         <CardDescription>{t('versionDescription')}</CardDescription>
       </CardHeader>
       <Alert variant="warning">{t('legalNotice')}</Alert>
+      {template.versions.length > 0 ? (
+        <ul className="flex flex-col gap-1 text-sm" data-testid={`versions-${template.key}`}>
+          {template.versions.map((x) => (
+            <li key={x.versionId} className="flex flex-wrap items-center gap-2">
+              <Badge variant="outline">{x.locale.toUpperCase()}</Badge>
+              <span>{t('versionLine', { number: x.versionNumber, title: x.title })}</span>
+              <Badge variant={x.status === 'published' ? 'success' : 'neutral'}>
+                {t(`versionStatus.${x.status}`)}
+              </Badge>
+              {x.publishedAt ? (
+                <span className="text-muted-foreground">
+                  {format.dateTime(new Date(x.publishedAt), { dateStyle: 'medium' })}
+                </span>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+      ) : null}
       {published ? (
         <Alert variant="success">
           <p>{t('publishedBody')}</p>
@@ -259,7 +310,7 @@ function VersionEditor({
           <SelectField
             label={t('locale')}
             value={locale}
-            onChange={(e) => edit(setLocale)(e.target.value as 'es' | 'en')}
+            onChange={(e) => changeLocale(e.target.value as 'es' | 'en')}
           >
             <option value="es">Español</option>
             <option value="en">English</option>
@@ -314,6 +365,7 @@ function VersionEditor({
                   if (result.ok) setPublished({ bodyHash: result.data.bodyHash });
                   return result;
                 }}
+                onDone={() => router.refresh()}
               />
             ) : (
               <p className="inline-flex items-center text-sm text-muted-foreground">
@@ -327,28 +379,31 @@ function VersionEditor({
   );
 }
 
-/**
- * Consent templates (owner). Note: the server exposes no template list yet, so the screen works
- * on templates created in this session (see report). Published versions are immutable.
- */
-export function TemplateManager({ actions }: { actions: TemplateActions }) {
+/** Consent templates (owner): existing templates (server list) plus those created in this session. */
+export function TemplateManager({
+  actions,
+  templates,
+}: {
+  actions: TemplateActions;
+  templates: ConsentTemplateDto[];
+}) {
   const t = useTranslations('consents.templates');
-  const [created, setCreated] = useState<CreatedTemplate[]>([]);
+  const [created, setCreated] = useState<CardTemplate[]>([]);
+  const known = new Set(templates.map((x) => x.templateId));
+  const all: CardTemplate[] = [...created.filter((c) => !known.has(c.templateId)), ...templates];
   return (
     <div className="flex flex-col gap-6">
       <NewTemplateForm
         action={actions.createTemplate}
         onCreated={(x) => setCreated((c) => [x, ...c])}
       />
-      {created.length === 0 ? (
+      {all.length === 0 ? (
         <p className="flex items-center gap-2 text-sm text-muted-foreground">
           <FileText className="size-4" aria-hidden />
-          {t('sessionNote')}
+          {t('emptyList')}
         </p>
       ) : (
-        created.map((tpl) => (
-          <VersionEditor key={tpl.templateId} template={tpl} actions={actions} />
-        ))
+        all.map((tpl) => <VersionEditor key={tpl.templateId} template={tpl} actions={actions} />)
       )}
     </div>
   );

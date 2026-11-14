@@ -37,6 +37,41 @@ export type SignableConsentDto = {
   myConsentRecordId: string | null;
 };
 
+export type ConsentVersionDto = {
+  versionId: string;
+  versionNumber: number;
+  locale: 'es' | 'en';
+  title: string;
+  status: 'draft' | 'published' | 'retired';
+  publishedAt: string | null;
+  bodyHash: string | null;
+  legalReviewReference: string | null;
+  draftBody: unknown;
+};
+
+export type ConsentTemplateDto = {
+  templateId: string;
+  key: string;
+  title: string;
+  consentType: string;
+  signerRequirement: string;
+  appliesToMinors: boolean;
+  appliesToAdults: boolean;
+  requiredForActivation: boolean;
+  status: 'draft' | 'published' | 'archived';
+  versions: ConsentVersionDto[];
+};
+
+export type RecordableConsentDto = {
+  templateId: string;
+  versionId: string;
+  title: string;
+  consentType: string;
+  signerRequirement: string;
+  requiredForActivation: boolean;
+  locale: 'es' | 'en';
+};
+
 export type ConsentActions = {
   record: A<{
     patientId: string;

@@ -20,7 +20,7 @@ import {
 } from '@/components/ui/dialog';
 import { useRouter } from '@/i18n/navigation';
 import type { ActionError } from '@/modules/auth/schemas/result';
-import type { ConsentActions, ConsentStatusEntryDto } from './types';
+import type { ConsentActions, ConsentStatusEntryDto, RecordableConsentDto } from './types';
 
 const STATUS_VARIANT = { accepted: 'success', declined: 'neutral', withdrawn: 'warning' } as const;
 
@@ -33,7 +33,7 @@ function RecordDialog({
   action,
 }: {
   patientId: string;
-  options: { versionId: string; title: string }[];
+  options: RecordableConsentDto[];
   guardians: GuardianOption[];
   action: ConsentActions['record'];
 }) {
@@ -90,6 +90,7 @@ function RecordDialog({
           <DialogDescription>{t('description')}</DialogDescription>
         </DialogHeader>
         <FormError error={error} />
+        {options.length === 0 ? <Alert variant="info">{t('noDocuments')}</Alert> : null}
         <SelectField
           label={t('document')}
           value={versionId}
@@ -97,7 +98,7 @@ function RecordDialog({
         >
           {options.map((o) => (
             <option key={o.versionId} value={o.versionId}>
-              {o.title}
+              {o.requiredForActivation ? `${o.title} ${t('requiredSuffix')}` : o.title}
             </option>
           ))}
         </SelectField>
@@ -162,6 +163,7 @@ export function PatientConsentsTab({
   records,
   activationMissing,
   guardians,
+  recordable,
   actions,
   readOnly,
   loadFailed,
@@ -170,6 +172,7 @@ export function PatientConsentsTab({
   records: ConsentStatusEntryDto[];
   activationMissing: string[];
   guardians: GuardianOption[];
+  recordable: RecordableConsentDto[];
   actions: ConsentActions;
   readOnly: boolean;
   loadFailed?: boolean;
@@ -177,11 +180,6 @@ export function PatientConsentsTab({
   const t = useTranslations('consents');
   const format = useFormatter();
   const router = useRouter();
-  const options = [
-    ...new Map(
-      records.map((r) => [r.versionId, { versionId: r.versionId, title: r.title }]),
-    ).values(),
-  ];
 
   return (
     <div className="flex flex-col gap-4">
@@ -193,7 +191,7 @@ export function PatientConsentsTab({
         {!readOnly ? (
           <RecordDialog
             patientId={patientId}
-            options={options}
+            options={recordable}
             guardians={guardians}
             action={actions.record}
           />

@@ -180,6 +180,10 @@ export const PERMISSIONS = {
     ...portal(['patient', 'guardian']),
     mirrorsPolicy: 'consent_template_versions_select_portal + consent_records_select_*',
   },
+  'portal.mode.read': {
+    ...portal(['patient', 'guardian']),
+    mirrorsPolicy: 'function app.my_portal_mode (self or active guardian)',
+  },
   'portal.privacy.read': {
     ...portal(['patient']),
     mirrorsPolicy: 'function app.patient_privacy_view (app.is_patient_self)',

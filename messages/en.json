@@ -501,7 +501,8 @@
       "role": "Role",
       "reason": "Reason",
       "reasonHint": "Required (at least 10 characters) if there is already a primary clinician.",
-      "assign": "Join"
+      "assign": "Join",
+      "unknownMember": "Team member"
     },
     "preferences": {
       "title": "Portal preferences",
@@ -778,7 +779,9 @@
       "declined": "Declines",
       "decidedAt": "Date and time of the decision",
       "decidedAtHint": "When it was said, not when you record it.",
-      "confirm": "Record"
+      "confirm": "Record",
+      "requiredSuffix": "(required)",
+      "noDocuments": "There are no published documents for this patient. Publish a template in Settings."
     },
     "sign": {
       "pending": "To sign",
@@ -826,7 +829,6 @@
         "guardian": "The guardian",
         "patient_and_guardian": "Patient and guardian"
       },
-      "sessionNote": "Templates you create in this session appear here. There is no list of earlier templates yet.",
       "published": "Published",
       "draft": "Draft",
       "versionDescription": "Write the text of one version per language.",
@@ -846,7 +848,14 @@
       "publishAckOption": "I understand the text cannot be changed",
       "publishedBody": "Version published. Text fingerprint:",
       "saveBeforePublish": "Save your changes before publishing.",
-      "draftFirst": "Save the draft to be able to publish."
+      "draftFirst": "Save the draft to be able to publish.",
+      "emptyList": "There are no templates yet. Create the first one above.",
+      "versionLine": "Version {number}: {title}",
+      "versionStatus": {
+        "draft": "Draft",
+        "published": "Published",
+        "retired": "Retired"
+      }
     },
     "editor": {
       "invalidBody": "The text is not valid: make sure there is at least one block with text.",

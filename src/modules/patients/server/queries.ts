@@ -141,6 +141,8 @@ export type PatientDetail = PatientSummary & {
   careTeam: Array<{
     careTeamMemberId: string;
     membershipId: string;
+    /** Staff display name (app.org_member_directory); null when the membership is no longer listed. */
+    displayName: string | null;
     careRole: 'primary' | 'secondary' | 'supervisor';
     startsAt: string;
   }>;
@@ -204,12 +206,15 @@ export async function getPatient(
       {
         id: string;
         membership_id: string;
+        display_name: string | null;
         care_role: 'primary' | 'secondary' | 'supervisor';
         starts_at: Date;
       }[]
-    >`select id, membership_id, care_role::text as care_role, starts_at from public.care_team_members
-      where organization_id = ${ctx.organizationId} and patient_id = ${patientId} and ends_at is null
-      order by starts_at`;
+    >`select c.id, c.membership_id, d.display_name, c.care_role::text as care_role, c.starts_at
+      from public.care_team_members c
+      left join app.org_member_directory(${ctx.organizationId}::uuid) d on d.membership_id = c.membership_id
+      where c.organization_id = ${ctx.organizationId} and c.patient_id = ${patientId} and c.ends_at is null
+      order by c.starts_at`;
     const [missing] = await tx<{ m: string[] | null }[]>`
       select app.patient_activation_missing(${ctx.organizationId}::uuid, ${patientId}::uuid) as m`;
     await recordAudit(
@@ -261,6 +266,7 @@ export async function getPatient(
     careTeam: team.map((t) => ({
       careTeamMemberId: t.id,
       membershipId: t.membership_id,
+      displayName: t.display_name?.trim() ? t.display_name : null,
       careRole: t.care_role,
       startsAt: t.starts_at.toISOString(),
     })),
@@ -303,4 +309,29 @@ export async function getPrivacyView(ctx: AuthzContext): Promise<Outcome<Privacy
       permissions: r.permissions,
     })),
   );
+}
+
+export type PortalMode = 'child' | 'adolescent' | 'adult';
+
+/**
+ * Portal experience mode of the patient the caller acts for (patient: herself; guardian: the
+ * given patient, which must be an ACTIVE relationship). Stored mode, else the age default;
+ * enforced by `app.my_portal_mode` (null for anyone else -> NOT_FOUND).
+ */
+export async function getMyPortalMode(
+  ctx: AuthzContext,
+  patientId?: string,
+): Promise<Outcome<PortalMode>> {
+  const permitted = await requirePermission(ctx, 'portal.mode.read');
+  if (!permitted.ok) return permitted;
+  const target = ctx.actingAs === 'patient' ? ctx.patientId : patientId;
+  if (!target || (ctx.actingAs === 'patient' && patientId && patientId !== target)) {
+    return failure('NOT_FOUND');
+  }
+  const [row] = await withUserTransaction(
+    ctx.claims,
+    (tx) => tx<{ mode: PortalMode | null }[]>`
+      select app.my_portal_mode(${ctx.organizationId}::uuid, ${target}::uuid)::text as mode`,
+  );
+  return row?.mode ? ok(row.mode) : failure('NOT_FOUND');
 }
