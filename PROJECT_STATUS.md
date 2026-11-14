@@ -1,6 +1,6 @@
 # Project Status
 
-**Current phase:** 2 — Patient management (authorized 2026-11-09).
+**Current phase:** 2 — Patient management — **complete (2026-11-14), awaiting client approval for Phase 3.**
 **Branch:** `claude/vibrant-dijkstra-gsnsfx`.
 
 ## Done

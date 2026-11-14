@@ -40,12 +40,12 @@ flowchart LR
 Phases 3 and 4 **run in parallel** once Phase 2's patient and care-team model is merged. The block
 schema and renderers (4a) depend only on Phase 1, so they can start early.
 
-### Phase 0 — Foundation ✅ (this delivery)
+### Phase 0 — Foundation ✅
 Agents, brand research (provisional), design system proposal, requirements, journeys, architecture,
 database model, API contracts, ADRs, security review, roadmap.
 **Exit:** client approves the foundation and answers the blocking questions in §4.
 
-### Phase 1 — Core infrastructure
+### Phase 1 — Core infrastructure ✅ (2026-11-09)
 | Workstream | Owner | Depends on | Parallel with |
 |---|---|---|---|
 | 1.1 Repo scaffold: Next.js, TS strict, ESLint, Prettier, Vitest, Playwright, CI skeleton, env validation | architect → frontend/backend | none | 1.6 |
@@ -61,7 +61,7 @@ database model, API contracts, ADRs, security review, roadmap.
 **Exit gate:** cross-tenant isolation tests green, MFA enforced for staff, security approval for
 1.3, 1.4, 1.7 and 1.8, CI green from a clean clone.
 
-### Phase 2 — Patient management
+### Phase 2 — Patient management ✅ (2026-11-14)
 Patients (adult/minor), care team, guardians and `patient_guardian_permissions`, invitations for
 patients/guardians, consent templates and versions, consent records with evidence, minor assent,
 revocation.
